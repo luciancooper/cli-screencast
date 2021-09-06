@@ -1,0 +1,97 @@
+{
+  "name": "cli-screencast",
+  "version": "1.0.0",
+  "description": "Render captured terminal sessions to animated svg",
+  "keywords": [
+    "tty",
+    "term",
+    "terminal",
+    "pty",
+    "cli",
+    "console",
+    "ansi",
+    "shell",
+    "bash",
+    "zsh",
+    "stdout",
+    "stderr",
+    "render",
+    "generate",
+    "capture",
+    "record",
+    "svg",
+    "screencast",
+    "screenshot"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "build": "rm -rf lib && tsc -p tsconfig.build.json",
+    "clean": "rm -rf lib && rm -rf coverage",
+    "test": "tsc --noEmit && jest",
+    "lint": "eslint .",
+    "prepublishOnly": "yarn test && yarn build"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "author": "Lucian Cooper <cooperlucian@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luciancooper/cli-screencast.git"
+  },
+  "commitlint": {
+    "extends": [
+      "@lcooper"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
+  "lint-staged": {
+    "*.{js,ts}": "eslint"
+  },
+  "dependencies": {
+    "@types/node": "*",
+    "ansi-regex": "^5.0.0",
+    "node-pty": "^0.10.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "signal-exit": "^3.0.3",
+    "tty-strings": "^1.1.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^13.1.0",
+    "@lcooper/commitlint-config": "^1.1.0",
+    "@lcooper/eslint-config-jest": "^1.1.2",
+    "@lcooper/eslint-config-typescript-react": "^1.1.4",
+    "@types/jest": "^27.0.1",
+    "@types/react": "^17.0.19",
+    "@types/react-dom": "^17.0.9",
+    "@types/react-test-renderer": "^17.0.1",
+    "@types/signal-exit": "^3.0.1",
+    "@typescript-eslint/eslint-plugin": "^4.29.2",
+    "@typescript-eslint/parser": "^4.29.2",
+    "eslint": "^7.32.0",
+    "eslint-import-resolver-typescript": "^2.4.0",
+    "eslint-plugin-import": "^2.24.1",
+    "eslint-plugin-jest": "^24.4.0",
+    "eslint-plugin-react": "^7.24.0",
+    "eslint-plugin-react-hooks": "^4.2.0",
+    "eslint-plugin-tsdoc": "^0.2.14",
+    "husky": "^4.3.8",
+    "jest": "^27.0.6",
+    "lint-staged": "^11.1.2",
+    "react-test-renderer": "^17.0.2",
+    "ts-jest": "^27.0.5",
+    "typescript": "^4.3.5"
+  }
+}
