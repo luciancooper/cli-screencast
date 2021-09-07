@@ -1,5 +1,7 @@
 import * as pty from 'node-pty';
 import { constants } from 'os';
+import path from 'path';
+import which from 'which';
 import onExit from 'signal-exit';
 import type { Dimensions } from './types';
 import RecordingSource from './source';
@@ -11,6 +13,7 @@ type Env = Record<string, string>;
 
 export interface SpawnContext {
     command: string
+    file: string
     cwd: string
     env: Env
 }
@@ -68,6 +71,48 @@ export const colorEnv = {
     FORCE_COLOR: '3',
 };
 
+/**
+ * Resolve the absolute path of the command to run - implementation draws heavily from `cross-spawn`:
+ * {@link https://github.com/moxystudio/node-cross-spawn/blob/master/lib/util/resolveCommand.js}
+ * @param command - command to run
+ * @param cwd - directory to run command in
+ * @returns resolved command file path
+ */
+function resolveCommand(command: string, cwd: string) {
+    // get the current working directory
+    const thisCwd = process.cwd();
+    // change to specified cwd if necessary
+    if (cwd !== thisCwd) {
+        try {
+            process.chdir(cwd);
+        } catch {}
+    }
+    // extract PATH from env
+    const PATH = process.env[
+        process.platform !== 'win32' ? 'PATH'
+            : Object.keys(process.env).reverse().find((key) => key.toUpperCase() === 'PATH') ?? 'Path'
+    ];
+    // resolve command file path with `which`
+    let resolved;
+    try {
+        resolved = which.sync(command, { path: PATH });
+    } catch {
+        try {
+            // try resolving without path extension
+            resolved = which.sync(command, { path: PATH, pathExt: path.delimiter });
+        } catch {}
+    }
+    // change cwd back to original cwd if necessary
+    if (cwd !== thisCwd) {
+        try {
+            process.chdir(thisCwd);
+        } catch {}
+    }
+    // ensure that an absolute path is returned
+    if (resolved) resolved = path.resolve((thisCwd !== cwd) ? cwd : '', resolved);
+    return resolved ?? command;
+}
+
 export default function readableSpawn(command: string, args: string[], {
     columns,
     rows,
@@ -93,8 +138,10 @@ export default function readableSpawn(command: string, args: string[], {
     const stream = new RecordingSource(),
         // resolve env
         env = { ...(extendEnv ? { ...process.env, ...envOption } : { ...envOption }), ...colorEnv },
+        // resolve command
+        file = resolveCommand(command, cwd),
         // create pty child process
-        spawned = pty.spawn(command, args, {
+        spawned = pty.spawn(file, args, {
             cols: columns,
             rows,
             name: term,
@@ -107,6 +154,7 @@ export default function readableSpawn(command: string, args: string[], {
         command: [command, ...args.map((arg) => (
             (!arg.length || /^[\w.-]+$/.test(arg)) ? arg : `"${arg.replace(/"/g, '\\"')}"`
         ))].join(' '),
+        file,
         cwd,
         env,
     });
