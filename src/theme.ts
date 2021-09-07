@@ -1,6 +1,8 @@
 import type { Entries, RGB, Palette } from './types';
 import { toHex } from './color';
 
+type CursorType = 'beam' | 'block' | 'underline';
+
 export interface Theme<Color = RGB | string> {
     // colors
     black: Color
@@ -23,7 +25,11 @@ export interface Theme<Color = RGB | string> {
     background: Color
     // other
     text: Color
-    // other style
+    // cursor
+    cursorColor: Color
+    cursorType: CursorType
+    cursorBlink: boolean
+    // ansi style
     dim: number
     // font
     fontSize: number
@@ -49,12 +55,16 @@ export const defaultTheme: Theme = {
     brightMagenta: [215, 106, 255],
     brightCyan: [154, 237, 254],
     brightWhite: [241, 241, 240],
-    // other style
-    dim: 0.5,
     // window
     background: [40, 42, 54],
     // other
     text: [185, 192, 203],
+    // cursor
+    cursorColor: [215, 213, 201],
+    cursorType: 'beam',
+    cursorBlink: false,
+    // ansi style
+    dim: 0.5,
     // font
     fontSize: 1.67,
     lineHeight: 1.3,

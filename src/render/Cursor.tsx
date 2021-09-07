@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import type { FunctionComponent, SVGProps } from 'react';
 import type { CursorRecordingFrame } from '../types';
-import { invert } from '../color';
+import { toHex } from '../color';
 import Context from './Context';
 import { Animation, TransformAnimation, KeyTime } from './Animation';
 
@@ -17,16 +17,19 @@ export const Cursor: FunctionComponent<CursorProps> = ({
     ...props
 }: CursorProps) => {
     const theme = useContext(Context),
-        displayHeight = theme.fontSize * theme.lineHeight;
+        dy = theme.fontSize * theme.lineHeight,
+        fill = toHex(theme.cursorColor),
+        w = theme.cursorType === 'beam' ? 0.15 : 1,
+        [y, h] = theme.cursorType === 'underline' ? [line * dy + dy * 0.9, dy * 0.1] : [line * dy, dy];
     return (
-        <rect
-            x={column}
-            y={line * displayHeight}
-            width={0.15}
-            height={displayHeight}
-            fill={invert(theme.background)}
-            {...props}
-        >
+        <rect x={column} y={y} width={w} height={h} fill={fill} {...props}>
+            {theme.cursorBlink && (
+                <Animation
+                    attribute='opacity'
+                    duration={1000}
+                    keyFrames={[{ value: 1, time: 0 }, { value: 0, time: 0.5 }]}
+                />
+            )}
             {children}
         </rect>
     );

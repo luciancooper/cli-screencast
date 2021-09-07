@@ -3,11 +3,11 @@ import { resolveTheme } from '@src/theme';
 import Context from '@src/render/Context';
 import Window from '@src/render/Window';
 import Text from '@src/render/Text';
-import { CursorFrames, opacityKeyTimes, translateKeyTimes } from '@src/render/Cursor';
+import { Cursor, CursorFrames, opacityKeyTimes, translateKeyTimes } from '@src/render/Cursor';
 
-const { theme } = resolveTheme({ fontSize: 1, lineHeight: 1 });
+const { theme: defTheme } = resolveTheme({ fontSize: 1, lineHeight: 1 });
 
-const render = (element: any) => create(
+const render = (element: any, theme = defTheme) => create(
     <Context.Provider value={theme}>
         {element}
     </Context.Provider>,
@@ -46,7 +46,7 @@ describe('<Text/>', () => {
             <Text x={0} span={10} bold dim italic>text chunk</Text>,
         )).toMatchObject({
             type: 'text',
-            props: { fontWeight: 'bold', fontStyle: 'italic', opacity: theme.dim },
+            props: { fontWeight: 'bold', fontStyle: 'italic', opacity: defTheme.dim },
             children: ['text chunk'],
         });
     });
@@ -73,14 +73,14 @@ describe('<Text/>', () => {
         expect(render(
             <Text x={0} span={8} inverted>inverted</Text>,
         )).toMatchObject([
-            { type: 'rect', props: { fill: theme.text } },
-            { type: 'text', props: { fill: theme.background }, children: ['inverted'] },
+            { type: 'rect', props: { fill: defTheme.text } },
+            { type: 'text', props: { fill: defTheme.background }, children: ['inverted'] },
         ]);
         expect(render(
-            <Text x={0} span={8} foreground={theme.red} background={theme.yellow} inverted>inverted</Text>,
+            <Text x={0} span={8} foreground={defTheme.red} background={defTheme.yellow} inverted>inverted</Text>,
         )).toMatchObject([
-            { type: 'rect', props: { fill: theme.red } },
-            { type: 'text', props: { fill: theme.yellow }, children: ['inverted'] },
+            { type: 'rect', props: { fill: defTheme.red } },
+            { type: 'text', props: { fill: defTheme.yellow }, children: ['inverted'] },
         ]);
     });
 
@@ -91,6 +91,40 @@ describe('<Text/>', () => {
             type: 'a',
             props: { href: 'https://google.com' },
             children: [{ type: 'text', children: ['google.com'] }],
+        });
+    });
+});
+
+describe('<Cursor/>', () => {
+    test('renders with an opacity animation when `cursorBlink` theme prop is enabled', () => {
+        const { theme } = resolveTheme({ cursorBlink: true });
+        expect(render(<Cursor line={0} column={0}/>, theme)).toMatchObject({
+            type: 'rect',
+            children: [{ type: 'animate', props: { attributeName: 'opacity' } }],
+        });
+    });
+
+    test('renders a beam shaped rect when the `cursorType` theme prop is set to `beam`', () => {
+        const { theme } = resolveTheme({ cursorType: 'beam', fontSize: 1, lineHeight: 1 });
+        expect(render(<Cursor line={0} column={0}/>, theme)).toMatchObject({
+            type: 'rect',
+            props: { y: 0, width: 0.15, height: 1 },
+        });
+    });
+
+    test('renders a block shaped rect when the `cursorType` theme prop is set to `block`', () => {
+        const { theme } = resolveTheme({ cursorType: 'block', fontSize: 1, lineHeight: 1 });
+        expect(render(<Cursor line={0} column={0}/>, theme)).toMatchObject({
+            type: 'rect',
+            props: { y: 0, width: 1, height: 1 },
+        });
+    });
+
+    test('renders an underline shaped rect when the `cursorType` theme prop is set to `underline`', () => {
+        const { theme } = resolveTheme({ cursorType: 'underline', fontSize: 1, lineHeight: 1 });
+        expect(render(<Cursor line={0} column={0}/>, theme)).toMatchObject({
+            type: 'rect',
+            props: { y: 0.9, width: 1, height: 0.10 },
         });
     });
 });
