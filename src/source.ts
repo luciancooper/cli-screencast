@@ -3,7 +3,7 @@ import { Readable } from 'stream';
 export interface StartEvent {
     type: 'start'
     timestamp: number
-    context?: unknown
+    command?: string
 }
 
 export interface WriteEvent {
@@ -46,19 +46,25 @@ export default class RecordingSource extends Readable {
         if (this.closed) {
             throw new Error('Source stream is closed');
         }
+        const content = Buffer.isBuffer(chunk) ? chunk.toString('utf-8') : typeof chunk === 'string' ? chunk : '';
+        // ignore empty writes
+        if (!content) return;
+        // push a start event if the source is inactive
         if (!this.active) {
             this.start();
         }
+        // push write event
         const event: SourceEvent = {
             type: 'write',
-            content: Buffer.isBuffer(chunk) ? chunk.toString() : typeof chunk === 'string' ? chunk : '',
+            content,
             timestamp: Date.now(),
             delay,
         };
         this.push(event);
     }
 
-    start<T>(context?: T) {
+    start(...args: any[]): void
+    start(context: Record<string, string> = {}): void {
         if (this.closed) {
             throw new Error('Source stream is closed');
         }
@@ -67,12 +73,12 @@ export default class RecordingSource extends Readable {
         const event: StartEvent = {
             type: 'start',
             timestamp: Date.now(),
-            context,
+            ...context,
         };
         this.push(event);
     }
 
-    finish<T>(result?: T): T {
+    finish<T>(result?: T) {
         if (this.closed) {
             throw new Error('Source stream is closed');
         }
@@ -84,6 +90,5 @@ export default class RecordingSource extends Readable {
         };
         this.push(event);
         this.push(null);
-        return result!;
     }
 }

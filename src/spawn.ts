@@ -11,13 +11,6 @@ const signals = Object.entries(constants.signals) as (readonly [NodeJS.Signals, 
 
 type Env = Record<string, string>;
 
-export interface SpawnContext {
-    command: string
-    file: string
-    cwd: string
-    env: Env
-}
-
 export interface SpawnResult {
     exitCode: number
     timedOut: boolean
@@ -70,6 +63,26 @@ export const colorEnv = {
     COLORTERM: 'truecolor',
     FORCE_COLOR: '3',
 };
+
+export class SpawnRecordingSource extends RecordingSource {
+    cwd: string;
+
+    env: Env;
+
+    constructor(cwd: string, env: Env) {
+        super();
+        this.cwd = cwd;
+        this.env = env;
+    }
+
+    override start(command: string, args: string[]) {
+        super.start({
+            command: [command, ...args.map((arg) => (
+                (!arg.length || /^[\w.-]+$/.test(arg)) ? arg : `"${arg.replace(/"/g, '\\"')}"`
+            ))].join(' '),
+        });
+    }
+}
 
 /**
  * Resolve the absolute path of the command to run - implementation draws heavily from `cross-spawn`:
@@ -134,10 +147,10 @@ export default function readableSpawn(command: string, args: string[], {
     if (!(typeof timeout === 'number' && Number.isFinite(timeout) && timeout >= 0)) {
         throw new TypeError('`timeout` must be a non-negative integer');
     }
-    // create recording source stream
-    const stream = new RecordingSource(),
-        // resolve env
-        env = { ...(extendEnv ? { ...process.env, ...envOption } : { ...envOption }), ...colorEnv },
+    // resolve env
+    const env = { ...(extendEnv ? { ...process.env, ...envOption } : { ...envOption }), ...colorEnv },
+        // create recording source stream
+        stream = new SpawnRecordingSource(cwd, env),
         // resolve command
         file = resolveCommand(command, cwd),
         // create pty child process
@@ -149,15 +162,7 @@ export default function readableSpawn(command: string, args: string[], {
             cwd,
         });
     // emit stream start event
-    stream.start<SpawnContext>({
-        // escape command
-        command: [command, ...args.map((arg) => (
-            (!arg.length || /^[\w.-]+$/.test(arg)) ? arg : `"${arg.replace(/"/g, '\\"')}"`
-        ))].join(' '),
-        file,
-        cwd,
-        env,
-    });
+    stream.start(command, args);
     // attach data listener
     const dataHook = spawned.onData((chunk: string) => {
         stream.write(chunk.replace(/\r\n/g, '\n'), 0);

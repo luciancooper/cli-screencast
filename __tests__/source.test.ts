@@ -13,7 +13,6 @@ describe('RecordingSource', () => {
             { type: 'start' },
             { type: 'write', content: 'string write' },
             { type: 'write', content: 'buffer write' },
-            { type: 'write', content: '' },
             { type: 'finish' },
         ]);
     });

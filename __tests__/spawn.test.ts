@@ -1,7 +1,7 @@
 import signalExit from 'signal-exit';
 import type { DeepPartial } from '@src/types';
-import type { StartEvent, SourceEvent } from '@src/source';
-import readableSpawn, { colorEnv, SpawnContext, SpawnResult } from '@src/spawn';
+import type { SourceEvent } from '@src/source';
+import readableSpawn, { colorEnv, SpawnResult } from '@src/spawn';
 import { readStream } from './helpers/streams';
 
 type PartialSourceEvent = DeepPartial<SourceEvent>;
@@ -43,7 +43,7 @@ describe('readableSpawn', () => {
     test('creates readable source events from subprocess writes to stdout', async () => {
         const source = readableSpawn('echo', ['echo to source stream'], dimensions);
         await expect(readStream(source)).resolves.toMatchObject<PartialSourceEvent[]>([
-            { type: 'start', context: { command: 'echo "echo to source stream"' } },
+            { type: 'start', command: 'echo "echo to source stream"' },
             { type: 'write', content: 'echo to source stream\n' },
             { type: 'finish', result: { exitCode: 0, failed: false } },
         ]);
@@ -52,7 +52,7 @@ describe('readableSpawn', () => {
     test('listens for writes to subprocess stderr stream', async () => {
         const source = readableSpawn('node', ['-e', "process.stderr.write('write to stderr');"], dimensions);
         await expect(readStream(source)).resolves.toMatchObject<PartialSourceEvent[]>([
-            { type: 'start', context: { command: 'node -e "process.stderr.write(\'write to stderr\');"' } },
+            { type: 'start', command: 'node -e "process.stderr.write(\'write to stderr\');"' },
             { type: 'write', content: 'write to stderr' },
             { type: 'finish', result: { exitCode: 0, failed: false } },
         ]);
@@ -63,19 +63,19 @@ describe('readableSpawn', () => {
         // mock the process exiting
         (signalExit as MockSignalExit).flush();
         await expect(readStream(source)).resolves.toMatchObject<PartialSourceEvent[]>([
-            { type: 'start', context: { command: 'sleep 10' } },
+            { type: 'start', command: 'sleep 10' },
             { type: 'finish', result: { timedOut: false, failed: true, killed: true } },
         ]);
     });
 
     test('subprocess env will not extend process.env if `extendEnv` is false', async () => {
-        const opts = { ...dimensions, env: {}, extendEnv: false },
-            events = await readStream<SourceEvent>(readableSpawn('sleep', ['0'], opts));
+        const source = readableSpawn('sleep', ['0'], { ...dimensions, env: {}, extendEnv: false }),
+            events = await readStream<SourceEvent>(source);
         expect(events).toMatchObject<PartialSourceEvent[]>([
-            { type: 'start', context: { command: 'sleep 0' } },
+            { type: 'start', command: 'sleep 0' },
             { type: 'finish', result: { exitCode: 0, failed: false } },
         ]);
-        expect(((events[0]! as StartEvent).context as SpawnContext).env).toEqual(colorEnv);
+        expect(source.env).toEqual(colorEnv);
     });
 
     describe('validation', () => {
@@ -114,7 +114,7 @@ describe('readableSpawn', () => {
         test('timeout is cleared if process completes before it is reached', async () => {
             const source = readableSpawn('sleep', ['1'], { ...dimensions, timeout: 2000 });
             await expect(readStream(source)).resolves.toMatchObject<PartialSourceEvent[]>([
-                { type: 'start', context: { command: 'sleep 1' } },
+                { type: 'start', command: 'sleep 1' },
                 { type: 'finish', result: { timedOut: false, failed: false, killed: false } },
             ]);
         });
