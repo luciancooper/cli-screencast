@@ -39,9 +39,25 @@ export interface Palette<T = string> {
 }
 
 export interface AnsiStyle {
-    foreground?: string
-    background?: string
-    link?: string
+    /**
+     * 6 bit props mask - [strikeThrough, inverse, underline, italic, dim, bold]
+     */
+    readonly props: number
+    /**
+     * Foreground color
+     */
+    readonly fg?: string
+    /**
+     * Background color
+     */
+    readonly bg?: string
+    /**
+     * Hyperlink
+     */
+    readonly link?: string
+}
+
+export interface AnsiStyleProps {
     bold: boolean
     dim: boolean
     italic: boolean

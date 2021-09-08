@@ -1,6 +1,6 @@
 import { splitLines, charWidths } from 'tty-strings';
 import type { Dimensions, Palette, ScreenData, TerminalLine, TextChunk } from './types';
-import parseAnsi from './ansi';
+import parseAnsi, { stylesEqual } from './ansi';
 import { regexChunks } from './utils';
 
 export interface ParseContext extends Dimensions {
@@ -85,9 +85,15 @@ export function overwriteLine(prev: TerminalLine, next: TerminalLine): TerminalL
 function parseContent({ columns, tabSize, palette }: ParseContext, state: ScreenData, content: string) {
     const lines: TerminalLine[] = [];
     let line = cursorLinePartial(state);
-    for (const contentLine of splitLines(content)) {
-        for (const { chunk, style } of parseAnsi(palette, contentLine)) {
+    for (const [i, contentLine] of [...splitLines(content)].entries()) {
+        for (const [j, { chunk, style }] of [...parseAnsi(palette, contentLine)].entries()) {
             let [x, str] = [line.columns, ''];
+            if (i === 0 && j === 0 && line.chunks.length) {
+                const { x: [lx, lspan], style: lstyle } = line.chunks[line.chunks.length - 1]!;
+                if (lx + lspan === x && stylesEqual(lstyle, style)) {
+                    ({ str, x: [x] } = line.chunks.pop()!);
+                }
+            }
             for (const [c, w] of charWidths(chunk)) {
                 if (w && line.columns + w > columns) {
                     const span = Math.min(line.columns, columns) - x;

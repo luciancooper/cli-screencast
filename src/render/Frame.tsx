@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import type { FunctionComponent, SVGProps } from 'react';
 import type { TerminalLine } from '../types';
+import { expandProps } from '../ansi';
 import Context from './Context';
 import Text from './Text';
 import { Animation } from './Animation';
@@ -16,16 +17,16 @@ interface FrameProps {
     keyFrame?: KeyFrame
 }
 
-const Frame: FunctionComponent<FrameProps & SVGProps<SVGGElement>> = ({ lines, keyFrame, ...props }) => {
+const Frame: FunctionComponent<FrameProps & SVGProps<SVGGElement>> = ({ lines, keyFrame, ...svgProps }) => {
     const theme = useContext(Context);
     return (
-        <g className='frame' {...props}>
+        <g className='frame' {...svgProps}>
             {lines.map(({ chunks }, i) => {
                 const y = i * theme.fontSize * theme.lineHeight;
                 return (
                     <g key={`row:${i}`} className='row' transform={`translate(0, ${y})`}>
-                        {chunks.map(({ str, x: [x, span], style }, j) => (
-                            <Text key={j} x={x} span={span} {...style}>{str}</Text>
+                        {chunks.map(({ str, x: [x, span], style: { props, ...style } }, j) => (
+                            <Text key={j} x={x} span={span} {...style} {...expandProps(props)}>{str}</Text>
                         ))}
                     </g>
                 );

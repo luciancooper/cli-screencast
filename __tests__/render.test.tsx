@@ -62,7 +62,7 @@ describe('<Text/>', () => {
 
     test('renders a <rect> sibling element when `background` is styled', () => {
         expect(render(
-            <Text x={0} span={10} background='#ff00ff'>background</Text>,
+            <Text x={0} span={10} bg='#ff00ff'>background</Text>,
         )).toMatchObject([
             { type: 'rect', props: { fill: '#ff00ff' } },
             { type: 'text', children: ['background'] },
@@ -77,7 +77,7 @@ describe('<Text/>', () => {
             { type: 'text', props: { fill: defTheme.background }, children: ['inverted'] },
         ]);
         expect(render(
-            <Text x={0} span={8} foreground={defTheme.red} background={defTheme.yellow} inverted>inverted</Text>,
+            <Text x={0} span={8} fg={defTheme.red} bg={defTheme.yellow} inverted>inverted</Text>,
         )).toMatchObject([
             { type: 'rect', props: { fill: defTheme.red } },
             { type: 'text', props: { fill: defTheme.yellow }, children: ['inverted'] },

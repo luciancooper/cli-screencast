@@ -1,10 +1,10 @@
 import { useContext } from 'react';
 import type { FunctionComponent, SVGProps } from 'react';
-import type { AnsiStyle } from '../types';
+import type { OmitStrict, AnsiStyle, AnsiStyleProps } from '../types';
 import { toHex } from '../color';
 import Context from './Context';
 
-interface TextProps extends Partial<AnsiStyle>, SVGProps<SVGTextElement> {
+interface TextProps extends OmitStrict<AnsiStyle, 'props'>, Partial<AnsiStyleProps>, SVGProps<SVGTextElement> {
     x: number
     span: number
 }
@@ -12,8 +12,8 @@ interface TextProps extends Partial<AnsiStyle>, SVGProps<SVGTextElement> {
 const Text: FunctionComponent<TextProps> = ({
     x,
     span,
-    foreground,
-    background,
+    fg,
+    bg,
     link,
     bold = false,
     dim = false,
@@ -26,8 +26,8 @@ const Text: FunctionComponent<TextProps> = ({
 }) => {
     const theme = useContext(Context),
         decoration = [...underline ? ['underline'] : [], strikeThrough ? ['line-through'] : []].join(' '),
-        bgColor = inverted ? foreground ?? toHex(theme.text) : background,
-        color = inverted ? background ?? toHex(theme.background) : foreground ?? toHex(theme.text),
+        bgColor = inverted ? fg ?? toHex(theme.text) : bg,
+        color = inverted ? bg ?? toHex(theme.background) : fg ?? toHex(theme.text),
         props: SVGProps<SVGTextElement> = {
             ...textProps,
             x: x * theme.fontSize * 0.6,

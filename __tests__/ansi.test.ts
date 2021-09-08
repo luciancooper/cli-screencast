@@ -1,4 +1,4 @@
-import type { AnsiStyle } from '@src/types';
+import type { OmitStrict, AnsiStyle, AnsiStyleProps } from '@src/types';
 import { resolveTheme } from '@src/theme';
 import { color8Bit, toHex } from '@src/color';
 import parseAnsi from '@src/ansi';
@@ -6,16 +6,18 @@ import * as ansi from './helpers/ansi';
 
 const { palette, theme } = resolveTheme();
 
-const chunk = (str: string, style: Partial<AnsiStyle> = {}) => ({
+const chunk = (
+    str: string,
+    style: OmitStrict<AnsiStyle, 'props'> & Partial<AnsiStyleProps> = {},
+): { chunk: string, style: AnsiStyle } => ({
     chunk: str,
     style: {
-        bold: false,
-        dim: false,
-        italic: false,
-        underline: false,
-        inverted: false,
-        strikeThrough: false,
-        ...style,
+        props: [style.bold, style.dim, style.italic, style.underline, style.inverted, style.strikeThrough]
+            .map((b, i) => Number(b ?? false) << i)
+            .reduce((a, b) => a | b),
+        fg: style.fg,
+        bg: style.bg,
+        link: style.link,
     },
 });
 
@@ -32,27 +34,27 @@ describe('parseAnsi', () => {
 
     test('sgr set foreground (4 bit)', () => {
         expect(parse(`${ansi.fg(32, 'green')} and ${ansi.fg(96, 'bright cyan')}`)).toEqual([
-            chunk('green', { foreground: theme.green }),
+            chunk('green', { fg: theme.green }),
             chunk(' and '),
-            chunk('bright cyan', { foreground: theme.brightCyan }),
+            chunk('bright cyan', { fg: theme.brightCyan }),
         ]);
     });
 
     test('sgr set background (4 bit)', () => {
         expect(parse(`background ${ansi.bg(41, 'red')} and ${ansi.bg(102, 'bright green')}`)).toEqual([
             chunk('background '),
-            chunk('red', { background: theme.red }),
+            chunk('red', { bg: theme.red }),
             chunk(' and '),
-            chunk('bright green', { background: theme.brightGreen }),
+            chunk('bright green', { bg: theme.brightGreen }),
         ]);
     });
 
     test('sgr set foreground / background (8 bit)', () => {
         expect(parse(`8 bit ${ansi.fg8Bit(186, 'foreground')} and ${ansi.bg8Bit(64, 'background')}`)).toEqual([
             chunk('8 bit '),
-            chunk('foreground', { foreground: color8Bit(186, palette) }),
+            chunk('foreground', { fg: color8Bit(186, palette) }),
             chunk(' and '),
-            chunk('background', { background: color8Bit(64, palette) }),
+            chunk('background', { bg: color8Bit(64, palette) }),
         ]);
     });
 
@@ -61,9 +63,9 @@ describe('parseAnsi', () => {
             bg = ansi.bgRGB([95, 135, 0], 'background');
         expect(parse(`24 bit ${fg} and ${bg}`)).toEqual([
             chunk('24 bit '),
-            chunk('foreground', { foreground: toHex([215, 215, 135]) }),
+            chunk('foreground', { fg: toHex([215, 215, 135]) }),
             chunk(' and '),
-            chunk('background', { background: toHex([95, 135, 0]) }),
+            chunk('background', { bg: toHex([95, 135, 0]) }),
         ]);
     });
 
@@ -74,32 +76,32 @@ describe('parseAnsi', () => {
         ]);
         // 8 bit - color value defaults to 0
         expect(parse(`${ansi.sgr(38, 5)}bad escape${ansi.sgr(39)}`)).toEqual([
-            chunk('bad escape', { foreground: color8Bit(0, palette) }),
+            chunk('bad escape', { fg: color8Bit(0, palette) }),
         ]);
         // 24 bit - default to [0, 0, 0] when color args are missing
         expect(parse(`${ansi.sgr(38, 2)}bad escape${ansi.sgr(39)}`)).toEqual([
-            chunk('bad escape', { foreground: toHex([0, 0, 0]) }),
+            chunk('bad escape', { fg: toHex([0, 0, 0]) }),
         ]);
         // 8 bit - constrain provided color values
         expect(parse(`${ansi.sgr(38, 5, 300)}invalid 8 bit color${ansi.sgr(39)}`)).toEqual([
-            chunk('invalid 8 bit color', { foreground: color8Bit(0xFF, palette) }),
+            chunk('invalid 8 bit color', { fg: color8Bit(0xFF, palette) }),
         ]);
         // 24 bit - fill missing r, g, b values
         expect(parse(`${ansi.sgr(48, 2, '', 128, '')}R & G missing${ansi.sgr(49)}`)).toEqual([
-            chunk('R & G missing', { background: toHex([0, 128, 0]) }),
+            chunk('R & G missing', { bg: toHex([0, 128, 0]) }),
         ]);
     });
 
     test('sgr compound foreground / background escapes (4 bit)', () => {
         expect(parse(`${ansi.sgr(31, 43)}fg red and bg yellow${ansi.sgr(39, 49)}`)).toEqual([
-            chunk('fg red and bg yellow', { foreground: theme.red, background: theme.yellow }),
+            chunk('fg red and bg yellow', { fg: theme.red, bg: theme.yellow }),
         ]);
     });
 
     test('sgr reset sequence ([0m)', () => {
         expect(parse(`${ansi.sgr(31)}Red fg + ${ansi.sgr(43)}Yellow bg${ansi.sgr(0)} is reset`)).toEqual([
-            chunk('Red fg + ', { foreground: theme.red }),
-            chunk('Yellow bg', { foreground: theme.red, background: theme.yellow }),
+            chunk('Red fg + ', { fg: theme.red }),
+            chunk('Yellow bg', { fg: theme.red, bg: theme.yellow }),
             chunk(' is reset'),
         ]);
     });

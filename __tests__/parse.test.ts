@@ -67,7 +67,20 @@ describe('parse', () => {
         expect(parser.state).toEqual(parser.prev);
     });
 
-    test('write lines', () => {
+    test('write styled chunks', () => {
+        const parser = makeParser({ columns: 20, rows: 10 });
+        // write line of half width characters
+        parser(ansi.fg(32, 'ab'));
+        expect(parser.state.lines).toMatchObject<LinePartial[]>([
+            { index: 0, columns: 2, chunks: [{ str: 'ab', x: [0, 2] }] },
+        ]);
+        parser(ansi.fg(31, 'cdef'));
+        expect(parser.state.lines).toMatchObject<LinePartial[]>([
+            { index: 0, columns: 6, chunks: [{ str: 'ab', x: [0, 2] }, { str: 'cdef', x: [2, 4] }] },
+        ]);
+    });
+
+    test('write lines with full width characters', () => {
         const parser = makeParser({ columns: 20, rows: 10 });
         // write line of half width characters
         parser('aaaaaaaaaaaaaaaaaaa');
@@ -75,7 +88,7 @@ describe('parse', () => {
             { index: 0, columns: 19, chunks: [{ str: 'aaaaaaaaaaaaaaaaaaa', x: [0, 19] }] },
         ]);
         // write line of full width characters
-        parser('ｂｂｂｂｂｂｂｂｂｂ');
+        parser(ansi.bold('ｂｂｂｂｂｂｂｂｂｂ'));
         expect(parser.state.lines).toMatchObject<LinePartial[]>([
             { index: 0, columns: 19, chunks: [{ str: 'aaaaaaaaaaaaaaaaaaa', x: [0, 19] }] },
             { index: 1, columns: 20, chunks: [{ str: 'ｂｂｂｂｂｂｂｂｂｂ', x: [0, 20] }] },
