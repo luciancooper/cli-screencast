@@ -4,7 +4,7 @@ import path from 'path';
 import which from 'which';
 import onExit from 'signal-exit';
 import type { Dimensions } from './types';
-import RecordingSource from './source';
+import RecordingStream from './source';
 import { mergePromise } from './utils';
 
 const signals = Object.entries(constants.signals) as (readonly [NodeJS.Signals, number])[];
@@ -64,7 +64,7 @@ export const colorEnv = {
     FORCE_COLOR: '3',
 };
 
-export class SpawnRecordingSource extends RecordingSource {
+export class SpawnStream extends RecordingStream {
     cwd: string;
 
     env: Env;
@@ -150,7 +150,7 @@ export default function readableSpawn(command: string, args: string[], {
     // resolve env
     const env = { ...(extendEnv ? { ...process.env, ...envOption } : { ...envOption }), ...colorEnv },
         // create recording source stream
-        stream = new SpawnRecordingSource(cwd, env),
+        stream = new SpawnStream(cwd, env),
         // resolve command
         file = resolveCommand(command, cwd),
         // create pty child process
@@ -165,7 +165,7 @@ export default function readableSpawn(command: string, args: string[], {
     stream.start(command, args);
     // attach data listener
     const dataHook = spawned.onData((chunk: string) => {
-        stream.write(chunk.replace(/\r\n/g, '\n'), 0);
+        stream.write(chunk.replace(/\r\n/g, '\n'));
     });
     // track if child process has been killed
     let killed = false;

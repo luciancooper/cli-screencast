@@ -3,7 +3,7 @@ import type { TerminalLine, CursorLocation, ScreenData, CaptureData } from './ty
 import parse, { ParseContext } from './parse';
 import { clone } from './utils';
 import serialize from './serialize';
-import RecordingSource, { SourceEvent } from './source';
+import RecordingStream, { SourceEvent } from './source';
 
 interface CaptureDuration {
     start: number
@@ -179,11 +179,13 @@ export class ScreenCapture extends Writable {
                 this.time.start = event.timestamp;
                 break;
             case 'write': {
-                this.time.addedTime += event.delay;
                 const adjTime = (event.timestamp - this.time.start) - this.time.startDelay + this.time.addedTime;
                 this.bufferWrite(adjTime, event.content);
                 break;
             }
+            case 'wait':
+                this.time.addedTime += event.milliseconds;
+                break;
             case 'finish': {
                 let duration = 0;
                 if (this.started && this.flushBuffered()) {
@@ -200,7 +202,7 @@ export class ScreenCapture extends Writable {
     }
 }
 
-export default function captureSource(source: RecordingSource, props: ScreenCaptureOptions) {
+export default function captureSource(source: RecordingStream, props: ScreenCaptureOptions) {
     return new Promise<CaptureData>((resolve, reject) => {
         const recording = source.pipe(new ScreenCapture(props));
         recording.on('finish', () => {

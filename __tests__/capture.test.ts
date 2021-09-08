@@ -1,6 +1,6 @@
 import type { DeepPartial, CaptureData } from '@src/types';
 import { resolveTheme } from '@src/theme';
-import RecordingSource from '@src/source';
+import RecordingStream from '@src/source';
 import captureSource, { ScreenCaptureOptions } from '@src/capture';
 import * as ansi from './helpers/ansi';
 
@@ -13,8 +13,8 @@ const defaultOptions: ScreenCaptureOptions = {
     palette,
 };
 
-function runCapture(cb: (source: RecordingSource) => void, options?: Partial<ScreenCaptureOptions>) {
-    const source = new RecordingSource(),
+function runCapture(cb: (source: RecordingStream) => void, options?: Partial<ScreenCaptureOptions>) {
+    const source = new RecordingStream(),
         capture = captureSource(source, { ...defaultOptions, ...options });
     cb(source);
     return capture;
@@ -27,7 +27,8 @@ describe('captureSource', () => {
         await expect(runCapture((source) => {
             source.start();
             source.write('first write');
-            source.write(ansi.eraseLine + ansi.cursorColumn(0), 500);
+            source.wait(500);
+            source.write(ansi.eraseLine + ansi.cursorColumn(0));
             source.write('second write');
             source.finish();
         })).resolves.toMatchObject<PartialCaptureData>({
@@ -46,8 +47,10 @@ describe('captureSource', () => {
         await expect(runCapture((source) => {
             source.start();
             source.write('first write');
-            source.write(ansi.cursorColumn(0), 500);
-            source.write('second write', 500);
+            source.wait(500);
+            source.write(ansi.cursorColumn(0));
+            source.wait(500);
+            source.write('second write');
             source.finish();
         })).resolves.toMatchObject<PartialCaptureData>({
             content: [
@@ -66,7 +69,8 @@ describe('captureSource', () => {
         const data = await runCapture((source) => {
             source.start();
             source.write('first write');
-            source.write('second write', 500);
+            source.wait(500);
+            source.write('second write');
             source.finish();
         }, { ...defaultOptions, cursorHidden: true });
         expect(data.cursor).toHaveLength(0);
@@ -75,7 +79,8 @@ describe('captureSource', () => {
     test('does not remove time between start and first write when `cropStartDelay` is false', async () => {
         await expect(runCapture((source) => {
             source.start();
-            source.write('first write', 500);
+            source.wait(500);
+            source.write('first write');
             source.finish();
         }, { cursorHidden: true, cropStartDelay: false })).resolves.toMatchObject<PartialCaptureData>({
             content: [
