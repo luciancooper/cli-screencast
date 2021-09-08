@@ -94,18 +94,9 @@ describe('captureSource', () => {
             })).resolves.toEqual(emptyData);
         });
 
-        // this can fail when there is a millisecond between start() & finish()
         test('source emits no write events', async () => {
             await expect(runCapture((source) => {
                 source.start();
-                source.finish();
-            }, { endTimePadding: 0 })).resolves.toEqual(emptyData);
-        });
-
-        test('source emits empty write events', async () => {
-            await expect(runCapture((source) => {
-                source.start();
-                source.write('');
                 source.finish();
             }, { endTimePadding: 0 })).resolves.toEqual(emptyData);
         });

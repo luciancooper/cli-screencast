@@ -164,11 +164,12 @@ export class ScreenCapture extends Writable {
         }
     }
 
-    private flushBuffered() {
+    private flushBuffered(): boolean {
         const { buffered } = this;
-        if (!buffered) return;
+        if (!buffered) return false;
         if (buffered.content) this.pushFrame(buffered.time, buffered.content);
         this.buffered = null;
+        return true;
     }
 
     override _write(event: SourceEvent, enc: BufferEncoding, cb: (error?: Error | null) => void) {
@@ -185,8 +186,7 @@ export class ScreenCapture extends Writable {
             }
             case 'finish': {
                 let duration = 0;
-                if (this.started) {
-                    this.flushBuffered();
+                if (this.started && this.flushBuffered()) {
                     this.time.end = event.timestamp;
                     const { start, startDelay, addedTime } = this.time;
                     duration = event.timestamp - (start + startDelay) + addedTime + this.endTimePadding;
