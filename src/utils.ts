@@ -43,3 +43,18 @@ export function mergePromise<T extends object, P>(obj: T, promise: Promise<P>): 
     }
     return obj as T & PromiseLike<P>;
 }
+
+/**
+ * Restore a property to an object
+ * @param obj - the object to restore a property to
+ * @param key - the property key
+ * @param descriptor - optional property descriptor, if not provided, property will be deleted
+ */
+export function restoreProperty<T, K extends keyof T>(obj: T, key: K, descriptor?: PropertyDescriptor) {
+    if (descriptor) {
+        Object.defineProperty(obj, key, descriptor);
+    } else if (Object.hasOwnProperty.call(obj, key)) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete obj[key];
+    }
+}

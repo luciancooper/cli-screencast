@@ -17,4 +17,6 @@ module.exports = {
     setupFilesAfterEnv: [
         '<rootDir>/jest.setup.ts',
     ],
+    // run tests sequentially
+    maxWorkers: 1,
 };

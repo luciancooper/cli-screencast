@@ -219,7 +219,7 @@ export default function readableSpawn(command: string, args: string[], {
     });
     // finally, invoke stream.finish
     promise = promise.then((result) => {
-        stream.finish(result);
+        stream.finish({ result });
         return result;
     });
     // merge source stream and promise chain

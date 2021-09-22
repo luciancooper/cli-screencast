@@ -4,6 +4,7 @@ import parse from './parse';
 import { renderScreenSvg, renderCaptureSvg, WindowOptions } from './render';
 import readableSpawn, { SpawnOptions } from './spawn';
 import captureSource, { CaptureOptions } from './capture';
+import TerminalRecordingStream, { SessionOptions, RunCallback } from './terminal';
 
 interface BaseOptions extends Dimensions {
     tabSize?: number
@@ -60,6 +61,25 @@ export async function renderSpawn(command: string, args: string[], options: Rend
     return renderCaptureSvg(data, props);
 }
 
+export type RenderCaptureOptions = BaseOptions & WindowOptions & CaptureOptions & SessionOptions;
+
+/**
+ * Capture any terminal output that occurs within a callback function and render it as an animated SVG.
+ * @remarks
+ * Within the provided callback function `fn`, all writes to `process.stdout` and `process.stderr`, (and by extension
+ * calls to `console.log` and `console.error`) will be captured and included in the returned SVG screencast.
+ * @param fn - callback function in which terminal output is captured
+ * @param options - render options
+ * @returns animated screen capture svg
+ */
+export async function renderCapture(fn: RunCallback<any>, options: RenderCaptureOptions): Promise<string> {
+    const props = applyDefaults(options),
+        source = new TerminalRecordingStream(props);
+    await source.run(fn);
+    const data = await captureSource(source, props);
+    return renderCaptureSvg(data, props);
+}
+
 export type { RGB } from './types';
 export type { Theme } from './theme';
-export type { WindowOptions, CaptureOptions, SpawnOptions };
+export type { WindowOptions, CaptureOptions, SpawnOptions, SessionOptions };

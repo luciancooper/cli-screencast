@@ -1,4 +1,4 @@
-import { renderScreen, renderSpawn } from '../src';
+import { renderScreen, renderSpawn, renderCapture } from '../src';
 
 const dimensions = { columns: 50, rows: 10 };
 
@@ -7,6 +7,16 @@ test('renderScreen is synchronous and returns a string', () => {
 });
 
 test('renderSpawn is asynchronous and promises a string', async () => {
-    const promise = renderSpawn('node', ['-e', "process.stdout.write('Hello World!');"], dimensions);
-    await expect(promise.then((value) => typeof value)).resolves.toBe('string');
+    await expect(
+        renderSpawn('node', ['-e', "process.stdout.write('Hello World!');"], dimensions)
+            .then((value) => typeof value),
+    ).resolves.toBe('string');
+});
+
+test('renderCapture is asynchronous and promises a string', async () => {
+    await expect(
+        renderCapture((source) => {
+            source.write('captured write');
+        }, dimensions).then((value) => typeof value),
+    ).resolves.toBe('string');
 });

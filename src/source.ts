@@ -21,6 +21,7 @@ export interface FinishEvent {
     type: 'finish'
     timestamp: number
     result?: unknown
+    error?: unknown
 }
 
 export type SourceEvent = StartEvent | WriteEvent | WaitEvent | FinishEvent;
@@ -97,18 +98,21 @@ export default class RecordingStream extends Duplex {
             ...context,
         };
         this.push(event);
+        this.emit('recording-start', event.timestamp);
     }
 
-    finish<T>(result?: T): void {
+    finish({ result, error }: { result?: unknown, error?: unknown } = {}): void {
         if (this.ended) {
             throw new Error('Source stream is closed');
         }
         const event: SourceEvent = {
             type: 'finish',
             timestamp: Date.now(),
+            error,
             result,
         };
         this.push(event);
         this.push(null);
+        this.emit('recording-end', event.timestamp);
     }
 }

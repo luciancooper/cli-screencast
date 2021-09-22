@@ -1,0 +1,171 @@
+import type { Writable } from 'stream';
+import type { SourceEvent } from '@src/source';
+import TerminalRecordingStream from '@src/terminal';
+import { readStream } from './helpers/streams';
+import captureWrites from './helpers/captureWrites';
+
+const options = {
+    columns: 80,
+    rows: 5,
+    tabSize: 8,
+};
+
+describe('TerminalRecordingStream', () => {
+    test('capture writes to stdout & stderr inside `run` block', async () => {
+        const stream = new TerminalRecordingStream(options);
+        await stream.run((source) => {
+            process.stdout.write('write to stdout', () => {});
+            process.stderr.write(Buffer.from('write to stderr', 'utf-8'));
+            source.finish();
+        });
+        expect(stream.ended).toBe(true);
+        expect(await readStream(stream)).toMatchObject<Partial<SourceEvent>[]>([
+            { type: 'start' },
+            { type: 'write', content: 'write to stdout' },
+            { type: 'write', content: 'write to stderr' },
+            { type: 'finish' },
+        ]);
+    });
+
+    test('hooks into stdout `columns` & `rows` to mimic provided terminal size', async () => {
+        await expect(new TerminalRecordingStream(options).run(() => [
+            process.stdout.columns,
+            process.stdout.rows,
+            process.stdout.getWindowSize(),
+        ])).resolves.toEqual([80, 5, [80, 5]]);
+    });
+
+    test('hooks into stdout `getColorDepth` & `hasColors` methods to mimic 24 bit color support', async () => {
+        await expect(new TerminalRecordingStream(options).run(() => [
+            process.stdout.getColorDepth(),
+            process.stdout.hasColors(),
+            process.stdout.hasColors(256),
+        ])).resolves.toStrictEqual([24, true, true]);
+    });
+
+    test('pipes output to terminal if `silent` option is `false`', async () => {
+        const capture = captureWrites(process.stdout);
+        await new TerminalRecordingStream({ ...options, silent: false }).run(() => {
+            process.stdout.write('message');
+        });
+        capture.restore();
+        expect(capture.captured).toBe(
+            TerminalRecordingStream.kCaptureStartLine
+            + 'message'
+            + TerminalRecordingStream.kCaptureEndLine,
+        );
+    });
+
+    test('readline interface instances can be created via the `createInterface` method', async () => {
+        await expect(new TerminalRecordingStream(options).run<string[]>((source) => {
+            const rl = source.createInterface(),
+                lines: string[] = [];
+            rl.on('line', (line) => void lines.push(line));
+            rl.write('written from a readline interface\n');
+            return new Promise((resolve) => {
+                rl.once('close', () => void resolve(lines));
+                rl.close();
+            });
+        })).resolves.toEqual(['written from a readline interface']);
+    });
+
+    describe('errors', () => {
+        test('catches errors that occur in the function passed to `run`', async () => {
+            const stream = new TerminalRecordingStream(options);
+            await expect(stream.run(() => {
+                throw new Error('run error');
+            })).rejects.toMatchObject({ message: 'run error' });
+            const events = await readStream(stream);
+            expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({
+                type: 'finish',
+                error: { message: 'run error' },
+            });
+        });
+
+        test('can pass an error to `finish` inside `run` block', async () => {
+            const stream = new TerminalRecordingStream(options);
+            await expect(stream.run((source) => {
+                const error = new Error('run error');
+                source.finish(error);
+                throw error;
+            })).rejects.toMatchObject({ message: 'run error' });
+            expect(stream.ended).toBe(true);
+        });
+    });
+
+    describe('input', () => {
+        test('can emit artificial keypress events', async () => {
+            const stream = new TerminalRecordingStream(options);
+            // expect stream.input to be a tty
+            expect(stream.input.isTTY).toBe(true);
+            // test run block
+            await expect(stream.run<string[]>(async (source) => {
+                const rl = source.createInterface(),
+                    lines: string[] = [];
+                rl.on('line', (line) => void lines.push(line));
+                // emit mock keypress events
+                await source.emitKeypressSequence(['a', 'b']);
+                await source.emitKeypressSequence('cd');
+                source.input.write(Buffer.from('ef', 'utf-8'));
+                await source.emitKeypress('\n');
+                // close readline interface
+                await new Promise((resolve) => {
+                    rl.once('close', resolve);
+                    rl.close();
+                });
+                return lines;
+            })).resolves.toEqual(['abcdef']);
+        });
+
+        test('will pipe `process.stdin` to `input` stream if `connectStdin` option is true', async () => {
+            await expect(new TerminalRecordingStream({ ...options, connectStdin: true }).run<string>((source) => {
+                const rl = source.createInterface();
+                return new Promise((resolve) => {
+                    rl.once('line', (line) => {
+                        rl.once('close', () => void resolve(line));
+                        rl.close();
+                    });
+                    process.stdin.write('abc\n');
+                });
+            })).resolves.toEqual('abc');
+        });
+    });
+
+    describe('resizing', () => {
+        const resizePromise = (recording: TerminalRecordingStream, stream: Writable) => (
+            new Promise((resolve) => {
+                const [onResize, onEnd] = [() => {
+                    recording.removeListener('recording-end', onEnd);
+                    resolve(true);
+                }, () => {
+                    stream.removeListener('resize', onResize);
+                    resolve(false);
+                }];
+                stream.once('resize', onResize);
+                recording.once('recording-end', onEnd);
+            })
+        );
+
+        test('triggers artificial resize events on `stdout` & `stderr` output streams', async () => {
+            const stream = new TerminalRecordingStream(options),
+                [resizeEmitted] = await Promise.all([
+                    resizePromise(stream, process.stdout),
+                    stream.run(async (source) => {
+                        source.resize(90, 10);
+                    }),
+                ]);
+            expect(resizeEmitted).toBe(true);
+        });
+
+        test('suppresses artificial resize events if size does not change', async () => {
+            const stream = new TerminalRecordingStream(options),
+                [resizeEmitted] = await Promise.all([
+                    resizePromise(stream, process.stdout),
+                    stream.run((source) => {
+                        source.resize(options.columns, options.rows);
+                    }),
+                ]);
+            expect(resizeEmitted).toBe(false);
+        });
+    });
+});
