@@ -3,6 +3,7 @@ const isCI = process.env.CI && (typeof process.env.CI !== 'string' || process.en
 module.exports = {
     preset: 'ts-jest',
     testEnvironment: 'node',
+    runner: './jest-runner-serial.js',
     coverageReporters: isCI ? ['clover', 'json', 'lcovonly', 'cobertura'] : ['html', 'text'],
     coverageDirectory: 'coverage',
     collectCoverageFrom: [
@@ -17,6 +18,4 @@ module.exports = {
     setupFilesAfterEnv: [
         '<rootDir>/jest.setup.ts',
     ],
-    // run tests sequentially
-    maxWorkers: 1,
 };
