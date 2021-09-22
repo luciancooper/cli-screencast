@@ -2,13 +2,25 @@ import type { Writable } from 'stream';
 import type { SourceEvent } from '@src/source';
 import TerminalRecordingStream from '@src/terminal';
 import { readStream } from './helpers/streams';
-import captureWrites from './helpers/captureWrites';
 
 const options = {
     columns: 80,
     rows: 5,
     tabSize: 8,
 };
+
+let stdout: jest.SpyInstance<boolean, Parameters<typeof process.stdout.write>>,
+    stderr: jest.SpyInstance<boolean, Parameters<typeof process.stderr.write>>;
+
+beforeEach(() => {
+    stdout = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stderr = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+});
+
+afterEach(() => {
+    stdout.mockRestore();
+    stderr.mockRestore();
+});
 
 describe('TerminalRecordingStream', () => {
     test('capture writes to stdout & stderr inside `run` block', async () => {
@@ -19,6 +31,8 @@ describe('TerminalRecordingStream', () => {
             source.finish();
         });
         expect(stream.ended).toBe(true);
+        expect(stdout).not.toHaveBeenCalled();
+        expect(stderr).not.toHaveBeenCalled();
         expect(await readStream(stream)).toMatchObject<Partial<SourceEvent>[]>([
             { type: 'start' },
             { type: 'write', content: 'write to stdout' },
@@ -44,16 +58,14 @@ describe('TerminalRecordingStream', () => {
     });
 
     test('pipes output to terminal if `silent` option is `false`', async () => {
-        const capture = captureWrites(process.stdout);
         await new TerminalRecordingStream({ ...options, silent: false }).run(() => {
             process.stdout.write('message');
         });
-        capture.restore();
-        expect(capture.captured).toBe(
-            TerminalRecordingStream.kCaptureStartLine
-            + 'message'
-            + TerminalRecordingStream.kCaptureEndLine,
-        );
+        expect(stdout.mock.calls.map(([a]) => a)).toEqual([
+            TerminalRecordingStream.kCaptureStartLine,
+            'message',
+            TerminalRecordingStream.kCaptureEndLine,
+        ]);
     });
 
     test('readline interface instances can be created via the `createInterface` method', async () => {
@@ -67,6 +79,8 @@ describe('TerminalRecordingStream', () => {
                 rl.close();
             });
         })).resolves.toEqual(['written from a readline interface']);
+        expect(stdout).not.toHaveBeenCalled();
+        expect(stderr).not.toHaveBeenCalled();
     });
 
     describe('errors', () => {
@@ -75,6 +89,8 @@ describe('TerminalRecordingStream', () => {
             await expect(stream.run(() => {
                 throw new Error('run error');
             })).rejects.toMatchObject({ message: 'run error' });
+            expect(stdout).not.toHaveBeenCalled();
+            expect(stderr).not.toHaveBeenCalled();
             const events = await readStream(stream);
             expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({
                 type: 'finish',
@@ -90,6 +106,8 @@ describe('TerminalRecordingStream', () => {
                 throw error;
             })).rejects.toMatchObject({ message: 'run error' });
             expect(stream.ended).toBe(true);
+            expect(stdout).not.toHaveBeenCalled();
+            expect(stderr).not.toHaveBeenCalled();
         });
     });
 
@@ -115,6 +133,8 @@ describe('TerminalRecordingStream', () => {
                 });
                 return lines;
             })).resolves.toEqual(['abcdef']);
+            expect(stdout).not.toHaveBeenCalled();
+            expect(stderr).not.toHaveBeenCalled();
         });
 
         test('will pipe `process.stdin` to `input` stream if `connectStdin` option is true', async () => {
@@ -128,6 +148,8 @@ describe('TerminalRecordingStream', () => {
                     process.stdin.write('abc\n');
                 });
             })).resolves.toEqual('abc');
+            expect(stdout).not.toHaveBeenCalled();
+            expect(stderr).not.toHaveBeenCalled();
         });
     });
 
