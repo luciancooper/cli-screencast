@@ -17,17 +17,15 @@ interface Options extends Dimensions, SessionOptions {
 }
 
 interface OutputStreamDescriptors {
-    columns: PropertyDescriptor
-    rows: PropertyDescriptor
-    write?: PropertyDescriptor
-    getColorDepth?: PropertyDescriptor
-    hasColors?: PropertyDescriptor
+    columns: PropertyDescriptor | undefined
+    rows: PropertyDescriptor | undefined
+    props: (readonly [string, PropertyDescriptor | undefined])[]
 }
 
 interface TargetDescriptors {
     stdout: OutputStreamDescriptors
     stderr: OutputStreamDescriptors
-    stdin: PropertyDescriptor
+    stdin: PropertyDescriptor | undefined
 }
 
 interface SocketHandle {
@@ -121,17 +119,17 @@ export default class TerminalRecordingStream extends RecordingStream {
         }
     }
 
-    private outputStreamDescriptors(stream: NodeJS.WriteStream): OutputStreamDescriptors {
+    private outputStreamDescriptors(stream: NodeJS.WriteStream, tty: boolean): OutputStreamDescriptors {
+        let keys = ['write', '_refreshSize', 'getColorDepth', 'hasColors'];
+        if (!tty) keys = [...keys, 'isTTY', 'cursorTo', 'moveCursor', 'clearLine', 'clearScreenDown', 'getWindowSize'];
         return {
-            columns: Object.getOwnPropertyDescriptor(stream, 'columns')!,
-            rows: Object.getOwnPropertyDescriptor(stream, 'rows')!,
-            write: Object.getOwnPropertyDescriptor(stream, 'write'),
-            getColorDepth: Object.getOwnPropertyDescriptor(stream, 'getColorDepth'),
-            hasColors: Object.getOwnPropertyDescriptor(stream, 'hasColors'),
+            columns: Object.getOwnPropertyDescriptor(stream, 'columns'),
+            rows: Object.getOwnPropertyDescriptor(stream, 'rows'),
+            props: keys.map((key) => [key, Object.getOwnPropertyDescriptor(stream, key)]),
         };
     }
 
-    private hookOutputStream(stream: NodeJS.WriteStream) {
+    private hookOutputStream(stream: NodeJS.WriteStream, tty: boolean) {
         // replace stream.columns with hooked getter
         Object.defineProperty(stream, 'columns', { get: () => this.columns, configurable: true });
         // replace stream.rows with hooked getter
@@ -150,6 +148,15 @@ export default class TerminalRecordingStream extends RecordingStream {
         stream.getColorDepth = () => 24; // full color support (16,777,216 colors)
         // hook stream.hasColors method
         stream.hasColors = (count?: number | object) => (typeof count === 'number' ? count <= 2 ** 24 : true);
+        // add tty stream specific methods if output stream is not TTY
+        if (!tty) {
+            stream.isTTY = true;
+            stream.cursorTo = (...args) => readline.cursorTo(this, ...args as [number, number | undefined]);
+            stream.clearLine = (...args) => readline.clearLine(this, ...args);
+            stream.clearScreenDown = (...args) => readline.clearScreenDown(this, ...args);
+            stream.moveCursor = (...args) => readline.moveCursor(this, ...args);
+            stream.getWindowSize = () => [this.columns, this.rows];
+        }
     }
 
     private restoreOutputStream(stream: NodeJS.WriteStream, descriptors: OutputStreamDescriptors): void {
@@ -157,33 +164,31 @@ export default class TerminalRecordingStream extends RecordingStream {
         let { columns, rows } = descriptors;
         // get current window size from `stream._handle`
         const { _handle } = (stream as unknown as { _handle?: SocketHandle });
-        if (_handle && typeof _handle.getWindowSize === 'function' && !_handle.getWindowSize(size)) {
+        if (columns && rows && _handle && typeof _handle.getWindowSize === 'function' && !_handle.getWindowSize(size)) {
             columns = { ...columns, value: size[0] };
             rows = { ...rows, value: size[1] };
         }
         // restore `columns` and `rows` properties
-        Object.defineProperty(stream, 'columns', columns);
-        Object.defineProperty(stream, 'rows', rows);
-        // delete dummy `_refreshSize` method from stream
-        delete (stream as { _refreshSize?: () => void })._refreshSize;
-        // restore stream `write` method
-        restoreProperty(stream, 'write', descriptors.write);
-        // restore stream `getColorDepth` method
-        restoreProperty(stream, 'getColorDepth', descriptors.getColorDepth);
-        // restore stream `hasColors` method
-        restoreProperty(stream, 'hasColors', descriptors.hasColors);
+        restoreProperty(stream, 'columns', columns);
+        restoreProperty(stream, 'rows', rows);
+        // restore all additional props
+        for (const [key, descriptor] of descriptors.props) {
+            restoreProperty(stream, key as keyof typeof stream, descriptor);
+        }
     }
 
     protected hookStreams() {
         if (this.targetDescriptors) return;
         if (!this.silent) process.stdout.write(TerminalRecordingStream.kCaptureStartLine);
+        const stdoutTTY = process.stdout.isTTY,
+            stderrTTY = process.stderr.isTTY;
         this.targetDescriptors = {
-            stdout: this.outputStreamDescriptors(process.stdout),
-            stderr: this.outputStreamDescriptors(process.stderr),
-            stdin: Object.getOwnPropertyDescriptor(process, 'stdin')!,
+            stdout: this.outputStreamDescriptors(process.stdout, stdoutTTY),
+            stderr: this.outputStreamDescriptors(process.stderr, stderrTTY),
+            stdin: Object.getOwnPropertyDescriptor(process, 'stdin'),
         };
-        this.hookOutputStream(process.stdout);
-        this.hookOutputStream(process.stderr);
+        this.hookOutputStream(process.stdout, stdoutTTY);
+        this.hookOutputStream(process.stderr, stderrTTY);
         this.input.hook();
         Object.defineProperty(process, 'stdin', { value: this.input, configurable: true, writable: false });
     }
@@ -193,7 +198,7 @@ export default class TerminalRecordingStream extends RecordingStream {
         const { stdout, stderr, stdin } = this.targetDescriptors;
         this.restoreOutputStream(process.stdout, stdout);
         this.restoreOutputStream(process.stderr, stderr);
-        Object.defineProperty(process, 'stdin', stdin);
+        restoreProperty(process, 'stdin', stdin);
         this.input.unhook();
         this.targetDescriptors = null;
         if (!this.silent) process.stdout.write(TerminalRecordingStream.kCaptureEndLine);

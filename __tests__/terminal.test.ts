@@ -1,6 +1,7 @@
 import type { Writable } from 'stream';
-import type { SourceEvent } from '@src/source';
+import type { SourceEvent, WriteEvent } from '@src/source';
 import TerminalRecordingStream from '@src/terminal';
+import { restoreProperty } from '@src/utils';
 import { readStream } from './helpers/streams';
 
 const options = {
@@ -18,8 +19,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    stdout.mockRestore();
-    stderr.mockRestore();
+    jest.restoreAllMocks();
 });
 
 describe('TerminalRecordingStream', () => {
@@ -41,7 +41,40 @@ describe('TerminalRecordingStream', () => {
         ]);
     });
 
-    test('hooks into stdout `columns` & `rows` to mimic provided terminal size', async () => {
+    test('ensure `stdout` & `stderr` streams implement tty.WriteStream when `isTTY` is false', async () => {
+        // set `process.stdout.isTTY` value to `false`
+        const descriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
+        process.stdout.isTTY = false;
+        // create recording stream and run block
+        const stream = new TerminalRecordingStream(options);
+        await expect(stream.run(() => {
+            process.stdout.cursorTo(0);
+            process.stdout.clearLine(1);
+            process.stdout.clearScreenDown();
+            process.stdout.moveCursor(1, 2);
+            return [process.stdout.isTTY, Object.getOwnPropertyNames(process.stdout)];
+        })).resolves.toEqual([true, expect.arrayContaining([
+            'isTTY',
+            'cursorTo',
+            'moveCursor',
+            'clearLine',
+            'clearScreenDown',
+            'getWindowSize',
+        ])]);
+        // restore original isTTY value on `process.stdout`
+        restoreProperty(process.stdout, 'isTTY', descriptor);
+        // check source write events for correct output from tty write stream methods
+        const writes = ((await readStream<SourceEvent>(stream)).filter((e) => e.type === 'write') as WriteEvent[])
+            .map(({ content }) => content);
+        expect(writes).toEqual([
+            '\x1b[1G', // cursorTo(0)
+            '\x1b[0K', // clearLine(1)
+            '\x1b[0J', // clearScreenDown()
+            '\x1b[1C\x1b[2B', // moveCursor(1, 2)
+        ]);
+    });
+
+    test('hook into stdout `columns` & `rows` to mimic provided terminal size', async () => {
         await expect(new TerminalRecordingStream(options).run(() => [
             process.stdout.columns,
             process.stdout.rows,
@@ -49,7 +82,7 @@ describe('TerminalRecordingStream', () => {
         ])).resolves.toEqual([80, 5, [80, 5]]);
     });
 
-    test('hooks into stdout `getColorDepth` & `hasColors` methods to mimic 24 bit color support', async () => {
+    test('hook into stdout `getColorDepth` & `hasColors` methods to mimic 24 bit color support', async () => {
         await expect(new TerminalRecordingStream(options).run(() => [
             process.stdout.getColorDepth(),
             process.stdout.hasColors(),
@@ -84,7 +117,7 @@ describe('TerminalRecordingStream', () => {
     });
 
     describe('errors', () => {
-        test('catches errors that occur in the function passed to `run`', async () => {
+        test('catch errors that occur in the function passed to `run`', async () => {
             const stream = new TerminalRecordingStream(options);
             await expect(stream.run(() => {
                 throw new Error('run error');
@@ -98,7 +131,7 @@ describe('TerminalRecordingStream', () => {
             });
         });
 
-        test('can pass an error to `finish` inside `run` block', async () => {
+        test('pass an error to `finish` inside `run` block', async () => {
             const stream = new TerminalRecordingStream(options);
             await expect(stream.run((source) => {
                 const error = new Error('run error');
@@ -112,7 +145,7 @@ describe('TerminalRecordingStream', () => {
     });
 
     describe('input', () => {
-        test('can emit artificial keypress events', async () => {
+        test('emit artificial keypress events', async () => {
             const stream = new TerminalRecordingStream(options);
             // expect stream.input to be a tty
             expect(stream.input.isTTY).toBe(true);
@@ -137,7 +170,7 @@ describe('TerminalRecordingStream', () => {
             expect(stderr).not.toHaveBeenCalled();
         });
 
-        test('will pipe `process.stdin` to `input` stream if `connectStdin` option is true', async () => {
+        test('pipe `process.stdin` to `input` stream if `connectStdin` option is true', async () => {
             await expect(new TerminalRecordingStream({ ...options, connectStdin: true }).run<string>((source) => {
                 const rl = source.createInterface();
                 return new Promise((resolve) => {
@@ -168,7 +201,7 @@ describe('TerminalRecordingStream', () => {
             })
         );
 
-        test('triggers artificial resize events on `stdout` & `stderr` output streams', async () => {
+        test('trigger artificial resize events on `stdout` & `stderr` output streams', async () => {
             const stream = new TerminalRecordingStream(options),
                 [resizeEmitted] = await Promise.all([
                     resizePromise(stream, process.stdout),
@@ -179,7 +212,7 @@ describe('TerminalRecordingStream', () => {
             expect(resizeEmitted).toBe(true);
         });
 
-        test('suppresses artificial resize events if size does not change', async () => {
+        test('suppress artificial resize events when size does not change', async () => {
             const stream = new TerminalRecordingStream(options),
                 [resizeEmitted] = await Promise.all([
                     resizePromise(stream, process.stdout),
