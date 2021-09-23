@@ -30,6 +30,10 @@ interface TargetDescriptors {
     stdin: PropertyDescriptor
 }
 
+interface SocketHandle {
+    getWindowSize?: (arr: [number, number]) => Error | null
+}
+
 export default class TerminalRecordingStream extends RecordingStream {
     static kCaptureStartLine = '\x1b[36;1m>>>\x1b[39m \x1b[31m●\x1b[39m Capture Start \x1b[36m>>>\x1b[39;22m\n';
 
@@ -152,10 +156,8 @@ export default class TerminalRecordingStream extends RecordingStream {
         const size = new Array(2) as [number, number];
         let { columns, rows } = descriptors;
         // get current window size from `stream._handle`
-        const err = (stream as unknown as {
-            _handle: { getWindowSize: (arr: [number, number]) => Error | null }
-        })._handle.getWindowSize(size);
-        if (!err) {
+        const { _handle } = (stream as unknown as { _handle?: SocketHandle });
+        if (_handle && typeof _handle.getWindowSize === 'function' && !_handle.getWindowSize(size)) {
             columns = { ...columns, value: size[0] };
             rows = { ...rows, value: size[1] };
         }
