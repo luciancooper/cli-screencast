@@ -2,6 +2,8 @@ import { Duplex } from 'stream';
 import keys from './keys';
 
 export default class InputStream extends Duplex {
+    isTTY = true;
+
     isRaw = false;
 
     stdin?: NodeJS.ReadStream;
@@ -10,11 +12,7 @@ export default class InputStream extends Duplex {
 
     constructor(connectStdin: boolean) {
         super({ decodeStrings: false });
-        if (connectStdin) this.stdin = process.stdin;
-    }
-
-    get isTTY(): boolean {
-        return true;
+        if (connectStdin && process.stdin.isTTY) this.stdin = process.stdin;
     }
 
     override _read() {}

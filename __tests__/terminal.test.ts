@@ -1,8 +1,8 @@
 import type { Writable } from 'stream';
 import type { SourceEvent, WriteEvent } from '@src/source';
 import TerminalRecordingStream from '@src/terminal';
-import { restoreProperty } from '@src/utils';
 import { readStream } from './helpers/streams';
+import stub from './helpers/stub';
 
 const options = {
     columns: 80,
@@ -42,11 +42,8 @@ describe('TerminalRecordingStream', () => {
     });
 
     test('ensure `stdout` & `stderr` streams implement tty.WriteStream when `isTTY` is false', async () => {
-        // set `process.stdout.isTTY` value to `false`
-        const descriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
-        process.stdout.isTTY = false;
-        // create recording stream and run block
-        const stream = new TerminalRecordingStream(options);
+        const restore = stub(process.stdout, { isTTY: false }),
+            stream = new TerminalRecordingStream(options);
         await expect(stream.run(() => {
             process.stdout.cursorTo(0);
             process.stdout.clearLine(1);
@@ -62,7 +59,7 @@ describe('TerminalRecordingStream', () => {
             'getWindowSize',
         ])]);
         // restore original isTTY value on `process.stdout`
-        restoreProperty(process.stdout, 'isTTY', descriptor);
+        restore();
         // check source write events for correct output from tty write stream methods
         const writes = ((await readStream<SourceEvent>(stream)).filter((e) => e.type === 'write') as WriteEvent[])
             .map(({ content }) => content);
@@ -147,8 +144,6 @@ describe('TerminalRecordingStream', () => {
     describe('input', () => {
         test('emit artificial keypress events', async () => {
             const stream = new TerminalRecordingStream(options);
-            // expect stream.input to be a tty
-            expect(stream.input.isTTY).toBe(true);
             // test run block
             await expect(stream.run<string[]>(async (source) => {
                 const rl = source.createInterface(),
@@ -171,6 +166,8 @@ describe('TerminalRecordingStream', () => {
         });
 
         test('pipe `process.stdin` to `input` stream if `connectStdin` option is true', async () => {
+            const setRawMode = jest.fn((() => {}) as any as typeof process.stdin.setRawMode),
+                restore = stub(process.stdin, { isTTY: true, isRaw: false, setRawMode });
             await expect(new TerminalRecordingStream({ ...options, connectStdin: true }).run<string>((source) => {
                 const rl = source.createInterface();
                 return new Promise((resolve) => {
@@ -181,8 +178,10 @@ describe('TerminalRecordingStream', () => {
                     process.stdin.write('abc\n');
                 });
             })).resolves.toEqual('abc');
+            restore();
             expect(stdout).not.toHaveBeenCalled();
             expect(stderr).not.toHaveBeenCalled();
+            expect(setRawMode).toHaveBeenCalled();
         });
     });
 
