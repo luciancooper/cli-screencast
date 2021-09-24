@@ -52,7 +52,7 @@ export function opacityKeyTimes(frames: CursorRecordingFrame[], duration: number
 export function translateKeyTimes(
     frames: CursorRecordingFrame[],
     duration: number,
-    [dy, dx]: readonly [number, number],
+    [dx, dy]: readonly [number, number],
 ) {
     const times: KeyTime<string>[] = [],
         [first, ...subsequent] = frames.filter(({ hidden }) => !hidden),
