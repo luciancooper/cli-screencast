@@ -1,40 +1,47 @@
 import { create } from 'react-test-renderer';
 import { resolveTheme } from '@src/theme';
-import Context from '@src/render/Context';
+import Context, { RenderContext } from '@src/render/Context';
 import Window from '@src/render/Window';
 import Text from '@src/render/Text';
 import { Cursor, CursorFrames, opacityKeyTimes, translateKeyTimes } from '@src/render/Cursor';
 
-const { theme: defTheme } = resolveTheme({ fontSize: 1, lineHeight: 1 });
+const defContext: RenderContext = {
+    theme: resolveTheme().theme,
+    fontSize: 1,
+    grid: [1, 1],
+    duration: 0,
+};
 
-const render = (element: any, theme = defTheme) => create(
-    <Context.Provider value={theme}>
+const render = (element: any, context: Partial<RenderContext> = {}) => create(
+    <Context.Provider value={{ ...defContext, ...context }}>
         {element}
     </Context.Provider>,
 ).toJSON();
 
 describe('<Window/>', () => {
-    test('renders a root <svg> that wraps an inner viewBox <svg> element', () => {
+    test('renders a root <svg> that wraps an inner content <svg> element', () => {
         expect(render(
             <Window columns={50} rows={10} decorations={false} paddingX={0} paddingY={0}/>,
         )).toMatchObject({
             type: 'svg',
-            props: { width: 50 * 10, height: 10 * 10 },
+            props: { width: expect.any(Number) as number, height: expect.any(Number) as number },
             children: [
                 { type: 'rect', props: { className: 'window-background' } },
-                { type: 'svg', props: { width: 50 * 10, height: 10 * 10, viewBox: expect.any(String) as string } },
+                { type: 'svg' },
             ],
         });
     });
 
     test('renders window decorations by default', () => {
-        expect(render(<Window columns={50} rows={10}/>)).toMatchObject({
+        expect(render(
+            <Window columns={50} rows={10} insetMajor={40} insetMinor={20}/>,
+        )).toMatchObject({
             type: 'svg',
             props: { width: expect.any(Number) as number, height: expect.any(Number) as number },
             children: [
                 { type: 'rect', props: { className: 'window-background' } },
                 { type: 'g', props: { className: 'window-decorations' } },
-                { type: 'svg', props: { viewBox: expect.any(String) as string } },
+                { type: 'svg' },
             ],
         });
     });
@@ -46,7 +53,7 @@ describe('<Text/>', () => {
             <Text x={0} span={10} bold dim italic>text chunk</Text>,
         )).toMatchObject({
             type: 'text',
-            props: { fontWeight: 'bold', fontStyle: 'italic', opacity: defTheme.dim },
+            props: { fontWeight: 'bold', fontStyle: 'italic', opacity: defContext.theme.dim },
             children: ['text chunk'],
         });
     });
@@ -70,17 +77,18 @@ describe('<Text/>', () => {
     });
 
     test('swaps foreground and background when the `inverted` prop is passed', () => {
+        const { theme } = defContext;
         expect(render(
             <Text x={0} span={8} inverted>inverted</Text>,
         )).toMatchObject([
-            { type: 'rect', props: { fill: defTheme.text } },
-            { type: 'text', props: { fill: defTheme.background }, children: ['inverted'] },
+            { type: 'rect', props: { fill: theme.text } },
+            { type: 'text', props: { fill: theme.background }, children: ['inverted'] },
         ]);
         expect(render(
-            <Text x={0} span={8} fg={defTheme.red} bg={defTheme.yellow} inverted>inverted</Text>,
+            <Text x={0} span={8} fg={theme.red} bg={theme.yellow} inverted>inverted</Text>,
         )).toMatchObject([
-            { type: 'rect', props: { fill: defTheme.red } },
-            { type: 'text', props: { fill: defTheme.yellow }, children: ['inverted'] },
+            { type: 'rect', props: { fill: theme.red } },
+            { type: 'text', props: { fill: theme.yellow }, children: ['inverted'] },
         ]);
     });
 
@@ -98,31 +106,31 @@ describe('<Text/>', () => {
 describe('<Cursor/>', () => {
     test('renders with an opacity animation when `cursorBlink` theme prop is enabled', () => {
         const { theme } = resolveTheme({ cursorBlink: true });
-        expect(render(<Cursor line={0} column={0}/>, theme)).toMatchObject({
+        expect(render(<Cursor line={0} column={0}/>, { theme })).toMatchObject({
             type: 'rect',
             children: [{ type: 'animate', props: { attributeName: 'opacity' } }],
         });
     });
 
     test('renders a beam shaped rect when the `cursorType` theme prop is set to `beam`', () => {
-        const { theme } = resolveTheme({ cursorType: 'beam', fontSize: 1, lineHeight: 1 });
-        expect(render(<Cursor line={0} column={0}/>, theme)).toMatchObject({
+        const { theme } = resolveTheme({ cursorType: 'beam' });
+        expect(render(<Cursor line={0} column={0}/>, { theme })).toMatchObject({
             type: 'rect',
             props: { y: 0, width: 0.15, height: 1 },
         });
     });
 
     test('renders a block shaped rect when the `cursorType` theme prop is set to `block`', () => {
-        const { theme } = resolveTheme({ cursorType: 'block', fontSize: 1, lineHeight: 1 });
-        expect(render(<Cursor line={0} column={0}/>, theme)).toMatchObject({
+        const { theme } = resolveTheme({ cursorType: 'block' });
+        expect(render(<Cursor line={0} column={0}/>, { theme })).toMatchObject({
             type: 'rect',
             props: { y: 0, width: 1, height: 1 },
         });
     });
 
     test('renders an underline shaped rect when the `cursorType` theme prop is set to `underline`', () => {
-        const { theme } = resolveTheme({ cursorType: 'underline', fontSize: 1, lineHeight: 1 });
-        expect(render(<Cursor line={0} column={0}/>, theme)).toMatchObject({
+        const { theme } = resolveTheme({ cursorType: 'underline' });
+        expect(render(<Cursor line={0} column={0}/>, { theme })).toMatchObject({
             type: 'rect',
             props: { y: 0.9, width: 1, height: 0.10 },
         });
@@ -142,9 +150,8 @@ describe('<CursorFrames/>', () => {
     });
 
     test('renders a `rect` element with `animate` and `animateTransform` children', () => {
-        expect(render(
-            <CursorFrames {...makeFrames([[1, 0, 5], [1, 1, 5], [0, 1, 10], [0, 1, 10]])}/>,
-        )).toMatchObject({
+        const { frames, duration } = makeFrames([[1, 0, 5], [1, 1, 5], [0, 1, 10], [0, 1, 10]]);
+        expect(render(<CursorFrames frames={frames}/>, { duration })).toMatchObject({
             type: 'rect',
             children: [
                 { type: 'animate', children: null },
@@ -173,7 +180,7 @@ describe('<CursorFrames/>', () => {
     describe('transformKeyTimes', () => {
         test('returns array of cursor translation values and times', () => {
             const { frames, duration } = makeFrames([[1, 0, 5], [1, 1, 5], [1, 1, 10], [1, 2, 5]]),
-                keyTimes = translateKeyTimes(frames, duration);
+                keyTimes = translateKeyTimes(frames, duration, [1, 1]);
             expect(keyTimes).toEqual<typeof keyTimes>([
                 { value: '0,0', time: 0 },
                 { value: '0,1', time: 0.25 },
@@ -184,7 +191,7 @@ describe('<CursorFrames/>', () => {
 
         test('does not include position changes when cursor is hidden', () => {
             const { frames, duration } = makeFrames([[1, 0, 5], [1, 1, 5], [0, 1, 10], [1, 1, 5]]),
-                keyTimes = translateKeyTimes(frames, duration);
+                keyTimes = translateKeyTimes(frames, duration, [1, 1]);
             expect(keyTimes).toEqual<typeof keyTimes>([
                 { value: '0,0', time: 0 },
                 { value: '0,1', time: 0.25 },
@@ -193,7 +200,7 @@ describe('<CursorFrames/>', () => {
 
         test('returns empty array when cursor is only visible during a single frame', () => {
             const { frames, duration } = makeFrames([[0, 0, 5], [0, 1, 5], [1, 1, 10], [0, 1, 10]]);
-            expect(translateKeyTimes(frames, duration)).toHaveLength(0);
+            expect(translateKeyTimes(frames, duration, [1, 1])).toHaveLength(0);
         });
     });
 });

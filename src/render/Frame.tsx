@@ -1,28 +1,22 @@
 import { useContext } from 'react';
 import type { FunctionComponent, SVGProps } from 'react';
-import type { TerminalLine } from '../types';
+import type { TerminalLine, RecordingFrame } from '../types';
 import { expandProps } from '../ansi';
 import Context from './Context';
 import Text from './Text';
 import { Animation } from './Animation';
 
-export interface KeyFrame {
-    time: number
-    endTime: number
-    duration: number
-}
-
-interface FrameProps {
+interface FrameProps extends SVGProps<SVGGElement> {
     lines: TerminalLine[]
-    keyFrame?: KeyFrame
+    keyFrame?: RecordingFrame
 }
 
-const Frame: FunctionComponent<FrameProps & SVGProps<SVGGElement>> = ({ lines, keyFrame, ...svgProps }) => {
-    const theme = useContext(Context);
+const Frame: FunctionComponent<FrameProps> = ({ lines, keyFrame, ...svgProps }) => {
+    const { grid: [, dy], duration } = useContext(Context);
     return (
         <g className='frame' {...svgProps}>
             {lines.map(({ chunks }, i) => {
-                const y = i * theme.fontSize * theme.lineHeight;
+                const y = i * dy;
                 return (
                     <g key={`row:${i}`} className='row' transform={`translate(0, ${y})`}>
                         {chunks.map(({ str, x: [x, span], style: { props, ...style } }, j) => (
@@ -34,11 +28,11 @@ const Frame: FunctionComponent<FrameProps & SVGProps<SVGGElement>> = ({ lines, k
             {keyFrame && (
                 <Animation
                     attribute='opacity'
-                    duration={keyFrame.duration}
+                    duration={duration}
                     keyFrames={[
                         { value: 0, time: 0 },
-                        { value: 1, time: keyFrame.time / keyFrame.duration },
-                        { value: 0, time: keyFrame.endTime / keyFrame.duration },
+                        { value: 1, time: keyFrame.time / duration },
+                        { value: 0, time: keyFrame.endTime / duration },
                     ]}
                 />
             )}

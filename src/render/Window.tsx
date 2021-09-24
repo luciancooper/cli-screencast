@@ -1,15 +1,34 @@
 import { useContext } from 'react';
 import type { FunctionComponent } from 'react';
 import type { Dimensions } from '../types';
-import { toHex } from '../color';
 import Context from './Context';
 
 export interface WindowOptions {
+    /**
+     * Border radius of the rendered window frame
+     * @defaultValue `5`
+     */
+    borderRadius?: number
+
     /**
      * Render top stoplight buttons
      * @defaultValue `true`
      */
     decorations?: boolean
+
+    /**
+     * Inset added to the top of the rendered window when `decorations` is true.
+     * If `decorations` is `false`, this option is ignored
+     * @defaultValue `40`
+     */
+    insetMajor?: number
+
+    /**
+     * Inset added to the left, right, and bottom of the rendered window frame
+     * when `decorations` is true. If `decorations` is `false`, this option is ignored.
+     * @defaultValue `20`
+     */
+    insetMinor?: number
 
     /**
      * Window horizontal padding
@@ -24,50 +43,49 @@ export interface WindowOptions {
     paddingY?: number
 }
 
-const Window: FunctionComponent<Dimensions & WindowOptions> = ({
+interface WindowProps extends Dimensions, WindowOptions {}
+
+const Window: FunctionComponent<WindowProps> = ({
     columns,
     rows,
+    borderRadius = 5,
     decorations = true,
+    insetMajor = 40,
+    insetMinor = 20,
     paddingY = 5,
     paddingX = 5,
     children,
 }) => {
-    const theme = useContext(Context),
-        width = columns * 10 + (paddingX + (decorations ? 20 : 0)) * 2,
-        displayHeight = rows * theme.fontSize * theme.lineHeight,
-        height = displayHeight * 10 + paddingY * 2 + (decorations ? 60 : 0);
+    const { theme, fontSize, grid: [dx, dy] } = useContext(Context);
     return (
         <svg
             xmlns='http://www.w3.org/2000/svg'
             xmlnsXlink='http://www.w3.org/1999/xlink'
-            width={width}
-            height={height}
+            width={columns * dx + paddingX * 2 + (decorations ? insetMinor * 2 : 0)}
+            height={rows * dy + paddingY * 2 + (decorations ? insetMajor + insetMinor : 0)}
+            fontFamily={theme.fontFamily}
+            fontSize={fontSize}
         >
             <rect
                 className='window-background'
-                width={width}
-                height={height}
-                rx={decorations ? 5 : 0}
-                ry={decorations ? 5 : 0}
-                fill={toHex(theme.background)}
+                width='100%'
+                height='100%'
+                rx={borderRadius}
+                ry={borderRadius}
+                fill={theme.background}
             />
             {decorations && (
                 <g className='window-decorations'>
-                    <circle cx={20} cy={20} r={6} fill='#ff5f58'/>
-                    <circle cx={40} cy={20} r={6} fill='#ffbd2e'/>
-                    <circle cx={60} cy={20} r={6} fill='#18c132'/>
+                    <circle cx={insetMinor} cy={insetMajor / 2} r={6} fill='#ff5f58'/>
+                    <circle cx={insetMinor + 20} cy={insetMajor / 2} r={6} fill='#ffbd2e'/>
+                    <circle cx={insetMinor + 40} cy={insetMajor / 2} r={6} fill='#18c132'/>
                 </g>
             )}
             <svg
-                xmlns='http://www.w3.org/2000/svg'
-                xmlnsXlink='http://www.w3.org/1999/xlink'
-                x={paddingX + (decorations ? 15 : 0)}
-                y={paddingY + (decorations ? 50 : 0)}
-                width={columns * 10}
-                height={displayHeight * 10}
-                viewBox={`0 0 ${columns} ${displayHeight}`}
-                fontFamily={theme.fontFamily}
-                fontSize={theme.fontSize}
+                x={paddingX + (decorations ? insetMinor : 0)}
+                y={paddingY + (decorations ? insetMajor : 0)}
+                width={columns * dx}
+                height={rows * dy}
             >
                 {children}
             </svg>

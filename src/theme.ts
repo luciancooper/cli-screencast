@@ -32,8 +32,6 @@ export interface Theme<Color = RGB | string> {
     // ansi style
     dim: number
     // font
-    fontSize: number
-    lineHeight: number
     fontFamily: string
 }
 
@@ -66,8 +64,6 @@ export const defaultTheme: Theme = {
     // ansi style
     dim: 0.5,
     // font
-    fontSize: 1.67,
-    lineHeight: 1.3,
     fontFamily: 'Monaco',
 };
 

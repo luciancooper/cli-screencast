@@ -1,7 +1,6 @@
 import { useContext } from 'react';
 import type { FunctionComponent, SVGProps } from 'react';
 import type { CursorRecordingFrame } from '../types';
-import { toHex } from '../color';
 import Context from './Context';
 import { Animation, TransformAnimation, KeyTime } from './Animation';
 
@@ -16,14 +15,14 @@ export const Cursor: FunctionComponent<CursorProps> = ({
     children,
     ...props
 }: CursorProps) => {
-    const theme = useContext(Context),
-        dy = theme.fontSize * theme.lineHeight,
-        fill = toHex(theme.cursorColor),
-        w = theme.cursorType === 'beam' ? 0.15 : 1,
-        [y, h] = theme.cursorType === 'underline' ? [line * dy + dy * 0.9, dy * 0.1] : [line * dy, dy];
+    const { theme: { cursorColor, cursorType, cursorBlink }, fontSize, grid: [dx, dy] } = useContext(Context),
+        w = (cursorType === 'beam' ? 0.15 : 1) * dx,
+        lh = Math.min(dy, fontSize * 1.2),
+        [cy, h] = cursorType === 'underline' ? [lh * 0.9, lh * 0.1] : [0, lh],
+        y = line * dy + (dy - lh) / 2 + cy;
     return (
-        <rect x={column} y={y} width={w} height={h} fill={fill} {...props}>
-            {theme.cursorBlink && (
+        <rect x={column * dx} y={y} width={w} height={h} fill={cursorColor} {...props}>
+            {cursorBlink && (
                 <Animation
                     attribute='opacity'
                     duration={1000}
@@ -50,7 +49,11 @@ export function opacityKeyTimes(frames: CursorRecordingFrame[], duration: number
     return times;
 }
 
-export function translateKeyTimes(frames: CursorRecordingFrame[], duration: number, [dy, dx] = [1, 1]) {
+export function translateKeyTimes(
+    frames: CursorRecordingFrame[],
+    duration: number,
+    [dy, dx]: readonly [number, number],
+) {
     const times: KeyTime<string>[] = [],
         [first, ...subsequent] = frames.filter(({ hidden }) => !hidden),
         [cy, cx] = [first!.line, first!.column];
@@ -69,14 +72,13 @@ export function translateKeyTimes(frames: CursorRecordingFrame[], duration: numb
 
 interface CursorFramesProps extends SVGProps<SVGRectElement> {
     frames: CursorRecordingFrame[]
-    duration: number
 }
 
-export const CursorFrames: FunctionComponent<CursorFramesProps> = ({ frames, duration, ...props }) => {
-    const theme = useContext(Context),
+export const CursorFrames: FunctionComponent<CursorFramesProps> = ({ frames, ...props }) => {
+    const { grid, duration } = useContext(Context),
         first = frames.find(({ hidden }) => !hidden)!,
         opacity = opacityKeyTimes(frames, duration),
-        translate = translateKeyTimes(frames, duration, [theme.fontSize * theme.lineHeight, 1]);
+        translate = translateKeyTimes(frames, duration, grid);
     return (
         <Cursor line={first.line} column={first.column} {...props}>
             {opacity.length > 0 && (

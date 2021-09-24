@@ -1,7 +1,7 @@
 import type { OmitStrict, PickOptional, Dimensions } from './types';
 import { resolveTheme, Theme } from './theme';
 import parse from './parse';
-import { renderScreenSvg, renderCaptureSvg, WindowOptions } from './render';
+import { renderScreenSvg, renderCaptureSvg, RenderOptions } from './render';
 import readableSpawn, { SpawnOptions } from './spawn';
 import captureSource, { CaptureOptions } from './capture';
 import TerminalRecordingStream, { SessionOptions, RunCallback } from './terminal';
@@ -29,7 +29,7 @@ function applyDefaults<T extends BaseOptions, D>(options: T, defaults?: D) {
     };
 }
 
-export interface RenderScreenOptions extends BaseOptions, WindowOptions {
+export interface RenderScreenOptions extends BaseOptions, RenderOptions {
     cursor?: boolean
 }
 
@@ -45,7 +45,7 @@ export function renderScreen(content: string, options: RenderScreenOptions): str
     return renderScreenSvg(state, props);
 }
 
-export type RenderSpawnOptions = BaseOptions & WindowOptions & CaptureOptions & SpawnOptions;
+export interface RenderSpawnOptions extends BaseOptions, RenderOptions, CaptureOptions, SpawnOptions {}
 
 /**
  * Record the terminal output of a command and render it as an animated SVG
@@ -61,7 +61,7 @@ export async function renderSpawn(command: string, args: string[], options: Rend
     return renderCaptureSvg(data, props);
 }
 
-export type RenderCaptureOptions = BaseOptions & WindowOptions & CaptureOptions & SessionOptions;
+export interface RenderCaptureOptions extends BaseOptions, RenderOptions, CaptureOptions, SessionOptions {}
 
 /**
  * Capture any terminal output that occurs within a callback function and render it as an animated SVG.
@@ -82,4 +82,4 @@ export async function renderCapture(fn: RunCallback<any>, options: RenderCapture
 
 export type { RGB } from './types';
 export type { Theme } from './theme';
-export type { WindowOptions, CaptureOptions, SpawnOptions, SessionOptions };
+export type { RenderOptions, CaptureOptions, SpawnOptions, SessionOptions };
