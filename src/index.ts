@@ -52,7 +52,7 @@ export function renderScreen(content: string, options: RenderScreenOptions): str
         state = parse(props, {
             lines: [],
             cursor: { line: 0, column: 0, hidden: !cursor },
-            title: resolveTitle(windowTitle, windowIcon),
+            title: resolveTitle(props.palette, windowTitle, windowIcon),
         }, content);
     return renderScreenSvg(state, props);
 }

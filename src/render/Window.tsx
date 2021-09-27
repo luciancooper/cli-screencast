@@ -106,10 +106,10 @@ const Window: FunctionComponent<WindowProps> = ({
                     width={columns * dx}
                     height={dy}
                 >
-                    {Array.isArray(title) ? title.map(({ icon, text, ...keyFrame }, i) => (
-                        <WindowTitle key={i} columnInset={titleInset} icon={icon} text={text} keyFrame={keyFrame}/>
+                    {Array.isArray(title) ? title.map(({ time, endTime, ...data }, i) => (
+                        <WindowTitle key={i} columnInset={titleInset} title={data} keyFrame={{ time, endTime }}/>
                     )) : (
-                        <WindowTitle {...title} columnInset={titleInset}/>
+                        <WindowTitle title={title} columnInset={titleInset}/>
                     )}
                 </svg>
             )}

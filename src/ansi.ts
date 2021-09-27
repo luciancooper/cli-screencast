@@ -90,7 +90,12 @@ function parseEscape(palette: Palette, style: AnsiStyle, sequence: string): Ansi
     };
 }
 
-export default function* parseAnsi(palette: Palette, string: string): Generator<{ chunk: string, style: AnsiStyle }> {
+export interface AnsiChunk {
+    chunk: string
+    style: AnsiStyle
+}
+
+export default function* parseAnsi(palette: Palette, string: string): Generator<AnsiChunk> {
     let style: AnsiStyle = { props: 0 },
         queue: string[] = [],
         chunk = '';

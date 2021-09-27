@@ -111,7 +111,7 @@ export class ScreenCapture extends Writable {
         this.context = context;
         // initial state
         const cursor = { line: 0, column: 0, hidden: cursorHidden },
-            title = resolveTitle(windowTitle, windowIcon);
+            title = resolveTitle(context.palette, windowTitle, windowIcon);
         this.screenState = { lines: [], cursor, title };
         this.lastContent = { time: 0, serialized: serialize.lines([]), state: [] };
         this.lastCursor = { time: 0, serialized: serialize.cursor(cursor), state: cursor };

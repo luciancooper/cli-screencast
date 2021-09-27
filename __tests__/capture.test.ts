@@ -20,11 +20,11 @@ function runCapture(cb: (source: RecordingStream) => void, options?: Partial<Scr
     return capture;
 }
 
-const anyKeyframe = <T>(props: T) => ({
+const anyKeyframe = <T>(props: T) => expect.objectContaining({
     time: expect.any(Number) as number,
     endTime: expect.any(Number) as number,
     ...props,
-});
+}) as T;
 
 type PartialCaptureData = DeepPartial<CaptureData>;
 
@@ -92,9 +92,9 @@ describe('captureSource', () => {
             source.finish();
         }, defaultOptions);
         expect(title).toEqual([
-            anyKeyframe({ icon: 'shell' }),
+            anyKeyframe({ icon: 'shell', text: undefined }),
             anyKeyframe({ icon: 'shell', text: 'window title' }),
-            anyKeyframe({ text: 'window title without icon' }),
+            anyKeyframe({ icon: undefined, text: 'window title without icon' }),
         ]);
     });
 

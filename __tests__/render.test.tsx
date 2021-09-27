@@ -1,15 +1,19 @@
 import { create } from 'react-test-renderer';
 import { resolveTheme } from '@src/theme';
+import { resolveTitle } from '@src/title';
 import Context, { RenderContext } from '@src/render/Context';
 import Window from '@src/render/Window';
 import WindowTitle from '@src/render/WindowTitle';
 import Text from '@src/render/Text';
 import { Cursor, CursorFrames, opacityKeyTimes, translateKeyTimes } from '@src/render/Cursor';
+import * as ansi from './helpers/ansi';
+
+const { theme: defTheme, palette } = resolveTheme();
 
 const defContext: RenderContext = {
     columns: 50,
     rows: 50,
-    theme: resolveTheme().theme,
+    theme: defTheme,
     fontSize: 1,
     grid: [1, 2],
     iconSpan: 1.6,
@@ -52,7 +56,7 @@ describe('<Window/>', () => {
 
     test('render with a title', () => {
         expect(render(
-            <Window decorations={false} title={{ text: 'window title', icon: 'node' }}/>,
+            <Window decorations={false} title={resolveTitle(palette, 'window title', 'node')}/>,
         )).toMatchObject({
             type: 'svg',
             children: [
@@ -72,17 +76,10 @@ describe('<Window/>', () => {
         expect(render(
             <Window
                 decorations={false}
-                title={[{
-                    text: 'first title frame',
-                    icon: 'shell',
-                    time: 0,
-                    endTime: 1000,
-                }, {
-                    text: 'second title frame',
-                    icon: 'node',
-                    time: 1000,
-                    endTime: 2000,
-                }]}
+                title={[
+                    { ...resolveTitle(palette, 'first title frame', 'shell'), time: 0, endTime: 1000 },
+                    { ...resolveTitle(palette, 'second title frame', 'node'), time: 1000, endTime: 2000 },
+                ]}
             />,
             { duration: 2000 },
         )).toMatchObject({
@@ -112,7 +109,9 @@ describe('<Window/>', () => {
 
 describe('<WindowTitle/>', () => {
     test('render centered title text and icon', () => {
-        expect(render(<WindowTitle columnInset={0} icon='shell' text='window title'/>)).toMatchObject({
+        expect(render(
+            <WindowTitle columnInset={0} title={resolveTitle(palette, 'window title', 'shell')}/>,
+        )).toMatchObject({
             type: 'g',
             props: { className: 'title-frame' },
             children: [
@@ -123,21 +122,27 @@ describe('<WindowTitle/>', () => {
     });
 
     test('render only icon', () => {
-        expect(render(<WindowTitle columnInset={0} icon='shell'/>))
+        expect(render(<WindowTitle columnInset={0} title={resolveTitle(palette, undefined, 'shell')}/>))
             .toMatchObject({ type: 'g', children: [{ type: 'use', props: { x: 24.2 } }] });
     });
 
-    test('truncate to fit title text', () => {
-        expect(render(<WindowTitle columnInset={4} text='longer window title'/>, { columns: 20 })).toMatchObject({
+    test('truncate styled title text to fit window columns', () => {
+        expect(render(
+            <WindowTitle columnInset={4} title={resolveTitle(palette, `longer ${ansi.bold('window title')}`)}/>,
+            { columns: 20 },
+        )).toMatchObject({
             type: 'g',
             props: { className: 'title-frame' },
-            children: [{ type: 'text', props: { x: 4 }, children: ['longer window t…'] }],
+            children: [
+                { type: 'text', props: { x: 4 }, children: ['longer '] },
+                { type: 'text', props: { x: 11 }, children: ['window t…'] },
+            ],
         });
     });
 
     test('truncate to fit title text and icon', () => {
         expect(render(
-            <WindowTitle columnInset={4} icon='shell' text='longer window title'/>,
+            <WindowTitle columnInset={4} title={resolveTitle(palette, 'longer window title', 'shell')}/>,
             { columns: 20 },
         )).toMatchObject({
             type: 'g',
@@ -151,7 +156,11 @@ describe('<WindowTitle/>', () => {
 
     test('render with animation keyframe', () => {
         expect(render(
-            <WindowTitle columnInset={0} text='window title frame' keyFrame={{ time: 0, endTime: 1000 }}/>,
+            <WindowTitle
+                columnInset={0}
+                title={resolveTitle(palette, 'window title frame')}
+                keyFrame={{ time: 0, endTime: 1000 }}
+            />,
             { duration: 2000 },
         )).toMatchObject({
             type: 'g',
@@ -170,7 +179,7 @@ describe('<Text/>', () => {
             <Text x={0} span={10} bold dim italic>text chunk</Text>,
         )).toMatchObject({
             type: 'text',
-            props: { fontWeight: 'bold', fontStyle: 'italic', opacity: defContext.theme.dim },
+            props: { fontWeight: 'bold', fontStyle: 'italic', opacity: defTheme.dim },
             children: ['text chunk'],
         });
     });
@@ -194,18 +203,17 @@ describe('<Text/>', () => {
     });
 
     test('swaps foreground and background when the `inverted` prop is passed', () => {
-        const { theme } = defContext;
         expect(render(
             <Text x={0} span={8} inverted>inverted</Text>,
         )).toMatchObject([
-            { type: 'rect', props: { fill: theme.text } },
-            { type: 'text', props: { fill: theme.background }, children: ['inverted'] },
+            { type: 'rect', props: { fill: defTheme.text } },
+            { type: 'text', props: { fill: defTheme.background }, children: ['inverted'] },
         ]);
         expect(render(
-            <Text x={0} span={8} fg={theme.red} bg={theme.yellow} inverted>inverted</Text>,
+            <Text x={0} span={8} fg={defTheme.red} bg={defTheme.yellow} inverted>inverted</Text>,
         )).toMatchObject([
-            { type: 'rect', props: { fill: theme.red } },
-            { type: 'text', props: { fill: theme.yellow }, children: ['inverted'] },
+            { type: 'rect', props: { fill: defTheme.red } },
+            { type: 'text', props: { fill: defTheme.yellow }, children: ['inverted'] },
         ]);
     });
 

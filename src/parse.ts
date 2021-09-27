@@ -1,7 +1,7 @@
 import { splitLines, charWidths } from 'tty-strings';
 import type { Dimensions, Palette, ScreenData, TerminalLine, TextChunk } from './types';
 import parseAnsi, { stylesEqual } from './ansi';
-import { matchIcon } from './title';
+import { matchIcon, parseTitle } from './title';
 import { regexChunks } from './utils';
 
 export interface ParseContext extends Dimensions {
@@ -56,7 +56,7 @@ function sliceChunkAfter(chunk: TextChunk, column: number): TextChunk | null {
  * @param state - screen state upon which content will be written
  * @returns a terminal line partial
  */
-export function cursorLinePartial(state: ScreenData): TerminalLine {
+export function cursorLinePartial(state: Omit<ScreenData, 'title'>): TerminalLine {
     const { lines, cursor } = state;
     if (cursor.line >= lines.length) {
         return { index: 0, columns: cursor.column, chunks: [] };
@@ -198,7 +198,7 @@ function updateSubsequentLineContinuity(lines: TerminalLine[], i: number, insert
     }
 }
 
-function parseEscape({ columns, rows }: ParseContext, state: ScreenData, esc: string) {
+function parseEscape({ columns, rows, palette }: ParseContext, state: ScreenData, esc: string) {
     const { lines, cursor, title } = state;
     // move cursor with `ESC[#;#H`
     let m = /^\x1b\[(?:(\d+)?;(\d+)?)?[Hf]$/.exec(esc);
@@ -318,15 +318,12 @@ function parseEscape({ columns, rows }: ParseContext, state: ScreenData, esc: st
         return;
     }
     // set window title
-    m = /^\x1b\]([012]);(.*)\x07$/.exec(esc);
+    m = /^\x1b\]([012]);(.+)?\x07$/.exec(esc);
     if (m) {
         const code = m[1]! as '0' | '1' | '2',
-            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-            value = m[2] || undefined;
-        if (code !== '2') {
-            const icon = value !== undefined ? matchIcon(value) : value;
-            state.title = code === '0' ? { icon, text: value } : { ...title, icon };
-        } else state.title = { ...title, text: value };
+            value = m[2] ?? undefined,
+            icon = code !== '2' ? (value !== undefined ? matchIcon(value) : value) : title.icon;
+        state.title = code !== '1' ? { icon, text: value, ...parseTitle(palette, value ?? '') } : { ...title, icon };
     }
     // unsupported escapes fallthrough to here
 }

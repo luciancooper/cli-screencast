@@ -1,22 +1,36 @@
 import { useContext } from 'react';
-import type { FunctionComponent, SVGProps } from 'react';
+import type { FunctionComponent } from 'react';
 import { stringWidth, sliceColumns } from 'tty-strings';
-import type { Title, RecordingFrame } from '../types';
+import type { Title, RecordingFrame, TextChunk } from '../types';
+import { expandProps } from '../ansi';
 import Context from './Context';
+import Text from './Text';
 import { Animation } from './Animation';
 
-interface WindowTitleProps extends Title, SVGProps<SVGGElement> {
+interface WindowTitleProps {
+    title: Title
     columnInset: number
     keyFrame?: RecordingFrame
 }
 
-const WindowTitle: FunctionComponent<WindowTitleProps> = ({
-    columnInset,
-    icon,
-    text,
-    keyFrame,
-    ...props
-}) => {
+function truncateTitle(chunks: TextChunk[], cols: number): readonly [TextChunk[], number] {
+    const truncated: TextChunk[] = [];
+    let tcols = cols;
+    for (const { str, x: [x, span], style } of chunks) {
+        if (x + span < cols - 1) {
+            truncated.push({ str, x: [x, span], style });
+            continue;
+        }
+        const tstr = `${sliceColumns(str, 0, cols - x - 1)}…`,
+            tspan = stringWidth(tstr);
+        truncated.push({ str: tstr, x: [x, tspan], style });
+        tcols = x + tspan;
+        break;
+    }
+    return [truncated, tcols];
+}
+
+const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, keyFrame }) => {
     const {
         columns,
         theme,
@@ -24,36 +38,27 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({
         duration,
         iconSpan,
     } = useContext(Context);
-    let iconX,
+    let iconX: number,
         textElement = null;
-    if (text) {
-        const iconInset = icon ? Math.ceil(iconSpan) + 1 : 0;
-        let [title, textSpan] = [text, stringWidth(text)];
+    if (title.columns) {
+        const iconInset = title.icon ? Math.ceil(iconSpan) + 1 : 0;
+        let { chunks, columns: textSpan } = title;
         if (textSpan + iconInset > columns - columnInset) {
-            title = `${sliceColumns(title, 0, columns - iconInset - columnInset - 1)}…`;
-            textSpan = stringWidth(title);
+            [chunks, textSpan] = truncateTitle(chunks, columns - iconInset - columnInset);
         }
         iconX = Math.max(Math.floor((columns - textSpan - iconInset) / 2), columnInset);
-        textElement = (
-            <text
-                x={(iconX + iconInset) * dx}
-                y={dy / 2}
-                fill={theme.text}
-                dominantBaseline='central'
-                style={{ whiteSpace: 'pre' }}
-            >
-                {title}
-            </text>
-        );
+        textElement = chunks.map(({ str, x: [x, span], style: { props, ...style } }, j) => (
+            <Text key={j} x={iconX + iconInset + x} span={span} {...style} {...expandProps(props)}>{str}</Text>
+        ));
     } else {
         iconX = Math.floor((columns - Math.ceil(iconSpan)) / 2);
     }
     const iconSize = Math.min(dx * iconSpan, dy);
     return (
-        <g className='title-frame' {...props}>
-            {icon && (
+        <g className='title-frame'>
+            {title.icon && (
                 <use
-                    xlinkHref={`#${icon}`}
+                    xlinkHref={`#${title.icon}`}
                     x={(iconX + (Math.ceil(iconSpan) - iconSpan) / 2) * dx + (dx * iconSpan - iconSize) / 2}
                     y={(dy - iconSize) / 2}
                     width={iconSize}

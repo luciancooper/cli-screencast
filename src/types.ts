@@ -94,8 +94,10 @@ export interface TerminalLine {
 export type IconID = keyof typeof icons;
 
 export interface Title {
-    icon?: IconID
-    text?: string
+    icon: IconID | undefined
+    text: string | undefined
+    columns: number
+    chunks: TextChunk[]
 }
 
 export interface ScreenData {

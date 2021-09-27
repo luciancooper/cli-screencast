@@ -1,4 +1,6 @@
-import type { IconID, Title } from './types';
+import { stringWidth } from 'tty-strings';
+import type { IconID, Title, Palette, AnsiStyle, TextChunk } from './types';
+import parseAnsi, { stylesEqual } from './ansi';
 import icons from './render/icons.json';
 
 const iconMap = (
@@ -13,9 +15,33 @@ export function matchIcon(string: string, fallback: IconID = 'shell'): IconID {
     return cmd.length ? (iconMap[cmd] ?? fallback) : fallback;
 }
 
-export function resolveTitle(text?: string, icon?: string | boolean): Title {
+export function parseTitle(palette: Palette, title: string) {
+    const chunks: TextChunk[] = [];
+    let [x, width, str] = [0, 0, ''],
+        chunkStyle: AnsiStyle | null = null;
+    for (const { chunk, style } of parseAnsi(palette, title)) {
+        const span = stringWidth(chunk);
+        if (!span) continue;
+        if (chunkStyle) {
+            if (stylesEqual(chunkStyle, style)) {
+                width += span;
+                str += chunk;
+                continue;
+            }
+            chunks.push({ str, x: [x, width], style: chunkStyle });
+        }
+        [x, width, str, chunkStyle] = [x + width, span, chunk, style];
+    }
+    if (chunkStyle) {
+        chunks.push({ str, x: [x, width], style: chunkStyle });
+    }
+    return { columns: x + width, chunks };
+}
+
+export function resolveTitle(palette: Palette, text?: string, icon?: string | boolean): Title {
     return {
         text,
         icon: icon ? matchIcon(typeof icon === 'boolean' ? text ?? '' : icon) : undefined,
+        ...parseTitle(palette, text ?? ''),
     };
 }
