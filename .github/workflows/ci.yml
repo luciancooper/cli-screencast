@@ -57,7 +57,7 @@ jobs:
         path: coverage
 
   coverage:
-    name: Codecov ${{ runner.os }}
+    name: Codecov ${{ matrix.os }}
     needs: [test]
 
     strategy:
