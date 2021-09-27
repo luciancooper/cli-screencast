@@ -51,15 +51,22 @@ jobs:
 
     - name: upload coverage artifact
       uses: actions/upload-artifact@v2
-      if: matrix.os == 'ubuntu-latest' && matrix.node == 14
+      if: matrix.node == 14
       with:
-        name: coverage
+        name: coverage-${{ runner.os }}
         path: coverage
 
   coverage:
-    name: Codecov
+    name: Codecov ${{ runner.os }}
     needs: [test]
-    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
     steps:
     - name: checkout repo
       uses: actions/checkout@v2
@@ -67,10 +74,15 @@ jobs:
     - name: download coverage artifact
       uses: actions/download-artifact@v2
       with:
-        name: coverage
+        name: coverage-${{ runner.os }}
         path: coverage
+
+    - name: display structure of coverage artifact
+      run: ls -R
+      working-directory: coverage
 
     - name: upload to codecov
       uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        flags: ${{ runner.os }}
