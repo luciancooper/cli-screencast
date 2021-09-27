@@ -20,10 +20,16 @@ function runCapture(cb: (source: RecordingStream) => void, options?: Partial<Scr
     return capture;
 }
 
+const anyKeyframe = <T>(props: T) => ({
+    time: expect.any(Number) as number,
+    endTime: expect.any(Number) as number,
+    ...props,
+});
+
 type PartialCaptureData = DeepPartial<CaptureData>;
 
 describe('captureSource', () => {
-    test('processes events written from a recording source', async () => {
+    test('process events written from a recording source', async () => {
         await expect(runCapture((source) => {
             source.start();
             source.write('first write');
@@ -43,7 +49,7 @@ describe('captureSource', () => {
         });
     });
 
-    test('merges consecutive writes whose time difference is less than `writeMergeThreshold`', async () => {
+    test('merge consecutive writes whose time difference is less than `writeMergeThreshold`', async () => {
         await expect(runCapture((source) => {
             source.start();
             source.write('first write');
@@ -65,7 +71,7 @@ describe('captureSource', () => {
         });
     });
 
-    test('returns no cursor keyframes if cursor is hidden', async () => {
+    test('return no cursor keyframes if cursor is hidden', async () => {
         const data = await runCapture((source) => {
             source.start();
             source.write('first write');
@@ -76,7 +82,23 @@ describe('captureSource', () => {
         expect(data.cursor).toHaveLength(0);
     });
 
-    test('does not remove time between start and first write when `cropStartDelay` is false', async () => {
+    test('capture title keyframes when window title and icon changes', async () => {
+        const { title } = await runCapture((source) => {
+            source.write('\x1b]1;shell\x07');
+            source.wait(500);
+            source.write('\x1b]2;window title\x07');
+            source.wait(500);
+            source.setTitle('window title without icon', '');
+            source.finish();
+        }, defaultOptions);
+        expect(title).toEqual([
+            anyKeyframe({ icon: 'shell' }),
+            anyKeyframe({ icon: 'shell', text: 'window title' }),
+            anyKeyframe({ text: 'window title without icon' }),
+        ]);
+    });
+
+    test('do not remove time between start and first write when `cropStartDelay` is false', async () => {
         await expect(runCapture((source) => {
             source.start();
             source.wait(500);
@@ -91,7 +113,12 @@ describe('captureSource', () => {
     });
 
     describe('empty recording sources', () => {
-        const emptyData: CaptureData = { content: [], cursor: [], duration: 0 };
+        const emptyData: CaptureData = {
+            content: [],
+            cursor: [],
+            title: [],
+            duration: 0,
+        };
 
         test('source only emits finish event', async () => {
             await expect(runCapture((source) => {

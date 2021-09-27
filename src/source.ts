@@ -115,4 +115,21 @@ export default class RecordingStream extends Duplex {
         this.push(null);
         this.emit('recording-end', event.timestamp);
     }
+
+    setTitle(title: string, icon: string | boolean = false) {
+        if (this.ended) {
+            throw new Error('Source stream is closed');
+        }
+        // push an initial start event to the readable stream if necessary
+        if (!this.started) this.start();
+        // push write event
+        const event: SourceEvent = {
+            type: 'write',
+            content: typeof icon === 'string'
+                ? `\x1b]2;${title}\x07\x1b]1;${icon}\x07`
+                : `\x1b]${icon ? 0 : 2};${title}\x07`,
+            timestamp: Date.now(),
+        };
+        this.push(event);
+    }
 }

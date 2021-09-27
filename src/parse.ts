@@ -1,6 +1,7 @@
 import { splitLines, charWidths } from 'tty-strings';
 import type { Dimensions, Palette, ScreenData, TerminalLine, TextChunk } from './types';
 import parseAnsi, { stylesEqual } from './ansi';
+import { matchIcon } from './title';
 import { regexChunks } from './utils';
 
 export interface ParseContext extends Dimensions {
@@ -8,7 +9,12 @@ export interface ParseContext extends Dimensions {
     palette: Palette
 }
 
-const ctrlRegex = '\\x1b\\[(?:(?:(?:\\d+)?;(?:\\d+)?)?[Hf]|\\d*[A-G]|6n|[0-2]?[JK]|[SsTu]|(?:\\?(?:25|47|1049)|=[0-7][3-9]?)[hl])';
+const ctrlRegex = '[\\x1b\\x9b]'
+    + '(?:'
+    + '\\[(?:(?:(?:\\d+)?;(?:\\d+)?)?[Hf]|\\d*[A-G]|6n|[0-2]?[JK]|[SsTu]|(?:\\?(?:25|47|1049)|=[0-7][3-9]?)[hl])'
+    + '|'
+    + '\\][012];.*?\\x07'
+    + ')';
 
 function prune(lines: TerminalLine[]) {
     for (let i = lines.length - 1; i >= 0; i -= 1) {
@@ -193,7 +199,7 @@ function updateSubsequentLineContinuity(lines: TerminalLine[], i: number, insert
 }
 
 function parseEscape({ columns, rows }: ParseContext, state: ScreenData, esc: string) {
-    const { lines, cursor } = state;
+    const { lines, cursor, title } = state;
     // move cursor with `ESC[#;#H`
     let m = /^\x1b\[(?:(\d+)?;(\d+)?)?[Hf]$/.exec(esc);
     if (m) {
@@ -307,7 +313,21 @@ function parseEscape({ columns, rows }: ParseContext, state: ScreenData, esc: st
     }
     // toggle cursor visibility `\x1b[?25l` & `\x1b[?25h`
     m = /^\x1b\[\?25([hl])$/.exec(esc);
-    if (m) state.cursor = { ...cursor, hidden: m[1] === 'l' };
+    if (m) {
+        state.cursor = { ...cursor, hidden: m[1] === 'l' };
+        return;
+    }
+    // set window title
+    m = /^\x1b\]([012]);(.*)\x07$/.exec(esc);
+    if (m) {
+        const code = m[1]! as '0' | '1' | '2',
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+            value = m[2] || undefined;
+        if (code !== '2') {
+            const icon = value !== undefined ? matchIcon(value) : value;
+            state.title = code === '0' ? { icon, text: value } : { ...title, icon };
+        } else state.title = { ...title, text: value };
+    }
     // unsupported escapes fallthrough to here
 }
 

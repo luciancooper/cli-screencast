@@ -23,6 +23,7 @@ export interface Theme<Color = RGB | string> {
     brightWhite: Color
     // window
     background: Color
+    iconColor: Color
     // other
     text: Color
     // cursor
@@ -55,6 +56,7 @@ export const defaultTheme: Theme = {
     brightWhite: [241, 241, 240],
     // window
     background: [40, 42, 54],
+    iconColor: [211, 215, 222],
     // other
     text: [185, 192, 203],
     // cursor

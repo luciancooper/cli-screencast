@@ -1,9 +1,10 @@
 import { Writable } from 'stream';
-import type { TerminalLine, CursorLocation, ScreenData, CaptureData } from './types';
+import type { TerminalLine, CursorLocation, Title, ScreenData, CaptureData } from './types';
+import RecordingStream, { SourceEvent } from './source';
+import { resolveTitle } from './title';
 import parse, { ParseContext } from './parse';
 import { clone } from './utils';
 import serialize from './serialize';
-import RecordingStream, { SourceEvent } from './source';
 
 interface CaptureDuration {
     start: number
@@ -24,6 +25,18 @@ export interface CaptureOptions {
      * @defaultValue `false`
      */
     cursorHidden?: boolean
+
+    /**
+     * Terminal window title at the start of the capture
+     * @defaultValue `undefined`
+     */
+    windowTitle?: string
+
+    /**
+     * Terminal window icon at the start of the capture
+     * @defaultValue `undefined`
+     */
+    windowIcon?: string | boolean
 
     /**
      * Consecutive writes will be merged if they occur within this number of milliseconds of each other.
@@ -52,6 +65,7 @@ export class ScreenCapture extends Writable {
     data: CaptureData = {
         content: [],
         cursor: [],
+        title: [],
         duration: NaN,
     };
 
@@ -70,6 +84,8 @@ export class ScreenCapture extends Writable {
 
     lastCursor: { time: number, serialized: string, state: CursorLocation };
 
+    lastTitle: { time: number, serialized: string, state: Title };
+
     mergeThreshold: number;
 
     cropStartDelay: boolean;
@@ -83,6 +99,8 @@ export class ScreenCapture extends Writable {
         endTimePadding = 500,
         cropStartDelay = true,
         cursorHidden = false,
+        windowTitle,
+        windowIcon,
         ...context
     }: ScreenCaptureOptions) {
         super({ objectMode: true });
@@ -92,10 +110,12 @@ export class ScreenCapture extends Writable {
         this.endTimePadding = endTimePadding;
         this.context = context;
         // initial state
-        const cursor = { line: 0, column: 0, hidden: cursorHidden };
-        this.screenState = { lines: [], cursor };
+        const cursor = { line: 0, column: 0, hidden: cursorHidden },
+            title = resolveTitle(windowTitle, windowIcon);
+        this.screenState = { lines: [], cursor, title };
         this.lastContent = { time: 0, serialized: serialize.lines([]), state: [] };
         this.lastCursor = { time: 0, serialized: serialize.cursor(cursor), state: cursor };
+        this.lastTitle = { time: 0, serialized: serialize.title(title), state: title };
     }
 
     private pushCursor(time: number, state: CursorLocation) {
@@ -122,6 +142,18 @@ export class ScreenCapture extends Writable {
         }
     }
 
+    private pushTitle(time: number, state: Title) {
+        const serialized = serialize.title(state),
+            last = this.lastTitle;
+        // compare updated title to the last title
+        if (last.serialized !== serialized) {
+            if (time > last.time && last.serialized) {
+                this.data.title.push({ time: last.time, endTime: time, ...last.state });
+            }
+            this.lastTitle = { time, serialized, state };
+        }
+    }
+
     private pushFrame(time: number, content: string) {
         const state = this.screenState;
         // parse frame content
@@ -129,13 +161,14 @@ export class ScreenCapture extends Writable {
         // push content & cursor state
         this.pushContent(time, state.lines);
         this.pushCursor(time, state.cursor);
+        this.pushTitle(time, state.title);
         // clone state
         this.screenState = clone(state);
     }
 
     private finishCapture(duration: number) {
         this.data.duration = duration;
-        const { lastContent: content, lastCursor: cursor } = this;
+        const { lastContent: content, lastCursor: cursor, lastTitle: title } = this;
         // add last content keyframe
         if (duration > content.time) {
             this.data.content.push({ time: content.time, endTime: duration, lines: content.state });
@@ -143,6 +176,10 @@ export class ScreenCapture extends Writable {
         // add last cursor keyframe if cursor is visible or if keyframes array is not empty
         if ((!cursor.state.hidden || this.data.cursor.length) && duration > cursor.time) {
             this.data.cursor.push({ time: cursor.time, endTime: duration, ...cursor.state });
+        }
+        // add last title keyframe if title is not empty
+        if (title.serialized && duration > title.time) {
+            this.data.title.push({ time: title.time, endTime: duration, ...title.state });
         }
     }
 

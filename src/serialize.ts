@@ -1,12 +1,12 @@
-import type { TextChunk, TerminalLine, CursorLocation } from './types';
+import type { TextChunk, TerminalLine, CursorLocation, Title } from './types';
 
-const text = (str?: string): string => (
+const escapeString = (str?: string): string => (
     typeof str !== 'string' ? '' : `'${str.replace(/'/g, "\\'")}'`
 );
 
 const chunk = ({ str, style, x: [x, span] }: TextChunk): string => {
-    const [fg, bg, link] = [style.fg ?? '', style.bg ?? '', text(style.link)];
-    return `(${x}:${span}:${style.props},${fg},${bg},${link}) ${text(str)}`;
+    const [fg, bg, link] = [style.fg ?? '', style.bg ?? '', escapeString(style.link)];
+    return `(${x}:${span}:${style.props},${fg},${bg},${link}) ${escapeString(str)}`;
 };
 
 const lines = (array: TerminalLine[]): string => (
@@ -17,4 +17,13 @@ const cursor = ({ hidden, line: l, column: c }: CursorLocation) => (
     hidden ? '' : `${l}:${c}`
 );
 
-export default { chunk, lines, cursor };
+const title = ({ icon, text }: Title) => (
+    (icon || text) ? `${icon ?? ''}:${text ?? ''}` : ''
+);
+
+export default {
+    chunk,
+    lines,
+    cursor,
+    title,
+};

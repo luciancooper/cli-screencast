@@ -1,3 +1,5 @@
+import icons from './render/icons.json';
+
 /**
  * A strict version of the built-in `Omit` that requires omitted keys `K` to be present on the given type `T`.
  */
@@ -89,9 +91,17 @@ export interface TerminalLine {
     chunks: TextChunk[]
 }
 
+export type IconID = keyof typeof icons;
+
+export interface Title {
+    icon?: IconID
+    text?: string
+}
+
 export interface ScreenData {
     lines: TerminalLine[]
     cursor: CursorLocation
+    title: Title
 }
 
 export interface RecordingFrame {
@@ -105,8 +115,11 @@ export interface ContentRecordingFrame extends RecordingFrame {
 
 export interface CursorRecordingFrame extends CursorLocation, RecordingFrame {}
 
+export interface TitleRecordingFrame extends Title, RecordingFrame {}
+
 export interface CaptureData {
     content: ContentRecordingFrame[]
     cursor: CursorRecordingFrame[]
+    title: TitleRecordingFrame[]
     duration: number
 }

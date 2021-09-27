@@ -1,4 +1,4 @@
-import type { CursorLocation, DeepPartial, Dimensions, ScreenData, TerminalLine } from '@src/types';
+import type { DeepPartial, Dimensions, CursorLocation, Title, ScreenData, TerminalLine } from '@src/types';
 import { resolveTheme } from '@src/theme';
 import { clone } from '@src/utils';
 import parse, { ParseContext } from '@src/parse';
@@ -18,9 +18,9 @@ interface Parser {
     prev: ScreenData
 }
 
-const makeParser = (dim: Dimensions, cursorHidden = false): Parser => {
+const makeParser = (dim: Dimensions, cursorHidden = false, title: Title = {}): Parser => {
     const context = makeContext(dim),
-        state = { lines: [], cursor: { line: 0, column: 0, hidden: cursorHidden } },
+        state = { lines: [], cursor: { line: 0, column: 0, hidden: cursorHidden }, title },
         parser = Object.assign((...content: string[]) => {
             parser.prev = clone(state);
             return parse(context, state, content.join(''));
@@ -104,12 +104,9 @@ describe('parse', () => {
     });
 
     test('write lines containing tab characters', () => {
-        const state = parse(
-            makeContext({ columns: 20, rows: 10 }),
-            { lines: [], cursor: { line: 0, column: 0, hidden: false } },
-            'aa\tbb\tcc\t\txx\tyy\tzz\t',
-        );
-        expect(state.lines).toMatchObject<LinePartial[]>([
+        const parser = makeParser({ columns: 20, rows: 10 });
+        parser('aa\tbb\tcc\t\txx\tyy\tzz\t');
+        expect(parser.state.lines).toMatchObject<LinePartial[]>([
             { index: 0, columns: 20, chunks: [{ str: 'aa      bb      cc  ', x: [0, 20] }] },
             { index: 1, columns: 20, chunks: [{ str: 'xx      yy      zz  ', x: [0, 20] }] },
         ]);
@@ -234,5 +231,18 @@ describe('parse', () => {
         // cursor will not wrap to first line
         parser(ansi.cursorTo(1, 5), ansi.cursorBackward(10));
         expect(parser.state.cursor).toMatchObject<Partial<CursorLocation>>({ line: 1, column: 0 });
+    });
+
+    test('set window title and icon', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        expect(parser.state.title).toEqual<Title>({});
+        parser('\x1b]0;title\x07');
+        expect(parser.state.title).toEqual<Title>({ icon: 'shell', text: 'title' });
+        parser('\x1b]1;icon\x07');
+        expect(parser.state.title).toEqual<Title>({ icon: 'shell', text: 'title' });
+        parser('\x1b]2;new title\x07');
+        expect(parser.state.title).toEqual<Title>({ icon: 'shell', text: 'new title' });
+        parser('\x1b]1;\x07');
+        expect(parser.state.title).toEqual<Title>({ text: 'new title' });
     });
 });

@@ -24,16 +24,20 @@ describe('cursorLinePartial', () => {
     ];
 
     test('returns an empty line if cursor line index exceeds line array length', () => {
-        expect(cursorLinePartial({ lines, cursor: makeCursor(2, 8) })).toEqual(makeLine(8));
+        expect(cursorLinePartial({ lines, cursor: makeCursor(2, 8), title: {} }))
+            .toEqual(makeLine(8));
     });
 
     test('only adjusts cursor line column value if cursor column exceeds its width', () => {
-        expect(cursorLinePartial({ lines, cursor: makeCursor(1, 14) })).toEqual(makeLine('dddddddddd', 'ee', 2));
+        expect(cursorLinePartial({ lines, cursor: makeCursor(1, 14), title: {} }))
+            .toEqual(makeLine('dddddddddd', 'ee', 2));
     });
 
     test('slices line content up to the cursor column index', () => {
-        expect(cursorLinePartial({ lines, cursor: makeCursor(0, 8) })).toEqual(makeLine('aaaaa', 'bbb'));
-        expect(cursorLinePartial({ lines, cursor: makeCursor(0, 5) })).toEqual(makeLine('aaaaa'));
+        expect(cursorLinePartial({ lines, cursor: makeCursor(0, 8), title: {} }))
+            .toEqual(makeLine('aaaaa', 'bbb'));
+        expect(cursorLinePartial({ lines, cursor: makeCursor(0, 5), title: {} }))
+            .toEqual(makeLine('aaaaa'));
     });
 });
 

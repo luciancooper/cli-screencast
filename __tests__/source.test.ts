@@ -17,7 +17,7 @@ describe('RecordingStream', () => {
         ]);
     });
 
-    test('write method will activate stream if called before start', async () => {
+    test('`write` method will activate stream if called before start', async () => {
         const source = new RecordingStream();
         source.write('pre-start write');
         source.finish();
@@ -28,13 +28,24 @@ describe('RecordingStream', () => {
         ]);
     });
 
-    test('wait method will activate stream if called before start', async () => {
+    test('`wait` method will activate stream if called before start', async () => {
         const source = new RecordingStream();
         source.wait(500);
         source.finish();
         await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
             { type: 'start' },
             { type: 'wait', milliseconds: 500 },
+            { type: 'finish' },
+        ]);
+    });
+
+    test('`setTitle` method activates stream when called before start', async () => {
+        const source = new RecordingStream();
+        source.setTitle('window title');
+        source.finish();
+        await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+            { type: 'start' },
+            { type: 'write', content: '\x1b]2;window title\x07' },
             { type: 'finish' },
         ]);
     });
@@ -62,6 +73,20 @@ describe('RecordingStream', () => {
         ]);
     });
 
+    test('`setTitle` creates window title escape sequence write events', async () => {
+        const source = new RecordingStream();
+        source.start();
+        source.setTitle('window title', 'node');
+        source.setTitle('node task', true);
+        source.finish();
+        await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+            { type: 'start' },
+            { type: 'write', content: '\x1b]2;window title\x07\x1b]1;node\x07' },
+            { type: 'write', content: '\x1b]0;node task\x07' },
+            { type: 'finish' },
+        ]);
+    });
+
     test('throws error if methods are called after stream has closed', async () => {
         const source = new RecordingStream();
         source.finish();
@@ -69,6 +94,8 @@ describe('RecordingStream', () => {
         expect(() => void source.start()).toThrow('Source stream is closed');
         // bad wait() call
         expect(() => void source.wait(500)).toThrow('Source stream is closed');
+        // bad setTitle() call
+        expect(() => void source.setTitle('title')).toThrow('Source stream is closed');
         // bad write() call
         await expect(new Promise<void>((resolve, reject) => {
             source.once('error', reject);

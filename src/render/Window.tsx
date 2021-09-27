@@ -1,7 +1,9 @@
 import { useContext } from 'react';
 import type { FunctionComponent } from 'react';
-import type { Dimensions } from '../types';
+import type { IconID, Title, TitleRecordingFrame } from '../types';
+import iconPaths from './icons.json';
 import Context from './Context';
+import WindowTitle from './WindowTitle';
 
 export interface WindowOptions {
     /**
@@ -43,11 +45,12 @@ export interface WindowOptions {
     paddingY?: number
 }
 
-interface WindowProps extends Dimensions, WindowOptions {}
+interface WindowProps extends WindowOptions {
+    title?: Title | TitleRecordingFrame[] | null
+}
 
 const Window: FunctionComponent<WindowProps> = ({
-    columns,
-    rows,
+    title = null,
     borderRadius = 5,
     decorations = true,
     insetMajor = 40,
@@ -56,16 +59,37 @@ const Window: FunctionComponent<WindowProps> = ({
     paddingX = 5,
     children,
 }) => {
-    const { theme, fontSize, grid: [dx, dy] } = useContext(Context);
+    const {
+            columns,
+            rows,
+            theme,
+            fontSize,
+            grid: [dx, dy],
+        } = useContext(Context),
+        icons = Array.isArray(title)
+            ? [...new Set(title.map(({ icon }) => icon).filter(Boolean) as IconID[])]
+            : title?.icon ? [title.icon] : [],
+        top = decorations ? insetMajor : title ? dy + paddingY * 2 : 0,
+        side = decorations ? insetMinor : 0,
+        titleInset = decorations ? Math.ceil((50 - paddingX) / dx) : 0;
     return (
         <svg
             xmlns='http://www.w3.org/2000/svg'
             xmlnsXlink='http://www.w3.org/1999/xlink'
-            width={columns * dx + paddingX * 2 + (decorations ? insetMinor * 2 : 0)}
-            height={rows * dy + paddingY * 2 + (decorations ? insetMajor + insetMinor : 0)}
+            width={columns * dx + paddingX * 2 + side * 2}
+            height={rows * dy + paddingY * 2 + side + top}
             fontFamily={theme.fontFamily}
             fontSize={fontSize}
         >
+            {icons.length > 0 && (
+                <defs>
+                    {icons.map((id) => (
+                        <symbol key={id} id={id} viewBox='0 0 1 1'>
+                            <path d={iconPaths[id].path}/>
+                        </symbol>
+                    ))}
+                </defs>
+            )}
             <rect
                 className='window-background'
                 width='100%'
@@ -74,6 +98,21 @@ const Window: FunctionComponent<WindowProps> = ({
                 ry={borderRadius}
                 fill={theme.background}
             />
+            {title && (
+                <svg
+                    className='window-title'
+                    x={paddingX + side}
+                    y={paddingY + (top - paddingY * 2 - dy) / 2}
+                    width={columns * dx}
+                    height={dy}
+                >
+                    {Array.isArray(title) ? title.map(({ icon, text, ...keyFrame }, i) => (
+                        <WindowTitle key={i} columnInset={titleInset} icon={icon} text={text} keyFrame={keyFrame}/>
+                    )) : (
+                        <WindowTitle {...title} columnInset={titleInset}/>
+                    )}
+                </svg>
+            )}
             {decorations && (
                 <g className='window-decorations'>
                     <circle cx={insetMinor} cy={insetMajor / 2} r={6} fill='#ff5f58'/>
@@ -82,8 +121,9 @@ const Window: FunctionComponent<WindowProps> = ({
                 </g>
             )}
             <svg
-                x={paddingX + (decorations ? insetMinor : 0)}
-                y={paddingY + (decorations ? insetMajor : 0)}
+                className='terminal-content'
+                x={paddingX + side}
+                y={paddingY + top}
                 width={columns * dx}
                 height={rows * dy}
             >

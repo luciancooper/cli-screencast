@@ -5,6 +5,7 @@ import { renderScreenSvg, renderCaptureSvg, RenderOptions } from './render';
 import readableSpawn, { SpawnOptions } from './spawn';
 import captureSource, { CaptureOptions } from './capture';
 import TerminalRecordingStream, { SessionOptions, RunCallback } from './terminal';
+import { resolveTitle } from './title';
 
 interface BaseOptions extends Dimensions {
     tabSize?: number
@@ -17,7 +18,7 @@ const baseDefaults: BaseDefaults = {
     tabSize: 8,
 };
 
-function applyDefaults<T extends BaseOptions, D>(options: T, defaults?: D) {
+function applyDefaults<T extends BaseOptions, D>(options: T, defaults: D = {} as D) {
     const { theme: themeOption, ...other } = options,
         { palette, theme } = resolveTheme(themeOption);
     return {
@@ -31,6 +32,8 @@ function applyDefaults<T extends BaseOptions, D>(options: T, defaults?: D) {
 
 export interface RenderScreenOptions extends BaseOptions, RenderOptions {
     cursor?: boolean
+    windowTitle?: string
+    windowIcon?: string | boolean
 }
 
 /**
@@ -40,8 +43,17 @@ export interface RenderScreenOptions extends BaseOptions, RenderOptions {
  * @returns static screenshot svg
  */
 export function renderScreen(content: string, options: RenderScreenOptions): string {
-    const { cursor, ...props } = applyDefaults(options, { cursor: false }),
-        state = parse(props, { lines: [], cursor: { line: 0, column: 0, hidden: !cursor } }, content);
+    const {
+            cursor,
+            windowTitle,
+            windowIcon,
+            ...props
+        } = applyDefaults(options, { cursor: false }),
+        state = parse(props, {
+            lines: [],
+            cursor: { line: 0, column: 0, hidden: !cursor },
+            title: resolveTitle(windowTitle, windowIcon),
+        }, content);
     return renderScreenSvg(state, props);
 }
 
