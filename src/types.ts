@@ -125,3 +125,12 @@ export interface CaptureData {
     title: TitleRecordingFrame[]
     duration: number
 }
+
+export interface Size {
+    width: number
+    height: number
+}
+
+export interface SVGData extends Size {
+    svg: string
+}

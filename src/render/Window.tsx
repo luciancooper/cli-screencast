@@ -1,8 +1,18 @@
-import { useContext } from 'react';
-import type { FunctionComponent } from 'react';
-import type { IconID, Title, TitleRecordingFrame } from '../types';
+import { useContext, forwardRef } from 'react';
+import type {
+    IconID,
+    Size,
+    TerminalLine,
+    ContentRecordingFrame,
+    CursorLocation,
+    CursorRecordingFrame,
+    Title,
+    TitleRecordingFrame,
+} from '../types';
 import iconPaths from './icons.json';
 import Context from './Context';
+import Frame from './Frame';
+import { Cursor, CursorFrames } from './Cursor';
 import WindowTitle from './WindowTitle';
 
 export interface WindowOptions {
@@ -46,10 +56,14 @@ export interface WindowOptions {
 }
 
 interface WindowProps extends WindowOptions {
+    content?: { lines: TerminalLine[] } | ContentRecordingFrame[] | null
+    cursor?: CursorLocation | CursorRecordingFrame[] | null
     title?: Title | TitleRecordingFrame[] | null
 }
 
-const Window: FunctionComponent<WindowProps> = ({
+const Window = forwardRef<Size, WindowProps>(({
+    content = null,
+    cursor = null,
     title = null,
     borderRadius = 5,
     decorations = true,
@@ -57,8 +71,7 @@ const Window: FunctionComponent<WindowProps> = ({
     insetMinor = 20,
     paddingY = 5,
     paddingX = 5,
-    children,
-}) => {
+}, ref) => {
     const {
             columns,
             rows,
@@ -71,15 +84,20 @@ const Window: FunctionComponent<WindowProps> = ({
             : title?.icon ? [title.icon] : [],
         top = decorations ? insetMajor : title ? dy + paddingY * 2 : 0,
         side = decorations ? insetMinor : 0,
-        titleInset = decorations ? Math.ceil((50 - paddingX) / dx) : 0;
+        titleInset = decorations ? Math.ceil((50 - paddingX) / dx) : 0,
+        size = {
+            width: columns * dx + paddingX * 2 + side * 2,
+            height: rows * dy + paddingY * 2 + side + top,
+        };
+    // set ref value
+    if (typeof ref === 'function') ref(size);
     return (
         <svg
             xmlns='http://www.w3.org/2000/svg'
             xmlnsXlink='http://www.w3.org/1999/xlink'
-            width={columns * dx + paddingX * 2 + side * 2}
-            height={rows * dy + paddingY * 2 + side + top}
             fontFamily={theme.fontFamily}
             fontSize={fontSize}
+            {...size}
         >
             {icons.length > 0 && (
                 <defs>
@@ -127,10 +145,19 @@ const Window: FunctionComponent<WindowProps> = ({
                 width={columns * dx}
                 height={rows * dy}
             >
-                {children}
+                {content && (Array.isArray(content) ? content.map(({ lines, ...keyFrame }, i) => (
+                    <Frame key={i} lines={lines} keyFrame={keyFrame}/>
+                )) : (
+                    <Frame lines={content.lines}/>
+                ))}
+                {cursor && (Array.isArray(cursor) ? (
+                    <CursorFrames frames={cursor}/>
+                ) : !cursor.hidden ? (
+                    <Cursor {...cursor}/>
+                ) : null)}
             </svg>
         </svg>
     );
-};
+});
 
 export default Window;

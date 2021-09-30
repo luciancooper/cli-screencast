@@ -6,6 +6,7 @@ import readableSpawn, { SpawnOptions } from './spawn';
 import captureSource, { CaptureOptions } from './capture';
 import TerminalRecordingStream, { SessionOptions, RunCallback } from './terminal';
 import { resolveTitle } from './title';
+import { renderPng } from './image';
 
 interface BaseOptions extends Dimensions {
     tabSize?: number
@@ -31,6 +32,7 @@ function applyDefaults<T extends BaseOptions, D>(options: T, defaults: D = {} as
 }
 
 export interface RenderScreenOptions extends BaseOptions, RenderOptions {
+    type?: 'svg' | 'png'
     cursor?: boolean
     windowTitle?: string
     windowIcon?: string | boolean
@@ -42,19 +44,21 @@ export interface RenderScreenOptions extends BaseOptions, RenderOptions {
  * @param options - render options
  * @returns static screenshot svg
  */
-export function renderScreen(content: string, options: RenderScreenOptions): string {
+export async function renderScreen(content: string, options: RenderScreenOptions): Promise<string | Buffer> {
     const {
+            type,
             cursor,
             windowTitle,
             windowIcon,
             ...props
-        } = applyDefaults(options, { cursor: false }),
+        } = applyDefaults(options, { type: 'svg', cursor: false }),
         state = parse(props, {
             lines: [],
             cursor: { line: 0, column: 0, hidden: !cursor },
             title: resolveTitle(props.palette, windowTitle, windowIcon),
-        }, content);
-    return renderScreenSvg(state, props);
+        }, content),
+        data = renderScreenSvg(state, props);
+    return type === 'png' ? renderPng(data, 4) : data.svg;
 }
 
 export interface RenderSpawnOptions extends BaseOptions, RenderOptions, CaptureOptions, SpawnOptions {}
