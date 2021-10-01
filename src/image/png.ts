@@ -8,7 +8,7 @@ export const crc32_buf = (() => {
         for (let i = 0; i < 8; i += 1) c = ((c & 1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1));
         table[n] = c;
     }
-    return (buf: Uint8Array, seed = 0) => {
+    return (buf: ArrayLike<number>, seed = 0) => {
         const n = buf.length > 10000 ? 8 : 4;
         let C = seed ^ -1;
         const L = buf.length - (n - 1);
@@ -25,16 +25,12 @@ export const crc32_buf = (() => {
     };
 })();
 
-const uint8 = new Uint8Array(4),
-    int32 = new Int32Array(uint8.buffer),
-    uint32 = new Uint32Array(uint8.buffer);
-
 export interface PNGChunk {
-    name: string
-    data: Uint8Array
+    type: string
+    data: Buffer
 }
 
-export const PNGHeader = Uint8Array.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+export const PNGHeader = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
 
 /**
  * Adapted from {@link https://github.com/hughsk/png-chunks-extract}
@@ -47,38 +43,27 @@ export function extractPngChunks(png: Buffer): PNGChunk[] {
     let [idx, ended] = [8, false];
     while (idx < png.length) {
         // Read the length of the current chunk, which is stored as a Uint32.
-        for (let x = 3; x >= 0; x -= 1, idx += 1) uint8[x] = png[idx]!;
-        // Chunk includes name/type for CRC check (see below).
-        const length = uint32[0]! + 4,
-            chunk = new Uint8Array(length);
-        for (let x = 0; x < 4; x += 1, idx += 1) chunk[x] = png[idx]!;
-        // Get the name in ASCII for identification.
-        const name = String.fromCharCode(chunk[0]!)
-            + String.fromCharCode(chunk[1]!)
-            + String.fromCharCode(chunk[2]!)
-            + String.fromCharCode(chunk[3]!);
+        const size = png.readUInt32BE(idx),
+            // Get the name in ASCII for identification.
+            type = String.fromCharCode(...png.slice(idx += 4, idx += 4)),
+            // Read the contents of the chunk out of the main buffer.
+            data = png.subarray(idx, idx += size);
+        // calculate the expected CRC value and compare it to the encoded CRC value
+        if (crc32_buf(png.slice(idx - size - 4, idx)) !== png.readInt32BE(idx)) {
+            throw new Error(`CRC values for ${type} header do not match, PNG file is likely corrupted`);
+        }
+        idx += 4;
         // The IHDR header MUST come first.
-        if (!chunks.length && name !== 'IHDR') {
+        if (!chunks.length && type !== 'IHDR') {
             throw new Error('IHDR header missing');
         }
+        // add this chunk
+        chunks.push({ type, data });
         // The IEND header marks the end of the file, so on discovering it break out of the loop.
-        if (name === 'IEND') {
+        if (type === 'IEND') {
             ended = true;
-            chunks.push({ name, data: new Uint8Array(0) });
             break;
         }
-        // Read the contents of the chunk out of the main buffer.
-        for (let i = 4; i < length; i += 1, idx += 1) chunk[i] = png[idx]!;
-        // Read out the CRC value for comparison. It's stored as an Int32.
-        for (let x = 3; x >= 0; x -= 1, idx += 1) uint8[x] = png[idx]!;
-
-        const crcActual = int32[0],
-            crcExpect = crc32_buf(chunk);
-        if (crcExpect !== crcActual) {
-            throw new Error(`CRC values for ${name} header do not match, PNG file is likely corrupted`);
-        }
-        // The chunk data is now copied to remove the 4 preceding bytes used for the chunk name/type.
-        chunks.push({ name, data: new Uint8Array(chunk.buffer.slice(4)) });
     }
     if (!ended) {
         throw new Error('.png file ended prematurely: no IEND header was found');
@@ -94,29 +79,22 @@ export function encodePngChunks(chunks: PNGChunk[]): Buffer {
     for (const { data } of chunks) {
         totalSize += data.length + 12;
     }
-    const output = new Uint8Array(totalSize);
-    output.set(PNGHeader, 0);
+    const png = Buffer.alloc(totalSize);
+    png.set(PNGHeader, 0);
     let idx = PNGHeader.length;
-    for (const { name, data } of chunks) {
+    for (const { type, data } of chunks) {
         const size = data.length;
-        uint32[0] = size;
-        for (let i = 3; i >= 0; i -= 1, idx += 1) {
-            output[idx] = uint8[i]!;
-        }
-        for (let i = 0; i < 4; i += 1, idx += 1) {
-            output[idx] = name.charCodeAt(i)!;
-        }
-        for (let j = 0; j < size; j += 1, idx += 1) {
-            output[idx] = data[j]!;
-        }
-        const crcCheck = [0, 1, 2, 3].map((i) => name.charCodeAt(i)).concat(Array.prototype.slice.call(data)),
-            crc = crc32_buf(Uint8Array.from(crcCheck));
-        int32[0] = crc;
-        for (let i = 3; i >= 0; i -= 1, idx += 1) {
-            output[idx] = uint8[i]!;
-        }
+        // encode chunk size
+        idx = png.writeUInt32BE(size, idx);
+        // encode chunk name
+        idx += png.write(type, idx, 4);
+        // encode chunk data
+        png.set(data, idx);
+        // encode crc value
+        const crc = crc32_buf(png.slice(idx - 4, idx + size));
+        idx = png.writeInt32BE(crc, idx + size);
     }
-    return Buffer.from(output);
+    return png;
 }
 
 /**
@@ -128,23 +106,25 @@ export function encodePngChunks(chunks: PNGChunk[]): Buffer {
  */
 export function setPixelDensity(png: Buffer, ppi: number) {
     // create pHYs chunk data
-    const phys = new Uint8Array(9);
-    uint32[0] = Math.round(ppi / 0.0254);
-    for (let i = 0; i < 4; i += 1) {
-        phys[i] = uint8[3 - i]!;
-        phys[i + 4] = uint8[3 - i]!;
-    }
+    const phys = Buffer.alloc(9),
+        // convert from pixels per inch to pixels per meter
+        ppm = Math.round(ppi / 0.0254);
+    // write ppm
+    phys.writeUInt32BE(ppm, 0);
+    phys.writeUInt32BE(ppm, 4);
     phys[8] = 1;
-    // extract chunks
-    const chunks = extractPngChunks(png);
+    // create pHYs chunk object
+    const physChunk = { type: 'pHYs', data: phys },
+        // extract chunks
+        chunks = extractPngChunks(png);
     // get index of current pHYs chunk
-    let physIdx = chunks.findIndex(({ name }) => name === 'pHYs');
+    let physIdx = chunks.findIndex(({ type }) => type === 'pHYs');
     if (physIdx < 0) {
         // insert 'pHYs' chunk before the first 'IDAT' chunk
-        physIdx = chunks.findIndex(({ name }) => name === 'IDAT');
-        chunks.splice(physIdx, 0, { name: 'pHYs', data: phys });
+        physIdx = chunks.findIndex(({ type }) => type === 'IDAT');
+        chunks.splice(physIdx, 0, physChunk);
     } else {
-        chunks[physIdx] = { name: 'pHYs', data: phys };
+        chunks[physIdx] = physChunk;
     }
     // join chunks
     return encodePngChunks(chunks);
