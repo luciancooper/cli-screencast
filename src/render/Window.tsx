@@ -59,12 +59,14 @@ interface WindowProps extends WindowOptions {
     content?: { lines: TerminalLine[] } | ContentRecordingFrame[] | null
     cursor?: CursorLocation | CursorRecordingFrame[] | null
     title?: Title | TitleRecordingFrame[] | null
+    forceTitleInset?: boolean
 }
 
 const Window = forwardRef<Size, WindowProps>(({
     content = null,
     cursor = null,
     title = null,
+    forceTitleInset = false,
     borderRadius = 5,
     decorations = true,
     insetMajor = 40,
@@ -82,7 +84,7 @@ const Window = forwardRef<Size, WindowProps>(({
         icons = Array.isArray(title)
             ? [...new Set(title.map(({ icon }) => icon).filter(Boolean) as IconID[])]
             : title?.icon ? [title.icon] : [],
-        top = decorations ? insetMajor : title ? dy + paddingY * 2 : 0,
+        top = decorations ? insetMajor : (title || forceTitleInset) ? dy + paddingY * 2 : 0,
         side = decorations ? insetMinor : 0,
         titleInset = decorations ? Math.ceil((50 - paddingX) / dx) : 0,
         size = {

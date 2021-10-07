@@ -126,6 +126,10 @@ export interface CaptureData {
     duration: number
 }
 
+export interface CaptureFrame extends RecordingFrame {
+    screen: ScreenData
+}
+
 export interface Size {
     width: number
     height: number
@@ -133,4 +137,12 @@ export interface Size {
 
 export interface SVGData extends Size {
     svg: string
+}
+
+export interface SVGDataFrame extends RecordingFrame {
+    svg: string
+}
+
+export interface SVGCaptureData extends Size {
+    frames: SVGDataFrame[]
 }

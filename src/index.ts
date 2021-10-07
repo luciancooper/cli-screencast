@@ -1,14 +1,20 @@
-import type { OmitStrict, PickOptional, Dimensions } from './types';
+import type { OmitStrict, PickOptional, Dimensions, CaptureData } from './types';
 import { resolveTheme, Theme } from './theme';
 import parse from './parse';
-import { renderScreenSvg, renderCaptureSvg, RenderOptions } from './render';
 import readableSpawn, { SpawnOptions } from './spawn';
 import captureSource, { CaptureOptions } from './capture';
 import TerminalRecordingStream, { SessionOptions, RunCallback } from './terminal';
 import { resolveTitle } from './title';
-import { renderPng } from './image';
+import extractCaptureFrames from './frames';
+import { renderScreenSvg, renderCaptureSvg, renderCaptureFrames, RenderOptions, RenderProps } from './render';
+import { createPng, createAnimatedPng } from './image';
 
-interface BaseOptions extends Dimensions {
+interface OutputOptions {
+    type?: 'svg' | 'png'
+    scaleFactor?: number
+}
+
+interface BaseOptions extends Dimensions, OutputOptions {
     tabSize?: number
     theme?: Partial<Theme>
 }
@@ -17,9 +23,11 @@ type BaseDefaults = Required<PickOptional<OmitStrict<BaseOptions, 'theme'>>>;
 
 const baseDefaults: BaseDefaults = {
     tabSize: 8,
+    type: 'svg',
+    scaleFactor: 4,
 };
 
-function applyDefaults<T extends BaseOptions, D>(options: T, defaults: D = {} as D) {
+function applyDefaults<T extends BaseOptions, D>(options: T, defaults: D) {
     const { theme: themeOption, ...other } = options,
         { palette, theme } = resolveTheme(themeOption);
     return {
@@ -32,7 +40,6 @@ function applyDefaults<T extends BaseOptions, D>(options: T, defaults: D = {} as
 }
 
 export interface RenderScreenOptions extends BaseOptions, RenderOptions {
-    type?: 'svg' | 'png'
     cursor?: boolean
     windowTitle?: string
     windowIcon?: string | boolean
@@ -45,20 +52,26 @@ export interface RenderScreenOptions extends BaseOptions, RenderOptions {
  * @returns static screenshot svg
  */
 export async function renderScreen(content: string, options: RenderScreenOptions): Promise<string | Buffer> {
-    const {
-            type,
-            cursor,
-            windowTitle,
-            windowIcon,
-            ...props
-        } = applyDefaults(options, { type: 'svg', cursor: false }),
+    const { type, ...props } = applyDefaults(options, { cursor: false }),
         state = parse(props, {
             lines: [],
-            cursor: { line: 0, column: 0, hidden: !cursor },
-            title: resolveTitle(props.palette, windowTitle, windowIcon),
+            cursor: { line: 0, column: 0, hidden: !props.cursor },
+            title: resolveTitle(props.palette, props.windowTitle, props.windowIcon),
         }, content),
         data = renderScreenSvg(state, props);
-    return type === 'png' ? renderPng(data, 4) : data.svg;
+    return type === 'png' ? createPng(data, props.scaleFactor) : data.svg;
+}
+
+async function renderAnimated(
+    data: CaptureData,
+    props: RenderProps & Required<OutputOptions>,
+): Promise<string | Buffer> {
+    if (props.type === 'png') {
+        const frames = extractCaptureFrames(data),
+            svgFrames = renderCaptureFrames(frames, props);
+        return createAnimatedPng(svgFrames, props.scaleFactor);
+    }
+    return renderCaptureSvg(data, props);
 }
 
 export interface RenderSpawnOptions extends BaseOptions, RenderOptions, CaptureOptions, SpawnOptions {}
@@ -70,11 +83,15 @@ export interface RenderSpawnOptions extends BaseOptions, RenderOptions, CaptureO
  * @param options - render options
  * @returns animated screen capture svg
  */
-export async function renderSpawn(command: string, args: string[], options: RenderSpawnOptions): Promise<string> {
-    const props = applyDefaults(options),
+export async function renderSpawn(
+    command: string,
+    args: string[],
+    options: RenderSpawnOptions,
+): Promise<string | Buffer> {
+    const props = applyDefaults(options, {}),
         source = readableSpawn(command, args, props),
         data = await captureSource(source, props);
-    return renderCaptureSvg(data, props);
+    return renderAnimated(data, props);
 }
 
 export interface RenderCaptureOptions extends BaseOptions, RenderOptions, CaptureOptions, SessionOptions {}
@@ -88,12 +105,12 @@ export interface RenderCaptureOptions extends BaseOptions, RenderOptions, Captur
  * @param options - render options
  * @returns animated screen capture svg
  */
-export async function renderCapture(fn: RunCallback<any>, options: RenderCaptureOptions): Promise<string> {
-    const props = applyDefaults(options),
+export async function renderCapture(fn: RunCallback<any>, options: RenderCaptureOptions): Promise<string | Buffer> {
+    const props = applyDefaults(options, {}),
         source = new TerminalRecordingStream(props);
     await source.run(fn);
     const data = await captureSource(source, props);
-    return renderCaptureSvg(data, props);
+    return renderAnimated(data, props);
 }
 
 export type { RGB } from './types';
