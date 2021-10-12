@@ -121,6 +121,20 @@ describe('parse', () => {
         ]);
     });
 
+    test('track cursor position when lines are partially overwritten', () => {
+        const parser = makeParser({ columns: 20, rows: 10 });
+        parser('xxxxxxxxxx');
+        expect(parser.state.lines).toMatchObject<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxxxxxxx') },
+        ]);
+        // overwrite beginning of the first line with a shorter line
+        parser(`${ansi.cursorColumn(0)}yyy`);
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('yyyxxxxxxx') },
+        ]);
+        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 0, column: 3 });
+    });
+
     test('clear from cursor to end of screen (0J)', () => {
         const parser = makeParser({ columns: 20, rows: 10 });
         parser('aaaaaaaaaaaaaaa\n', 'bbbbbbbbbbbbbbb\n');

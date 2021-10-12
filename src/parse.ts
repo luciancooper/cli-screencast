@@ -145,23 +145,24 @@ function parseContent({ columns, tabSize, palette }: ParseContext, state: Screen
         line = { index: 0, columns: 0, chunks: [] };
     }
     const { cursor } = state;
-    if (cursor.line >= state.lines.length) {
-        for (let n = cursor.line - state.lines.length; n > 0; n -= 1) {
-            state.lines.push({ index: 0, columns: 0, chunks: [] });
-        }
-        state.lines.push(...lines);
-        const idx = state.lines.length - 1;
-        state.cursor = { ...cursor, line: idx, column: state.lines[idx]!.columns };
-    } else {
-        let idx = cursor.line;
-        while (idx < state.lines.length && lines.length) {
-            state.lines[idx] = overwriteLine(state.lines[idx]!, lines.shift()!);
-            idx += 1;
-        }
-        state.lines.push(...lines);
-        idx += lines.length - 1;
-        state.cursor = { ...cursor, line: idx, column: state.lines[idx]!.columns };
+    // add any necessary filler lines between the end of current line state & the cursor line index
+    for (let n = cursor.line - state.lines.length; n > 0; n -= 1) {
+        state.lines.push({ index: 0, columns: 0, chunks: [] });
     }
+    let col = cursor.column;
+    // apply new lines
+    for (let j = 0, n = lines.length, i = cursor.line; j < n; j += 1, i += 1) {
+        col = lines[j]!.columns;
+        if (i < state.lines.length) {
+            state.lines[i] = overwriteLine(state.lines[i]!, lines[j]!);
+        } else state.lines.push(lines[j]!);
+    }
+    // update cursor location
+    state.cursor = {
+        ...cursor,
+        line: cursor.line + lines.length - 1,
+        column: col,
+    };
     prune(state.lines);
 }
 
