@@ -24,6 +24,13 @@ function prune(lines: TerminalLine[]) {
     }
 }
 
+function totalColumns(chunks: TextChunk[]): number {
+    const lastChunk = chunks[chunks.length - 1];
+    if (!lastChunk) return 0;
+    const { x: [x, span] } = lastChunk;
+    return x + span;
+}
+
 function sliceChunkBefore(chunk: TextChunk, column: number): TextChunk | null {
     const { str, style, x: [x] } = chunk,
         chars = [...charWidths(str)];
@@ -81,11 +88,25 @@ export function cursorLinePartial(state: Omit<ScreenData, 'title'>): TerminalLin
 export function overwriteLine<T extends TextLine>(prev: T, next: T): T {
     if (prev.columns <= next.columns) return next;
     const idx = prev.chunks.findIndex(({ x: [x, span] }) => next.columns < x + span),
-        chunk = sliceChunkAfter(prev.chunks[idx]!, next.columns);
-    if (chunk) next.chunks.push(chunk);
-    next.chunks.push(...prev.chunks.slice(idx + 1));
-    next.columns = prev.columns;
-    return next;
+        chunk = sliceChunkAfter(prev.chunks[idx]!, next.columns),
+        append = [...(chunk ? [chunk] : []), ...prev.chunks.slice(idx + 1)],
+        chunks = [...next.chunks];
+    // check if last chunk in `chunks` and first chunk in `append` should be merged
+    if (chunks.length && append.length) {
+        const { str: lstr, x: [lx, lspan], style: lstyle } = chunks[chunks.length - 1]!,
+            { x: [rx], style: rstyle } = append[0]!;
+        if (lx + lspan === rx && stylesEqual(lstyle, rstyle)) {
+            // merge chunks
+            const { str: rstr, x: [, rspan] } = append.shift()!;
+            chunks[chunks.length - 1] = {
+                str: lstr + rstr,
+                x: [lx, lspan + rspan],
+                style: lstyle,
+            };
+        }
+    }
+    chunks.push(...append);
+    return { ...next, columns: totalColumns(chunks), chunks };
 }
 
 function parseContent({ columns, tabSize, palette }: ParseContext, state: ScreenData, content: string) {
@@ -142,13 +163,6 @@ function parseContent({ columns, tabSize, palette }: ParseContext, state: Screen
         state.cursor = { ...cursor, line: idx, column: state.lines[idx]!.columns };
     }
     prune(state.lines);
-}
-
-function totalColumns(chunks: TextChunk[]): number {
-    const lastChunk = chunks[chunks.length - 1];
-    if (!lastChunk) return 0;
-    const { x: [x, span] } = lastChunk;
-    return x + span;
 }
 
 /**

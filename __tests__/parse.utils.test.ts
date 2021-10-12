@@ -28,23 +28,29 @@ describe('cursorLinePartial', () => {
 
 describe('overwriteLine', () => {
     test('returns overwriting line if it is wider than the line being overwritten', () => {
-        const prev = makeLine('aaaaa'),
-            next = makeLine('bbbbbbbbbb');
+        const [prev, next] = [makeLine('aaaaa'), makeLine('bbbbbbbbbb')];
         expect(overwriteLine(prev, next)).toEqual(next);
     });
 
     test('appends the end of the overwritten line to the overwriting line when it is wider', () => {
-        const prev = makeLine('aaaaa', ['bbbbb', { bold: true }]),
-            next = makeLine('xxxxxxxx');
+        const [prev, next] = [makeLine('aaaaa', ['bbbbb', { bold: true }]), makeLine('xxxxxxxx')];
         expect(overwriteLine(prev, next)).toEqual<TextLine>(makeLine('xxxxxxxx', ['bb', { bold: true }]));
+    });
+
+    test('merges end of overwritten line to the overwriting line when chunks have common styles', () => {
+        const [prev, next] = [makeLine('aaaaaa'), makeLine('bbb')];
+        expect(overwriteLine(prev, next)).toEqual<TextLine>(makeLine('bbbaaa'));
     });
 
     test('handles half-width characters partially overwriting full-width characters', () => {
         const prev = makeLine('ａａ', ['ｂｂ', { bold: true }]);
-        expect(overwriteLine(prev, makeLine('aaa')))
-            .toEqual<TextLine>(makeLine('aaa', 1, ['ｂｂ', { bold: true }]));
-        expect(overwriteLine(prev, makeLine('aaaa', ['b', { bold: true }])))
-            .toEqual<TextLine>(makeLine('aaaa', ['b', { bold: true }], 1, ['ｂ', { bold: true }]));
+        expect(overwriteLine(prev, makeLine('aaaabbb'))).toEqual<TextLine>(makeLine('aaaabbb'));
+        expect(overwriteLine(prev, makeLine('aaa'))).toEqual<TextLine>(
+            makeLine('aaa', 1, ['ｂｂ', { bold: true }]),
+        );
+        expect(overwriteLine(prev, makeLine('aaaa', ['b', { bold: true }]))).toEqual<TextLine>(
+            makeLine('aaaa', ['b', { bold: true }], 1, ['ｂ', { bold: true }]),
+        );
     });
 });
 
