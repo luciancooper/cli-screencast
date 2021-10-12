@@ -1,5 +1,6 @@
-import type { TerminalLine, Title, ScreenData, CaptureData, CaptureFrame } from '@src/types';
+import type { ScreenData, CaptureData, CaptureFrame } from '@src/types';
 import extractCaptureFrames from '@src/frames';
+import { makeCursor, makeLine } from './helpers/objects';
 
 const makeCaptureData = (
     content: [number, number, string][],
@@ -9,22 +10,19 @@ const makeCaptureData = (
     content: content.map(([time, endTime, line]) => ({
         time,
         endTime,
-        lines: [line] as unknown as TerminalLine[],
+        lines: [{ index: 0, ...makeLine(line) }],
     })),
     cursor: cursor.map(([time, endTime, hidden = false], i) => ({
         time,
         endTime,
-        line: i,
-        column: i,
-        hidden,
+        ...makeCursor(i, i, hidden),
     })),
-    title: title.map(([time, endTime, text], i) => ({
+    title: title.map(([time, endTime, text]) => ({
         time,
         endTime,
         icon: undefined,
         text,
-        columns: 0,
-        chunks: [],
+        ...makeLine(text),
     })),
     duration: Math.max(
         ...content.map(([, t]) => t),
@@ -33,12 +31,12 @@ const makeCaptureData = (
     ),
 });
 
-const makeScreen = (content: string, cursor: number, title?: string): ScreenData => ({
-    lines: [content] as unknown as TerminalLine[],
+const makeScreen = (line: string, cursor: number, title?: string): ScreenData => ({
+    lines: [{ index: 0, ...makeLine(line) }],
     cursor: Number.isNaN(cursor)
-        ? { line: expect.any(Number) as number, column: expect.any(Number) as number, hidden: true }
-        : { line: cursor, column: cursor, hidden: false },
-    title: expect.objectContaining({ text: title }) as Title,
+        ? makeCursor(expect.any(Number) as number, expect.any(Number) as number, true)
+        : makeCursor(cursor, cursor, false),
+    title: { icon: undefined, text: title, ...makeLine(title) },
 });
 
 describe('extractCaptureFrames', () => {

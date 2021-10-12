@@ -2,7 +2,7 @@ import { resolveTheme } from '@src/theme';
 import { color8Bit, toHex } from '@src/color';
 import parseAnsi, { AnsiChunk } from '@src/ansi';
 import * as ansi from './helpers/ansi';
-import makeStyle, { StylePartial } from './helpers/style';
+import { makeStyle, StylePartial } from './helpers/objects';
 
 const { palette, theme } = resolveTheme();
 

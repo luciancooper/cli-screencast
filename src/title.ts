@@ -1,5 +1,5 @@
 import { stringWidth } from 'tty-strings';
-import type { IconID, Title, Palette, AnsiStyle, TextChunk } from './types';
+import type { IconID, Title, Palette, AnsiStyle, TextChunk, TextLine } from './types';
 import parseAnsi, { stylesEqual } from './ansi';
 import icons from './render/icons.json';
 
@@ -15,7 +15,7 @@ export function matchIcon(string: string, fallback: IconID = 'shell'): IconID {
     return cmd.length ? (iconMap[cmd] ?? fallback) : fallback;
 }
 
-export function parseTitle(palette: Palette, title: string) {
+export function parseTitle(palette: Palette, title: string): TextLine {
     const chunks: TextChunk[] = [];
     let [x, width, str] = [0, 0, ''],
         chunkStyle: AnsiStyle | null = null;

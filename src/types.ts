@@ -85,19 +85,20 @@ export interface TextChunk {
     x: readonly [number, number]
 }
 
-export interface TerminalLine {
-    index: number
+export interface TextLine {
     columns: number
     chunks: TextChunk[]
 }
 
+export interface TerminalLine extends TextLine {
+    index: number
+}
+
 export type IconID = keyof typeof icons;
 
-export interface Title {
+export interface Title extends TextLine {
     icon: IconID | undefined
     text: string | undefined
-    columns: number
-    chunks: TextChunk[]
 }
 
 export interface ScreenData {

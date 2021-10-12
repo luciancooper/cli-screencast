@@ -1,5 +1,5 @@
 import { splitLines, charWidths } from 'tty-strings';
-import type { Dimensions, Palette, ScreenData, TerminalLine, TextChunk } from './types';
+import type { Dimensions, Palette, ScreenData, TerminalLine, TextLine, TextChunk } from './types';
 import parseAnsi, { stylesEqual } from './ansi';
 import { matchIcon, parseTitle } from './title';
 import { regexChunks } from './utils';
@@ -78,7 +78,7 @@ export function cursorLinePartial(state: Omit<ScreenData, 'title'>): TerminalLin
  * @param next - overwriting line
  * @returns resolved line overwrite
  */
-export function overwriteLine(prev: TerminalLine, next: TerminalLine): TerminalLine {
+export function overwriteLine<T extends TextLine>(prev: T, next: T): T {
     if (prev.columns <= next.columns) return next;
     const idx = prev.chunks.findIndex(({ x: [x, span] }) => next.columns < x + span),
         chunk = sliceChunkAfter(prev.chunks[idx]!, next.columns);
@@ -155,20 +155,19 @@ function totalColumns(chunks: TextChunk[]): number {
  * Removes content before the column index from a line
  * @param line - terminal line that is being cleared
  * @param column - column location of the cursor up to which the line will be cleared
- * @param newIndex - new index property of the updated line
  * @returns updated line with content partially cleared
  */
-export function clearLineBefore(line: TerminalLine, column: number, newIndex?: number): TerminalLine {
+export function clearLineBefore<T extends TextLine>(line: T, column: number): T {
     const idx = line.chunks.findIndex(({ x: [x, span] }) => column < x + span);
     // remove all chunks if idx < 0
-    if (idx < 0) return { index: newIndex ?? line.index, columns: 0, chunks: [] };
+    if (idx < 0) return { ...line, columns: 0, chunks: [] };
     // slice index chunk after cursor column
     const chunks: TextChunk[] = [],
         chunk = sliceChunkAfter(line.chunks[idx]!, column);
     if (chunk) chunks.push(chunk);
     chunks.push(...line.chunks.slice(idx + 1));
     // return updated terminal line
-    return { index: newIndex ?? line.index, columns: totalColumns(chunks), chunks };
+    return { ...line, columns: totalColumns(chunks), chunks };
 }
 
 /**
@@ -177,15 +176,15 @@ export function clearLineBefore(line: TerminalLine, column: number, newIndex?: n
  * @param column - column location of the cursor after which the line will be cleared
  * @returns updated line with content partially cleared
  */
-export function clearLineAfter(line: TerminalLine, column: number): TerminalLine {
-    if (column === 0) return { index: line.index, columns: 0, chunks: [] };
+export function clearLineAfter<T extends TextLine>(line: T, column: number): T {
+    if (column === 0) return { ...line, columns: 0, chunks: [] };
     const idx = line.chunks.findIndex(({ x: [x, span] }) => column < x + span);
     if (idx < 0) return line;
     const chunks = line.chunks.slice(0, idx),
         chunk = sliceChunkBefore(line.chunks[idx]!, column);
     if (chunk) chunks.push(chunk);
     // return updated terminal line
-    return { index: line.index, columns: totalColumns(chunks), chunks };
+    return { ...line, columns: totalColumns(chunks), chunks };
 }
 
 function updateSubsequentLineContinuity(lines: TerminalLine[], i: number, insertBreak: boolean) {
@@ -275,7 +274,7 @@ function parseEscape({ columns, rows, palette }: ParseContext, state: ScreenData
                 // clear lines above the cursor line
                 for (let i = 0; i < cursor.line; i += 1) lines[i] = { index: 0, columns: 0, chunks: [] };
                 // clear before cursor on the current line
-                lines[cursor.line] = clearLineBefore(lines[cursor.line]!, cursor.column, 0);
+                lines[cursor.line] = { ...clearLineBefore(lines[cursor.line]!, cursor.column), index: 0 };
                 // update line index continuity of subsequent lines
                 updateSubsequentLineContinuity(lines, cursor.line, false);
                 break;

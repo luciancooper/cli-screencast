@@ -2,6 +2,7 @@ import type { DeepPartial, CaptureData } from '@src/types';
 import { resolveTheme } from '@src/theme';
 import RecordingStream from '@src/source';
 import captureSource, { ScreenCaptureOptions } from '@src/capture';
+import { makeLine } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 
 const { palette } = resolveTheme();
@@ -39,8 +40,8 @@ describe('captureSource', () => {
             source.finish();
         })).resolves.toMatchObject<PartialCaptureData>({
             content: [
-                { lines: [{ chunks: [{ str: 'first write', x: [0, 11] }] }] },
-                { lines: [{ chunks: [{ str: 'second write', x: [0, 12] }] }] },
+                { lines: [makeLine('first write')] },
+                { lines: [makeLine('second write')] },
             ],
             cursor: [
                 { line: 0, column: 11, hidden: false },
@@ -60,8 +61,8 @@ describe('captureSource', () => {
             source.finish();
         })).resolves.toMatchObject<PartialCaptureData>({
             content: [
-                { lines: [{ chunks: [{ str: 'first write', x: [0, 11] }] }] },
-                { lines: [{ chunks: [{ str: 'second write', x: [0, 12] }] }] },
+                { lines: [makeLine('first write')] },
+                { lines: [makeLine('second write')] },
             ],
             cursor: [
                 { line: 0, column: 11 },
@@ -107,7 +108,7 @@ describe('captureSource', () => {
         }, { cursorHidden: true, cropStartDelay: false })).resolves.toMatchObject<PartialCaptureData>({
             content: [
                 { time: 0, lines: [] },
-                { time: expect.toBeApprox(500, 5), lines: [{ chunks: [{ str: 'first write' }] }] },
+                { time: expect.toBeApprox(500, 5), lines: [makeLine('first write')] },
             ],
         });
     });
