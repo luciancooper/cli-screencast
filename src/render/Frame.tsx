@@ -12,19 +12,14 @@ interface FrameProps extends SVGProps<SVGGElement> {
 }
 
 const Frame: FunctionComponent<FrameProps> = ({ lines, keyFrame, ...svgProps }) => {
-    const { grid: [, dy], duration } = useContext(Context);
+    const { duration } = useContext(Context);
     return (
         <g className='frame' {...svgProps}>
-            {lines.map(({ chunks }, i) => {
-                const y = i * dy;
-                return (
-                    <g key={`row:${i}`} className='row' transform={`translate(0, ${y})`}>
-                        {chunks.map(({ str, x: [x, span], style: { props, ...style } }, j) => (
-                            <Text key={j} x={x} span={span} {...style} {...expandProps(props)}>{str}</Text>
-                        ))}
-                    </g>
-                );
-            })}
+            {lines.flatMap(({ chunks }, i) => (
+                chunks.map(({ str, x: [x, span], style: { props, ...style } }, j) => (
+                    <Text key={`${i}:${j}`} x={x} y={i} span={span} {...style} {...expandProps(props)}>{str}</Text>
+                ))
+            ))}
             {keyFrame && (
                 <Animation
                     attribute='opacity'

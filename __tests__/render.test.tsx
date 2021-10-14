@@ -176,7 +176,7 @@ describe('<WindowTitle/>', () => {
 describe('<Text/>', () => {
     test('renders style attribute props', () => {
         expect(render(
-            <Text x={0} span={10} bold dim italic>text chunk</Text>,
+            <Text x={0} y={0} span={10} bold dim italic>text chunk</Text>,
         )).toMatchObject({
             type: 'text',
             props: { fontWeight: 'bold', fontStyle: 'italic', opacity: defTheme.dim },
@@ -186,7 +186,7 @@ describe('<Text/>', () => {
 
     test('handles overlap of the `underline` and `strikeThrough` props', () => {
         expect(render(
-            <Text x={0} span={0} underline strikeThrough/>,
+            <Text x={0} y={0} span={0} underline strikeThrough/>,
         )).toMatchObject({
             type: 'text',
             props: { textDecoration: 'underline line-through' },
@@ -195,7 +195,7 @@ describe('<Text/>', () => {
 
     test('renders a <rect> sibling element when `background` is styled', () => {
         expect(render(
-            <Text x={0} span={10} bg='#ff00ff'>background</Text>,
+            <Text x={0} y={0} span={10} bg='#ff00ff'>background</Text>,
         )).toMatchObject([
             { type: 'rect', props: { fill: '#ff00ff' } },
             { type: 'text', children: ['background'] },
@@ -204,13 +204,13 @@ describe('<Text/>', () => {
 
     test('swaps foreground and background when the `inverted` prop is passed', () => {
         expect(render(
-            <Text x={0} span={8} inverted>inverted</Text>,
+            <Text x={0} y={0} span={8} inverted>inverted</Text>,
         )).toMatchObject([
             { type: 'rect', props: { fill: defTheme.text } },
             { type: 'text', props: { fill: defTheme.background }, children: ['inverted'] },
         ]);
         expect(render(
-            <Text x={0} span={8} fg={defTheme.red} bg={defTheme.yellow} inverted>inverted</Text>,
+            <Text x={0} y={0} span={8} fg={defTheme.red} bg={defTheme.yellow} inverted>inverted</Text>,
         )).toMatchObject([
             { type: 'rect', props: { fill: defTheme.red } },
             { type: 'text', props: { fill: defTheme.yellow }, children: ['inverted'] },
@@ -219,7 +219,7 @@ describe('<Text/>', () => {
 
     test('wraps <text> element in a <a> tag when `link` prop is present', () => {
         expect(render(
-            <Text x={0} span={10} link='https://google.com'>google.com</Text>,
+            <Text x={0} y={0} span={10} link='https://google.com'>google.com</Text>,
         )).toMatchObject({
             type: 'a',
             props: { href: 'https://google.com' },

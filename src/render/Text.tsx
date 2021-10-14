@@ -5,11 +5,13 @@ import Context from './Context';
 
 interface TextProps extends OmitStrict<AnsiStyle, 'props'>, Partial<AnsiStyleProps>, SVGProps<SVGTextElement> {
     x: number
+    y: number
     span: number
 }
 
 const Text: FunctionComponent<TextProps> = ({
     x,
+    y,
     span,
     fg,
     bg,
@@ -30,7 +32,7 @@ const Text: FunctionComponent<TextProps> = ({
         props: SVGProps<SVGTextElement> = {
             ...textProps,
             x: x * dx,
-            y: dy / 2,
+            y: y * dy + dy / 2,
             fill: color,
             textDecoration: decoration || undefined,
             fontWeight: bold ? 'bold' : undefined,
@@ -42,7 +44,7 @@ const Text: FunctionComponent<TextProps> = ({
         element = <text {...props}>{children}</text>;
     return (
         <>
-            {bgColor && <rect fill={bgColor} x={x * dx} y={0} width={span * dx} height={dy}/>}
+            {bgColor && <rect fill={bgColor} x={x * dx} y={y * dy} width={span * dx} height={dy}/>}
             {link ? <a href={link}>{element}</a> : element}
         </>
     );

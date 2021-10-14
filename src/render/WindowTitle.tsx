@@ -48,7 +48,7 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
         }
         iconX = Math.max(Math.floor((columns - textSpan - iconInset) / 2), columnInset);
         textElement = chunks.map(({ str, x: [x, span], style: { props, ...style } }, j) => (
-            <Text key={j} x={iconX + iconInset + x} span={span} {...style} {...expandProps(props)}>{str}</Text>
+            <Text key={j} x={iconX + iconInset + x} y={0} span={span} {...style} {...expandProps(props)}>{str}</Text>
         ));
     } else {
         iconX = Math.floor((columns - Math.ceil(iconSpan)) / 2);
