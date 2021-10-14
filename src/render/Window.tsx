@@ -1,18 +1,7 @@
-import { useContext, forwardRef } from 'react';
-import type {
-    IconID,
-    Size,
-    TerminalLine,
-    ContentRecordingFrame,
-    CursorLocation,
-    CursorRecordingFrame,
-    Title,
-    TitleRecordingFrame,
-} from '../types';
+import { useContext, forwardRef, SVGProps } from 'react';
+import type { IconID, Size, Title, TitleRecordingFrame } from '../types';
 import iconPaths from './icons.json';
 import Context from './Context';
-import Frame from './Frame';
-import { Cursor, CursorFrames } from './Cursor';
 import WindowTitle from './WindowTitle';
 
 export interface WindowOptions {
@@ -55,16 +44,13 @@ export interface WindowOptions {
     paddingY?: number
 }
 
-interface WindowProps extends WindowOptions {
-    content?: { lines: TerminalLine[] } | ContentRecordingFrame[] | null
-    cursor?: CursorLocation | CursorRecordingFrame[] | null
+interface WindowProps extends WindowOptions, SVGProps<SVGSVGElement> {
     title?: Title | TitleRecordingFrame[] | null
     forceTitleInset?: boolean
 }
 
 const Window = forwardRef<Size, WindowProps>(({
-    content = null,
-    cursor = null,
+    children,
     title = null,
     forceTitleInset = false,
     borderRadius = 5,
@@ -147,16 +133,7 @@ const Window = forwardRef<Size, WindowProps>(({
                 width={columns * dx}
                 height={rows * dy}
             >
-                {content && (Array.isArray(content) ? content.map(({ lines, ...keyFrame }, i) => (
-                    <Frame key={i} lines={lines} keyFrame={keyFrame}/>
-                )) : (
-                    <Frame lines={content.lines}/>
-                ))}
-                {cursor && (Array.isArray(cursor) ? (
-                    <CursorFrames frames={cursor}/>
-                ) : !cursor.hidden ? (
-                    <Cursor {...cursor}/>
-                ) : null)}
+                {children}
             </svg>
         </svg>
     );
