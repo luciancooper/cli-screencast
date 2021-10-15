@@ -1,8 +1,9 @@
-import type { DeepPartial, CaptureData } from '@src/types';
+import type { DeepPartial, CaptureData, ContentRecordingFrame } from '@src/types';
 import { resolveTheme } from '@src/theme';
-import RecordingStream from '@src/source';
+import type { SourceEvent } from '@src/source';
 import captureSource, { ScreenCaptureOptions } from '@src/capture';
-import { makeLine } from './helpers/objects';
+import { makeLine, makeCursor } from './helpers/objects';
+import { objectStream } from './helpers/streams';
 import * as ansi from './helpers/ansi';
 
 const { palette } = resolveTheme();
@@ -14,31 +15,21 @@ const defaultOptions: ScreenCaptureOptions = {
     palette,
 };
 
-function runCapture(cb: (source: RecordingStream) => void, options?: Partial<ScreenCaptureOptions>) {
-    const source = new RecordingStream(),
-        capture = captureSource(source, { ...defaultOptions, ...options });
-    cb(source);
-    return capture;
+function runCapture(events: SourceEvent[], options?: Partial<ScreenCaptureOptions>) {
+    const readable = objectStream<SourceEvent>(events);
+    return captureSource(readable, { ...defaultOptions, ...options });
 }
-
-const anyKeyframe = <T>(props: T) => expect.objectContaining({
-    time: expect.any(Number) as number,
-    endTime: expect.any(Number) as number,
-    ...props,
-}) as T;
 
 type PartialCaptureData = DeepPartial<CaptureData>;
 
 describe('captureSource', () => {
-    test('process events written from a recording source', async () => {
-        await expect(runCapture((source) => {
-            source.start();
-            source.write('first write');
-            source.wait(500);
-            source.write(ansi.eraseLine + ansi.cursorColumn(0));
-            source.write('second write');
-            source.finish();
-        })).resolves.toMatchObject<PartialCaptureData>({
+    test('processes source events from a readable stream', async () => {
+        await expect(runCapture([
+            { type: 'start' },
+            { content: 'first write', time: 0 },
+            { content: `${ansi.eraseLine}${ansi.cursorColumn(0)}second write`, time: 500 },
+            { type: 'finish', time: 600 },
+        ])).resolves.toMatchObject<PartialCaptureData>({
             content: [
                 { lines: [makeLine('first write')] },
                 { lines: [makeLine('second write')] },
@@ -50,70 +41,109 @@ describe('captureSource', () => {
         });
     });
 
-    test('merge consecutive writes whose time difference is less than `writeMergeThreshold`', async () => {
-        await expect(runCapture((source) => {
-            source.start();
-            source.write('first write');
-            source.wait(500);
-            source.write(ansi.cursorColumn(0));
-            source.wait(500);
-            source.write('second write');
-            source.finish();
-        })).resolves.toMatchObject<PartialCaptureData>({
-            content: [
-                { lines: [makeLine('first write')] },
-                { lines: [makeLine('second write')] },
-            ],
-            cursor: [
-                { line: 0, column: 11 },
-                { line: 0, column: 0 },
-                { line: 0, column: 12 },
-            ],
-        });
-    });
-
     test('return no cursor keyframes if cursor is hidden', async () => {
-        const data = await runCapture((source) => {
-            source.start();
-            source.write('first write');
-            source.wait(500);
-            source.write('second write');
-            source.finish();
-        }, { ...defaultOptions, cursorHidden: true });
+        const data = await runCapture([
+            { type: 'start' },
+            { content: 'first write', time: 0 },
+            { content: 'second write', time: 500 },
+            { type: 'finish', time: 500 },
+        ], { ...defaultOptions, cursorHidden: true });
         expect(data.cursor).toHaveLength(0);
     });
 
     test('capture title keyframes when window title and icon changes', async () => {
-        const { title } = await runCapture((source) => {
-            source.write('\x1b]1;shell\x07');
-            source.wait(500);
-            source.write('\x1b]2;window title\x07');
-            source.wait(500);
-            source.setTitle('window title without icon', '');
-            source.finish();
-        }, defaultOptions);
+        const { title } = await runCapture([
+            { type: 'start' },
+            { content: '\x1b]1;shell\x07', time: 0 },
+            { content: '\x1b]2;window title\x07', time: 500 },
+            { content: '\x1b]2;window title without icon\x07\x1b]1;\x07', time: 1000 },
+            { type: 'finish', time: 1000 },
+        ], defaultOptions);
         expect(title).toEqual([
-            anyKeyframe({ icon: 'shell', text: undefined }),
-            anyKeyframe({ icon: 'shell', text: 'window title' }),
-            anyKeyframe({ icon: undefined, text: 'window title without icon' }),
+            expect.objectContaining({ icon: 'shell', text: undefined }),
+            expect.objectContaining({ icon: 'shell', text: 'window title' }),
+            expect.objectContaining({ icon: undefined, text: 'window title without icon' }),
         ]);
     });
 
-    test('do not remove time between start and first write when `cropStartDelay` is false', async () => {
-        await expect(runCapture((source) => {
-            source.start();
-            source.wait(500);
-            source.write('first write');
-            source.finish();
-        }, { cursorHidden: true, cropStartDelay: false })).resolves.toMatchObject<PartialCaptureData>({
-            content: [
-                { time: 0, lines: [] },
-                { time: expect.toBeApprox(500, 5), lines: [makeLine('first write')] },
-            ],
+    describe('merging consecutive writes', () => {
+        test('consecutive writes with time differences less than `writeMergeThreshold` are merged', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { content: 'first write', time: 0 },
+                // next two writes are merged
+                { content: ansi.cursorColumn(0), time: 500 },
+                { content: 'second write', time: 505 },
+                { type: 'finish', time: 600 },
+            ])).resolves.toMatchObject<PartialCaptureData>({
+                content: [
+                    { lines: [makeLine('first write')] },
+                    { lines: [makeLine('second write')] },
+                ],
+                cursor: [
+                    { line: 0, column: 11, hidden: false },
+                    { line: 0, column: 12, hidden: false },
+                ],
+            });
+        });
+
+        test('time adjustments prevent consecutive writes from being merged', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { content: 'first write\n', time: 0 },
+                { content: 'second write\n', time: 5, adjustment: 500 },
+                { type: 'finish', time: 100, adjustment: 500 },
+            ])).resolves.toMatchObject<PartialCaptureData>({
+                content: [
+                    { lines: [makeLine('first write')] },
+                    { lines: [makeLine('first write'), makeLine('second write')] },
+                ],
+                cursor: [
+                    { line: 1, column: 0, hidden: false },
+                    { line: 2, column: 0, hidden: false },
+                ],
+            });
         });
     });
 
-    describe('empty recording sources', () => {
+    describe('start delay', () => {
+        test('delayed first write when `cropStartDelay` is disabled', async () => {
+            const { content } = await runCapture([
+                { type: 'start' },
+                { content: 'first write', time: 500 },
+                { type: 'finish', time: 1000 },
+            ], { cropStartDelay: false, endTimePadding: 0, cursorHidden: true });
+            expect(content).toEqual<ContentRecordingFrame[]>([
+                { time: 0, endTime: 500, lines: [] },
+                { time: 500, endTime: 1000, lines: [{ index: 0, ...makeLine('first write') }] },
+            ]);
+        });
+
+        test('delayed first write when `cropStartDelay` is enabled', async () => {
+            const { content } = await runCapture([
+                { type: 'start' },
+                { content: 'first write', time: 500 },
+                { type: 'finish', time: 1000 },
+            ], { cropStartDelay: true, endTimePadding: 0, cursorHidden: true });
+            expect(content).toEqual<ContentRecordingFrame[]>([
+                { time: 0, endTime: 500, lines: [{ index: 0, ...makeLine('first write') }] },
+            ]);
+        });
+
+        test('start delay cropping does not apply to time adjustments on the first write', async () => {
+            const { content } = await runCapture([
+                { type: 'start' },
+                { content: 'first write', time: 500, adjustment: 500 },
+                { type: 'finish', time: 1000, adjustment: 500 },
+            ], { cropStartDelay: true, endTimePadding: 0, cursorHidden: true });
+            expect(content).toEqual<ContentRecordingFrame[]>([
+                { time: 0, endTime: 500, lines: [] },
+                { time: 500, endTime: 1000, lines: [{ index: 0, ...makeLine('first write') }] },
+            ]);
+        });
+    });
+
+    describe('source streams with no write events', () => {
         const emptyData: CaptureData = {
             content: [],
             cursor: [],
@@ -122,16 +152,39 @@ describe('captureSource', () => {
         };
 
         test('source only emits finish event', async () => {
-            await expect(runCapture((source) => {
-                source.finish();
-            })).resolves.toEqual(emptyData);
+            await expect(runCapture([
+                { type: 'finish', time: 0 },
+            ])).resolves.toEqual<CaptureData>(emptyData);
         });
 
-        test('source emits no write events', async () => {
-            await expect(runCapture((source) => {
-                source.start();
-                source.finish();
-            }, { endTimePadding: 0 })).resolves.toEqual(emptyData);
+        test('source emits a start event followed immediately by a finish event', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { type: 'finish', time: 0 },
+            ], { endTimePadding: 0 })).resolves.toEqual<CaptureData>(emptyData);
+        });
+
+        test('delayed finish immediately following start when `cropStartDelay` is enabled', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { type: 'finish', time: 500 },
+            ], { cropStartDelay: true, endTimePadding: 0 })).resolves.toEqual<CaptureData>(emptyData);
+        });
+
+        test('delayed finish immediately following start when `cropStartDelay` is disabled', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { type: 'finish', time: 500 },
+            ], { cropStartDelay: false, endTimePadding: 0 })).resolves.toEqual<CaptureData>({
+                content: [
+                    { time: 0, endTime: 500, lines: [] },
+                ],
+                cursor: [
+                    { time: 0, endTime: 500, ...makeCursor(0, 0, false) },
+                ],
+                title: [],
+                duration: 500,
+            });
         });
     });
 });

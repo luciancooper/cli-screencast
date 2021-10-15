@@ -35,8 +35,8 @@ describe('TerminalRecordingStream', () => {
         expect(stderr).not.toHaveBeenCalled();
         expect(await readStream(stream)).toMatchObject<Partial<SourceEvent>[]>([
             { type: 'start' },
-            { type: 'write', content: 'write to stdout' },
-            { type: 'write', content: 'write to stderr' },
+            { content: 'write to stdout' },
+            { content: 'write to stderr' },
             { type: 'finish' },
         ]);
     });
@@ -61,7 +61,7 @@ describe('TerminalRecordingStream', () => {
         // restore original isTTY value on `process.stdout`
         restore();
         // check source write events for correct output from tty write stream methods
-        const writes = ((await readStream<SourceEvent>(stream)).filter((e) => e.type === 'write') as WriteEvent[])
+        const writes = ((await readStream<SourceEvent>(stream)).filter((e) => !('type' in e)) as WriteEvent[])
             .map(({ content }) => content);
         expect(writes).toEqual([
             '\x1b[1G', // cursorTo(0)

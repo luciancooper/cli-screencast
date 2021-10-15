@@ -1,10 +1,16 @@
 import { Writable } from 'stream';
-import type { WriteData, TerminalLine, CursorLocation, Title, ScreenData, CaptureData } from './types';
-import RecordingStream, { SourceEvent } from './source';
+import type { Readable } from 'stream';
+import type { TerminalLine, CursorLocation, Title, ScreenData, CaptureData } from './types';
+import type { WriteEvent, FinishEvent, SourceEvent } from './source';
 import { resolveTitle } from './title';
 import parse, { ParseContext } from './parse';
 import { clone } from './utils';
 import serialize from './serialize';
+
+interface BufferedWrite {
+    time: number
+    content: string
+}
 
 export interface CaptureOptions {
     /**
@@ -56,7 +62,7 @@ export class ScreenCapture extends Writable {
         duration: NaN,
     };
 
-    private buffered: WriteData | null = null;
+    private buffered: BufferedWrite | null = null;
 
     private startDelay = 0;
 
@@ -136,7 +142,7 @@ export class ScreenCapture extends Writable {
         }
     }
 
-    private pushFrame({ time, content }: WriteData) {
+    private pushFrame({ time, content }: BufferedWrite) {
         const state = this.screenState;
         // parse frame content
         parse(this.context, state, content);
@@ -148,7 +154,20 @@ export class ScreenCapture extends Writable {
         this.screenState = clone(state);
     }
 
-    private finishCapture(duration: number) {
+    private finishCapture({ time, adjustment = 0 }: FinishEvent) {
+        let duration: number;
+        if (!this.started) {
+            // capture was never started
+            duration = 0;
+        } else if (!this.buffered) {
+            // capture started, but no writes occurred
+            duration = (this.cropStartDelay ? 0 : time) + adjustment + this.endTimePadding;
+        } else {
+            // capture started, and at least one write occurred
+            this.pushFrame(this.buffered);
+            this.buffered = null;
+            duration = (time - this.startDelay) + adjustment + this.endTimePadding;
+        }
         this.data.duration = duration;
         const { lastContent: content, lastCursor: cursor, lastTitle: title } = this;
         // add last content keyframe
@@ -156,19 +175,19 @@ export class ScreenCapture extends Writable {
             this.data.content.push({ time: content.time, endTime: duration, lines: content.state });
         }
         // add last cursor keyframe if cursor is visible or if keyframes array is not empty
-        if ((!cursor.state.hidden || this.data.cursor.length) && duration > cursor.time) {
+        if (duration > cursor.time && (!cursor.state.hidden || this.data.cursor.length)) {
             this.data.cursor.push({ time: cursor.time, endTime: duration, ...cursor.state });
         }
         // add last title keyframe if title is not empty
-        if (title.serialized && duration > title.time) {
+        if (duration > title.time && title.serialized) {
             this.data.title.push({ time: title.time, endTime: duration, ...title.state });
         }
     }
 
-    private bufferWrite({ time, content }: WriteData): void {
+    private bufferWrite({ time, adjustment = 0, content }: WriteEvent): void {
         const { buffered } = this;
         if (buffered) {
-            const adjTime = time - this.startDelay;
+            const adjTime = (time - this.startDelay) + adjustment;
             if (adjTime - buffered.time > this.mergeThreshold) {
                 this.pushFrame(buffered);
                 this.buffered = { time: adjTime, content };
@@ -177,16 +196,8 @@ export class ScreenCapture extends Writable {
             }
         } else {
             this.startDelay = this.cropStartDelay ? time : 0;
-            this.buffered = { time: time - this.startDelay, content };
+            this.buffered = { time: (time - this.startDelay) + adjustment, content };
         }
-    }
-
-    private flushBuffered(): boolean {
-        const { buffered } = this;
-        if (!buffered) return false;
-        if (buffered.content) this.pushFrame(buffered);
-        this.buffered = null;
-        return true;
     }
 
     override _write(event: SourceEvent, enc: BufferEncoding, cb: (error?: Error | null) => void) {
@@ -194,21 +205,18 @@ export class ScreenCapture extends Writable {
             case 'start':
                 this.started = true;
                 break;
-            case 'write':
+            case 'finish':
+                this.finishCapture(event);
+                break;
+            default:
                 this.bufferWrite(event);
                 break;
-            case 'finish':
-                this.finishCapture(
-                    (this.started && this.flushBuffered()) ? event.time - this.startDelay + this.endTimePadding : 0,
-                );
-                break;
-            // no default
         }
         cb();
     }
 }
 
-export default function captureSource(source: RecordingStream, props: ScreenCaptureOptions) {
+export default function captureSource(source: Readable, props: ScreenCaptureOptions) {
     return new Promise<CaptureData>((resolve, reject) => {
         const recording = source.pipe(new ScreenCapture(props));
         recording.on('finish', () => {

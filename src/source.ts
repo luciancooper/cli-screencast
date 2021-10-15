@@ -1,18 +1,22 @@
 import { Duplex } from 'stream';
-import type { WriteData } from './types';
 
 export interface StartEvent {
     type: 'start'
     command?: string
 }
 
-export interface WriteEvent extends WriteData {
-    type: 'write'
+interface EventTime {
+    time: number
+    adjustment?: number
 }
 
-export interface FinishEvent {
+export interface WriteEvent extends EventTime {
+    type?: never
+    content: string
+}
+
+export interface FinishEvent extends EventTime {
     type: 'finish'
-    time: number
     result?: unknown
     error?: unknown
 }
@@ -41,6 +45,14 @@ export default class RecordingStream extends Duplex {
         return ((this as { _readableState?: { ended: boolean } })._readableState!).ended;
     }
 
+    private createWrite(content: string): WriteEvent {
+        return {
+            content,
+            time: Date.now() - this.startTime,
+            adjustment: this.timeAdjustment,
+        };
+    }
+
     override _read() {}
 
     override _write(chunk: Buffer | string, enc: BufferEncoding, cb: (error?: Error | null) => void): void {
@@ -53,11 +65,7 @@ export default class RecordingStream extends Duplex {
             // push a start event if the source is inactive
             if (!this.started) this.start();
             // push write event
-            const event: SourceEvent = {
-                type: 'write',
-                content,
-                time: (Date.now() - this.startTime) + this.timeAdjustment,
-            };
+            const event = this.createWrite(content);
             this.push(event);
         }
         cb();
@@ -96,9 +104,10 @@ export default class RecordingStream extends Duplex {
         if (this.ended) {
             throw new Error('Source stream is closed');
         }
-        const event: SourceEvent = {
+        const event: FinishEvent = {
             type: 'finish',
-            time: (Date.now() - this.startTime) + this.timeAdjustment,
+            time: this.started ? Date.now() - this.startTime : 0,
+            adjustment: this.timeAdjustment,
             error,
             result,
         };
@@ -114,13 +123,11 @@ export default class RecordingStream extends Duplex {
         // push an initial start event to the readable stream if necessary
         if (!this.started) this.start();
         // push write event
-        const event: SourceEvent = {
-            type: 'write',
-            content: typeof icon === 'string'
+        const event = this.createWrite(
+            typeof icon === 'string'
                 ? `\x1b]2;${title}\x07\x1b]1;${icon}\x07`
                 : `\x1b]${icon ? 0 : 2};${title}\x07`,
-            time: (Date.now() - this.startTime) + this.timeAdjustment,
-        };
+        );
         this.push(event);
     }
 }
