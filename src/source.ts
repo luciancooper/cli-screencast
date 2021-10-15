@@ -1,33 +1,30 @@
 import { Duplex } from 'stream';
+import type { WriteData } from './types';
 
 export interface StartEvent {
     type: 'start'
-    timestamp: number
     command?: string
 }
 
-export interface WriteEvent {
+export interface WriteEvent extends WriteData {
     type: 'write'
-    timestamp: number
-    content: string
-}
-
-export interface WaitEvent {
-    type: 'wait'
-    milliseconds: number
 }
 
 export interface FinishEvent {
     type: 'finish'
-    timestamp: number
+    time: number
     result?: unknown
     error?: unknown
 }
 
-export type SourceEvent = StartEvent | WriteEvent | WaitEvent | FinishEvent;
+export type SourceEvent = StartEvent | WriteEvent | FinishEvent;
 
 export default class RecordingStream extends Duplex {
     private started = false;
+
+    private startTime = NaN;
+
+    private timeAdjustment = 0;
 
     constructor() {
         super({
@@ -59,7 +56,7 @@ export default class RecordingStream extends Duplex {
             const event: SourceEvent = {
                 type: 'write',
                 content,
-                timestamp: Date.now(),
+                time: (Date.now() - this.startTime) + this.timeAdjustment,
             };
             this.push(event);
         }
@@ -77,12 +74,8 @@ export default class RecordingStream extends Duplex {
         }
         // push an initial start event to the readable stream if necessary
         if (!this.started) this.start();
-        // push wait event
-        const event: SourceEvent = {
-            type: 'wait',
-            milliseconds,
-        };
-        this.push(event);
+        // add to accumulated time adjustment
+        this.timeAdjustment += milliseconds;
     }
 
     start(...args: any[]): void
@@ -92,13 +85,11 @@ export default class RecordingStream extends Duplex {
         }
         if (this.started) return;
         this.started = true;
-        const event: StartEvent = {
-            type: 'start',
-            timestamp: Date.now(),
-            ...context,
-        };
+        this.startTime = Date.now();
+        // create start event
+        const event: StartEvent = { type: 'start', ...context };
         this.push(event);
-        this.emit('recording-start', event.timestamp);
+        this.emit('recording-start', this.startTime);
     }
 
     finish({ result, error }: { result?: unknown, error?: unknown } = {}): void {
@@ -107,13 +98,13 @@ export default class RecordingStream extends Duplex {
         }
         const event: SourceEvent = {
             type: 'finish',
-            timestamp: Date.now(),
+            time: (Date.now() - this.startTime) + this.timeAdjustment,
             error,
             result,
         };
         this.push(event);
         this.push(null);
-        this.emit('recording-end', event.timestamp);
+        this.emit('recording-end', event.time);
     }
 
     setTitle(title: string, icon: string | boolean = false) {
@@ -128,7 +119,7 @@ export default class RecordingStream extends Duplex {
             content: typeof icon === 'string'
                 ? `\x1b]2;${title}\x07\x1b]1;${icon}\x07`
                 : `\x1b]${icon ? 0 : 2};${title}\x07`,
-            timestamp: Date.now(),
+            time: (Date.now() - this.startTime) + this.timeAdjustment,
         };
         this.push(event);
     }

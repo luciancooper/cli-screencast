@@ -1,23 +1,10 @@
 import { Writable } from 'stream';
-import type { TerminalLine, CursorLocation, Title, ScreenData, CaptureData } from './types';
+import type { WriteData, TerminalLine, CursorLocation, Title, ScreenData, CaptureData } from './types';
 import RecordingStream, { SourceEvent } from './source';
 import { resolveTitle } from './title';
 import parse, { ParseContext } from './parse';
 import { clone } from './utils';
 import serialize from './serialize';
-
-interface CaptureDuration {
-    start: number
-    startDelay: number
-    addedTime: number
-    end: number
-}
-
-interface Buffered {
-    time: number
-    last: number
-    content: string
-}
 
 export interface CaptureOptions {
     /**
@@ -69,22 +56,17 @@ export class ScreenCapture extends Writable {
         duration: NaN,
     };
 
-    buffered: Buffered | null = null;
+    private buffered: WriteData | null = null;
 
-    time: CaptureDuration = {
-        start: NaN,
-        startDelay: 0,
-        addedTime: 0,
-        end: NaN,
-    };
+    private startDelay = 0;
 
-    screenState: ScreenData;
+    private screenState: ScreenData;
 
-    lastContent: { time: number, serialized: string, state: TerminalLine[] };
+    private lastContent: { time: number, serialized: string, state: TerminalLine[] };
 
-    lastCursor: { time: number, serialized: string, state: CursorLocation };
+    private lastCursor: { time: number, serialized: string, state: CursorLocation };
 
-    lastTitle: { time: number, serialized: string, state: Title };
+    private lastTitle: { time: number, serialized: string, state: Title };
 
     mergeThreshold: number;
 
@@ -154,7 +136,7 @@ export class ScreenCapture extends Writable {
         }
     }
 
-    private pushFrame(time: number, content: string) {
+    private pushFrame({ time, content }: WriteData) {
         const state = this.screenState;
         // parse frame content
         parse(this.context, state, content);
@@ -183,28 +165,26 @@ export class ScreenCapture extends Writable {
         }
     }
 
-    private bufferWrite(time: number, content: string): void {
+    private bufferWrite({ time, content }: WriteData): void {
         const { buffered } = this;
-        if (!buffered) {
-            let t = time;
-            if (this.cropStartDelay) {
-                this.time.startDelay = time;
-                t = 0;
+        if (buffered) {
+            const adjTime = time - this.startDelay;
+            if (adjTime - buffered.time > this.mergeThreshold) {
+                this.pushFrame(buffered);
+                this.buffered = { time: adjTime, content };
+            } else {
+                buffered.content += content;
             }
-            this.buffered = { time: t, last: t, content };
-        } else if (time - buffered.last <= this.mergeThreshold) {
-            buffered.last = time;
-            buffered.content += content;
         } else {
-            this.pushFrame(buffered.time, buffered.content);
-            this.buffered = { time, last: time, content };
+            this.startDelay = this.cropStartDelay ? time : 0;
+            this.buffered = { time: time - this.startDelay, content };
         }
     }
 
     private flushBuffered(): boolean {
         const { buffered } = this;
         if (!buffered) return false;
-        if (buffered.content) this.pushFrame(buffered.time, buffered.content);
+        if (buffered.content) this.pushFrame(buffered);
         this.buffered = null;
         return true;
     }
@@ -213,26 +193,15 @@ export class ScreenCapture extends Writable {
         switch (event.type) {
             case 'start':
                 this.started = true;
-                this.time.start = event.timestamp;
                 break;
-            case 'write': {
-                const adjTime = (event.timestamp - this.time.start) - this.time.startDelay + this.time.addedTime;
-                this.bufferWrite(adjTime, event.content);
+            case 'write':
+                this.bufferWrite(event);
                 break;
-            }
-            case 'wait':
-                this.time.addedTime += event.milliseconds;
+            case 'finish':
+                this.finishCapture(
+                    (this.started && this.flushBuffered()) ? event.time - this.startDelay + this.endTimePadding : 0,
+                );
                 break;
-            case 'finish': {
-                let duration = 0;
-                if (this.started && this.flushBuffered()) {
-                    this.time.end = event.timestamp;
-                    const { start, startDelay, addedTime } = this.time;
-                    duration = event.timestamp - (start + startDelay) + addedTime + this.endTimePadding;
-                }
-                this.finishCapture(duration);
-                break;
-            }
             // no default
         }
         cb();

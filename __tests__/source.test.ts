@@ -34,8 +34,7 @@ describe('RecordingStream', () => {
         source.finish();
         await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
             { type: 'start' },
-            { type: 'wait', milliseconds: 500 },
-            { type: 'finish' },
+            { type: 'finish', time: expect.toBeApprox(500, 5) },
         ]);
     });
 

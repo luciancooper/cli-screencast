@@ -68,6 +68,11 @@ export interface AnsiStyleProps {
     strikeThrough: boolean
 }
 
+export interface WriteData {
+    time: number
+    content: string
+}
+
 export interface Dimensions {
     columns: number
     rows: number
