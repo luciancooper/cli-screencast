@@ -124,7 +124,7 @@ describe('parse', () => {
     test('track cursor position when lines are partially overwritten', () => {
         const parser = makeParser({ columns: 20, rows: 10 });
         parser('xxxxxxxxxx');
-        expect(parser.state.lines).toMatchObject<TerminalLine[]>([
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
             { index: 0, ...makeLine('xxxxxxxxxx') },
         ]);
         // overwrite beginning of the first line with a shorter line
@@ -133,6 +133,50 @@ describe('parse', () => {
             { index: 0, ...makeLine('yyyxxxxxxx') },
         ]);
         expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 0, column: 3 });
+    });
+
+    test('overwrite middle lines and handle line wrap continuity', () => {
+        const parser = makeParser({ columns: 10, rows: 10 });
+        parser('aaaaaaaaaaaaaaaaaaaa\n', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 1, ...makeLine('aaaaaaaaaa') },
+            { index: 0, ...makeLine('bbbbbbbbbb') },
+            { index: 1, ...makeLine('bbbbbbbbbb') },
+            { index: 2, ...makeLine('bbbbbbbbbb') },
+        ]);
+        // overwrite middle 2 lines
+        parser(ansi.cursorTo(1, 5), 'xxxxxxxxxxxxxxx');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 0, ...makeLine('aaaaaxxxxx') },
+            { index: 1, ...makeLine('xxxxxxxxxx') },
+            { index: 0, ...makeLine('bbbbbbbbbb') },
+            { index: 1, ...makeLine('bbbbbbbbbb') },
+        ]);
+        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 2, column: 10 });
+    });
+
+    test('truncate lines to the specified row height of the terminal window', () => {
+        const parser = makeParser({ columns: 10, rows: 5 });
+        parser('aaaaa\n', 'bbbbb\n', 'ccccc\n', 'ddddd\n');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaa') },
+            { index: 0, ...makeLine('bbbbb') },
+            { index: 0, ...makeLine('ccccc') },
+            { index: 0, ...makeLine('ddddd') },
+        ]);
+        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 4, column: 0 });
+        // overwrite middle 2 lines
+        parser('eeeee\n', 'fffff\n', 'ggggg');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('ccccc') },
+            { index: 0, ...makeLine('ddddd') },
+            { index: 0, ...makeLine('eeeee') },
+            { index: 0, ...makeLine('fffff') },
+            { index: 0, ...makeLine('ggggg') },
+        ]);
+        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 4, column: 5 });
     });
 
     test('clear from cursor to end of screen (0J)', () => {

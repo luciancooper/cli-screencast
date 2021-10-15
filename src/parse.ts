@@ -109,7 +109,12 @@ export function overwriteLine<T extends TextLine>(prev: T, next: T): T {
     return { ...next, columns: totalColumns(chunks), chunks };
 }
 
-function parseContent({ columns, tabSize, palette }: ParseContext, state: ScreenData, content: string) {
+function parseContent({
+    columns,
+    rows,
+    tabSize,
+    palette,
+}: ParseContext, state: ScreenData, content: string) {
     const lines: TerminalLine[] = [];
     let line = cursorLinePartial(state);
     for (const [i, contentLine] of [...splitLines(content)].entries()) {
@@ -149,19 +154,22 @@ function parseContent({ columns, tabSize, palette }: ParseContext, state: Screen
     for (let n = cursor.line - state.lines.length; n > 0; n -= 1) {
         state.lines.push({ index: 0, columns: 0, chunks: [] });
     }
-    let col = cursor.column;
     // apply new lines
-    for (let j = 0, n = lines.length, i = cursor.line; j < n; j += 1, i += 1) {
-        col = lines[j]!.columns;
-        if (i < state.lines.length) {
-            state.lines[i] = overwriteLine(state.lines[i]!, lines[j]!);
-        } else state.lines.push(lines[j]!);
-    }
+    state.lines = [
+        ...state.lines.slice(0, cursor.line),
+        ...state.lines.slice(cursor.line, cursor.line + lines.length)
+            .map((ln, j) => overwriteLine(ln, lines[j]!)),
+        ...state.lines.length - cursor.line > lines.length
+            ? state.lines.slice(cursor.line + lines.length)
+                // update subsequent line continuity indexes
+                .map(({ index, ...ln }, i) => ({ index: Math.min(index, i), ...ln }))
+            : lines.slice(state.lines.length - cursor.line),
+    ].slice(-rows);
     // update cursor location
     state.cursor = {
         ...cursor,
-        line: cursor.line + lines.length - 1,
-        column: col,
+        line: Math.min(cursor.line + lines.length - 1, rows - 1),
+        column: lines[lines.length - 1]!.columns,
     };
     prune(state.lines);
 }
