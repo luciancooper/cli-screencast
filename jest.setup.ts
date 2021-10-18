@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 
+// set default timeout for all tests to 10 seconds
+jest.setTimeout(10000);
+
 declare global {
     namespace jest {
         interface Matchers<R> {
