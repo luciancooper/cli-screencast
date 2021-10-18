@@ -38,8 +38,6 @@ const Text: FunctionComponent<TextProps> = ({
             fontWeight: bold ? 'bold' : undefined,
             fontStyle: italic ? 'italic' : undefined,
             opacity: dim ? theme.dim : undefined,
-            dominantBaseline: 'central',
-            style: { whiteSpace: 'pre' },
         },
         element = <text {...props}>{children}</text>;
     return (

@@ -87,6 +87,7 @@ const Window = forwardRef<Size, WindowProps>(({
             fontSize={fontSize}
             {...size}
         >
+            <style dangerouslySetInnerHTML={{ __html: 'text{white-space:pre}' }}/>
             {icons.length > 0 && (
                 <defs>
                     {icons.map((id) => (

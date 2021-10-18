@@ -34,6 +34,7 @@ describe('<Window/>', () => {
             type: 'svg',
             props: { width: expect.any(Number) as number, height: expect.any(Number) as number },
             children: [
+                { type: 'style' },
                 { type: 'rect', props: { className: 'window-background' } },
                 { type: 'svg', props: { className: 'terminal-content' } },
             ],
@@ -47,6 +48,7 @@ describe('<Window/>', () => {
             type: 'svg',
             props: { width: expect.any(Number) as number, height: expect.any(Number) as number },
             children: [
+                { type: 'style' },
                 { type: 'rect', props: { className: 'window-background' } },
                 { type: 'g', props: { className: 'window-decorations' } },
                 { type: 'svg', props: { className: 'terminal-content' } },
@@ -60,6 +62,7 @@ describe('<Window/>', () => {
         )).toMatchObject({
             type: 'svg',
             children: [
+                { type: 'style' },
                 { type: 'defs', children: [{ type: 'symbol', props: { id: 'node' } }] },
                 { type: 'rect', props: { className: 'window-background' } },
                 {
@@ -85,6 +88,7 @@ describe('<Window/>', () => {
         )).toMatchObject({
             type: 'svg',
             children: [
+                { type: 'style' },
                 {
                     type: 'defs',
                     children: [

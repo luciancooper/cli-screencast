@@ -14,7 +14,7 @@ interface FrameProps extends SVGProps<SVGGElement> {
 const Frame: FunctionComponent<FrameProps> = ({ lines, keyFrame, ...svgProps }) => {
     const { duration } = useContext(Context);
     return (
-        <g className='frame' {...svgProps}>
+        <g className='frame' dominantBaseline='central' {...svgProps}>
             {lines.flatMap(({ chunks }, i) => (
                 chunks.map(({ str, x: [x, span], style: { props, ...style } }, j) => (
                     <Text key={`${i}:${j}`} x={x} y={i} span={span} {...style} {...expandProps(props)}>{str}</Text>

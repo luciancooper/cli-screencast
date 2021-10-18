@@ -55,7 +55,7 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
     }
     const iconSize = Math.min(dx * iconSpan, dy);
     return (
-        <g className='title-frame'>
+        <g className='title-frame' dominantBaseline='central'>
             {title.icon && (
                 <use
                     xlinkHref={`#${title.icon}`}
