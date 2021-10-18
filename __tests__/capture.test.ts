@@ -1,6 +1,7 @@
-import type { DeepPartial, CaptureData, ContentRecordingFrame } from '@src/types';
+import type { DeepPartial, CaptureData, ContentRecordingFrame, TitleRecordingFrame } from '@src/types';
 import { resolveTheme } from '@src/theme';
 import type { SourceEvent } from '@src/source';
+import { resolveTitle } from '@src/title';
 import captureSource, { ScreenCaptureOptions } from '@src/capture';
 import { makeLine, makeCursor } from './helpers/objects';
 import { objectStream } from './helpers/streams';
@@ -59,10 +60,10 @@ describe('captureSource', () => {
             { content: '\x1b]2;window title without icon\x07\x1b]1;\x07', time: 1000 },
             { type: 'finish', time: 1000 },
         ], defaultOptions);
-        expect(title).toEqual([
-            expect.objectContaining({ icon: 'shell', text: undefined }),
-            expect.objectContaining({ icon: 'shell', text: 'window title' }),
-            expect.objectContaining({ icon: undefined, text: 'window title without icon' }),
+        expect(title).toEqual<TitleRecordingFrame[]>([
+            { time: 0, endTime: 500, ...resolveTitle(palette, undefined, 'shell') },
+            { time: 500, endTime: 1000, ...resolveTitle(palette, 'window title', 'shell') },
+            { time: 1000, endTime: 1500, ...resolveTitle(palette, 'window title without icon') },
         ]);
     });
 
@@ -143,6 +144,60 @@ describe('captureSource', () => {
         });
     });
 
+    describe('capture commands', () => {
+        test('capture command prompt string with keystroke animation', async () => {
+            await expect(runCapture([
+                { type: 'start', command: 'ls' },
+                { content: 'first write', time: 500 },
+                { type: 'finish', time: 1000 },
+            ], {
+                captureCommand: true,
+                prompt: '> ',
+                keystrokeAnimation: true,
+                keystrokeInterval: 100,
+                endTimePadding: 500,
+                cursorHidden: true,
+            })).resolves.toMatchObject<PartialCaptureData>({
+                content: [
+                    { time: 0, endTime: 100, lines: [makeLine('> ')] },
+                    { time: 100, endTime: 200, lines: [makeLine('> l')] },
+                    { time: 200, endTime: 400, lines: [makeLine('> ls')] },
+                    { time: 400, endTime: 1400, lines: [makeLine('> ls'), makeLine('first write')] },
+                ],
+                cursor: [
+                    { time: 0, endTime: 100, ...makeCursor(0, 2, false) },
+                    { time: 100, endTime: 200, ...makeCursor(0, 3, false) },
+                    { time: 200, endTime: 300, ...makeCursor(0, 4, false) },
+                    { time: 300, endTime: 400, ...makeCursor(1, 0, false) },
+                    { time: 400, endTime: 1400, ...makeCursor(1, 0, true) },
+                ],
+                duration: 1400,
+            });
+        });
+
+        test('capture command prompt string without keystroke animation', async () => {
+            await expect(runCapture([
+                { type: 'start', command: 'ls' },
+                { content: 'first write', time: 500 },
+                { type: 'finish', time: 500 },
+            ], {
+                captureCommand: true,
+                prompt: '> ',
+                keystrokeAnimation: false,
+                cropStartDelay: true,
+                endTimePadding: 500,
+            })).resolves.toMatchObject<PartialCaptureData>({
+                content: [
+                    { time: 0, endTime: 500, lines: [makeLine('> ls'), makeLine('first write')] },
+                ],
+                cursor: [
+                    { time: 0, endTime: 500, ...makeCursor(1, 11, false) },
+                ],
+                duration: 500,
+            });
+        });
+    });
+
     describe('source streams with no write events', () => {
         const emptyData: CaptureData = {
             content: [],
@@ -184,6 +239,32 @@ describe('captureSource', () => {
                 ],
                 title: [],
                 duration: 500,
+            });
+        });
+
+        test('finish event immediately follows start event from which command is captured', async () => {
+            await expect(runCapture([
+                { type: 'start', command: 'ls' },
+                { type: 'finish', time: 0 },
+            ], {
+                captureCommand: true,
+                prompt: '> ',
+                keystrokeAnimation: true,
+                keystrokeInterval: 100,
+                endTimePadding: 500,
+            })).resolves.toMatchObject<PartialCaptureData>({
+                content: [
+                    { time: 0, endTime: 100, lines: [makeLine('> ')] },
+                    { time: 100, endTime: 200, lines: [makeLine('> l')] },
+                    { time: 200, endTime: 900, lines: [makeLine('> ls')] },
+                ],
+                cursor: [
+                    { time: 0, endTime: 100, ...makeCursor(0, 2, false) },
+                    { time: 100, endTime: 200, ...makeCursor(0, 3, false) },
+                    { time: 200, endTime: 300, ...makeCursor(0, 4, false) },
+                    { time: 300, endTime: 900, ...makeCursor(1, 0, false) },
+                ],
+                duration: 900,
             });
         });
     });

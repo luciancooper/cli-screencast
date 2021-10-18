@@ -204,8 +204,8 @@ export default class TerminalRecordingStream extends RecordingStream {
         if (!this.silent) process.stdout.write(TerminalRecordingStream.kCaptureEndLine);
     }
 
-    override start() {
-        super.start();
+    override start(command?: string) {
+        super.start(command);
         this.hookStreams();
     }
 

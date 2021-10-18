@@ -86,8 +86,7 @@ export default class RecordingStream extends Duplex {
         this.timeAdjustment += milliseconds;
     }
 
-    start(...args: any[]): void
-    start(context: Record<string, string> = {}): void {
+    start(command?: string): void {
         if (this.ended) {
             throw new Error('Source stream is closed');
         }
@@ -95,7 +94,7 @@ export default class RecordingStream extends Duplex {
         this.started = true;
         this.startTime = Date.now();
         // create start event
-        const event: StartEvent = { type: 'start', ...context };
+        const event: StartEvent = { type: 'start', command };
         this.push(event);
         this.emit('recording-start', this.startTime);
     }

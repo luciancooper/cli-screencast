@@ -74,14 +74,6 @@ export class SpawnStream extends RecordingStream {
         this.cwd = cwd;
         this.env = env;
     }
-
-    override start(command: string, args: string[]) {
-        super.start({
-            command: [command, ...args.map((arg) => (
-                (!arg.length || /^[\w.-]+$/.test(arg)) ? arg : `"${arg.replace(/"/g, '\\"')}"`
-            ))].join(' '),
-        });
-    }
 }
 
 /**
@@ -162,7 +154,9 @@ export default function readableSpawn(command: string, args: string[], {
             cwd,
         });
     // emit stream start event
-    stream.start(command, args);
+    stream.start([command, ...args.map((arg) => (
+        (!arg.length || /^[\w.-]+$/.test(arg)) ? arg : `"${arg.replace(/"/g, '\\"')}"`
+    ))].join(' '));
     // attach data listener
     const dataHook = spawned.onData((chunk: string) => {
         stream.write(chunk.replace(/\r\n/g, '\n'));
