@@ -55,7 +55,9 @@ describe('RecordingStream', () => {
             const source = new RecordingStream();
             source.finish();
             // bad start() call
-            expect(() => void source.start()).toThrow('Source stream is closed');
+            expect(() => {
+                source.start();
+            }).toThrow('Source stream is closed');
         });
     });
 
@@ -75,7 +77,9 @@ describe('RecordingStream', () => {
         test('throws error if called after stream has closed', async () => {
             const source = new RecordingStream();
             source.finish();
-            expect(() => void source.finish()).toThrow('Source stream is closed');
+            expect(() => {
+                source.finish();
+            }).toThrow('Source stream is closed');
         });
     });
 
@@ -108,7 +112,9 @@ describe('RecordingStream', () => {
         test('throws error if called after stream has closed', () => {
             const source = new RecordingStream();
             source.finish();
-            expect(() => void source.wait(500)).toThrow('Source stream is closed');
+            expect(() => {
+                source.wait(500);
+            }).toThrow('Source stream is closed');
         });
     });
 
@@ -141,7 +147,9 @@ describe('RecordingStream', () => {
         test('throws error if called after stream has closed', () => {
             const source = new RecordingStream();
             source.finish();
-            expect(() => void source.setTitle('title')).toThrow('Source stream is closed');
+            expect(() => {
+                source.setTitle('title');
+            }).toThrow('Source stream is closed');
         });
     });
 });

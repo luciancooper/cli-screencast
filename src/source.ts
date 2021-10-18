@@ -57,7 +57,8 @@ export default class RecordingStream extends Duplex {
 
     override _write(chunk: Buffer | string, enc: BufferEncoding, cb: (error?: Error | null) => void): void {
         if (this.ended) {
-            return void cb(new Error('Source stream is closed'));
+            cb(new Error('Source stream is closed'));
+            return;
         }
         const content = Buffer.isBuffer(chunk) ? chunk.toString('utf-8') : chunk;
         // only push non-empty writes

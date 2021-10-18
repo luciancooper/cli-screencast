@@ -178,7 +178,7 @@ describe('PNG', () => {
     describe('pixel dimensions', () => {
         test('parse pHYs chunk', () => {
             const png = new PNG(fixtures.cdun2c08);
-            expect(png.density).not.toBeUndefined();
+            expect(png.density).toBeDefined();
             expect(png.packChunks().map(({ type }) => type)).toContain('pHYs');
         });
 
@@ -186,7 +186,7 @@ describe('PNG', () => {
             const png = new PNG({ width: 1, height: 1 }).setPixels(Buffer.from([0, 0, 0, 255]));
             // set pixel density
             png.setPixelDensity(144);
-            expect(png.density).not.toBeUndefined();
+            expect(png.density).toBeDefined();
             expect(png.packChunks().map(({ type }) => type)).toContain('pHYs');
         });
     });

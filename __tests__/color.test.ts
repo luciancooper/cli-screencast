@@ -79,10 +79,10 @@ describe('color8Bit', () => {
 
 describe('invert', () => {
     test('inverts hex color triplets', () => {
-        expect(invert('#000000')).toEqual('#ffffff');
+        expect(invert('#000000')).toBe('#ffffff');
     });
 
     test('inverts RGB arrays', () => {
-        expect(invert([255, 255, 255])).toEqual('#000000');
+        expect(invert([255, 255, 255])).toBe('#000000');
     });
 });

@@ -33,7 +33,7 @@ describe('TerminalRecordingStream', () => {
         expect(stream.ended).toBe(true);
         expect(stdout).not.toHaveBeenCalled();
         expect(stderr).not.toHaveBeenCalled();
-        expect(await readStream(stream)).toMatchObject<Partial<SourceEvent>[]>([
+        await expect(readStream(stream)).resolves.toMatchObject<Partial<SourceEvent>[]>([
             { type: 'start' },
             { content: 'write to stdout' },
             { content: 'write to stderr' },
@@ -105,7 +105,9 @@ describe('TerminalRecordingStream', () => {
             rl.on('line', (line) => void lines.push(line));
             rl.write('written from a readline interface\n');
             return new Promise((resolve) => {
-                rl.once('close', () => void resolve(lines));
+                rl.once('close', () => {
+                    resolve(lines);
+                });
                 rl.close();
             });
         })).resolves.toEqual(['written from a readline interface']);
@@ -172,12 +174,14 @@ describe('TerminalRecordingStream', () => {
                 const rl = source.createInterface();
                 return new Promise((resolve) => {
                     rl.once('line', (line) => {
-                        rl.once('close', () => void resolve(line));
+                        rl.once('close', () => {
+                            resolve(line);
+                        });
                         rl.close();
                     });
                     process.stdin.write('abc\n');
                 });
-            })).resolves.toEqual('abc');
+            })).resolves.toBe('abc');
             restore();
             expect(stdout).not.toHaveBeenCalled();
             expect(stderr).not.toHaveBeenCalled();

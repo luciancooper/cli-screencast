@@ -11,7 +11,6 @@ describe('renderScreen', () => {
     });
 
     test('promises a buffer when type is `png`', async () => {
-        // eslint-disable-next-line jest/valid-expect-in-promise
         await expect(renderScreen('Hello World!', {
             ...dimensions,
             type: 'png',
@@ -30,7 +29,6 @@ describe('renderSpawn', () => {
     });
 
     test('promises a buffer when type is `png`', async () => {
-        // eslint-disable-next-line jest/valid-expect-in-promise
         await expect(renderSpawn('node', ['-e', "process.stdout.write('Hello World!');"], {
             ...dimensions,
             type: 'png',
@@ -49,7 +47,6 @@ describe('renderCapture', () => {
     });
 
     test('promises a buffer when type is `png`', async () => {
-        // eslint-disable-next-line jest/valid-expect-in-promise
         await expect(
             renderCapture((source) => {
                 source.write('captured write');
