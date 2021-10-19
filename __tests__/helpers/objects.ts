@@ -20,8 +20,8 @@ export function makeStyle({
     };
 }
 
-export function makeCursor(line: number, column: number, hidden = false): CursorLocation {
-    return { line, column, hidden };
+export function makeCursor(line: number, column: number): CursorLocation {
+    return { line, column };
 }
 
 export function makeLine(...args: (string | number | undefined | [string, StylePartial])[]): TextLine {

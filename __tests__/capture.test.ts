@@ -30,15 +30,16 @@ describe('captureSource', () => {
             { content: 'first write', time: 0 },
             { content: `${ansi.eraseLine}${ansi.cursorColumn(0)}second write`, time: 500 },
             { type: 'finish', time: 600 },
-        ])).resolves.toMatchObject<PartialCaptureData>({
+        ], { endTimePadding: 400 })).resolves.toMatchObject<PartialCaptureData>({
             content: [
-                { lines: [makeLine('first write')] },
-                { lines: [makeLine('second write')] },
+                { time: 0, endTime: 500, lines: [makeLine('first write')] },
+                { time: 500, endTime: 1000, lines: [makeLine('second write')] },
             ],
             cursor: [
-                { line: 0, column: 11, hidden: false },
-                { line: 0, column: 12, hidden: false },
+                { time: 0, endTime: 500, ...makeCursor(0, 11) },
+                { time: 500, endTime: 1000, ...makeCursor(0, 12) },
             ],
+            duration: 1000,
         });
     });
 
@@ -76,15 +77,16 @@ describe('captureSource', () => {
                 { content: ansi.cursorColumn(0), time: 500 },
                 { content: 'second write', time: 505 },
                 { type: 'finish', time: 600 },
-            ])).resolves.toMatchObject<PartialCaptureData>({
+            ], { endTimePadding: 400 })).resolves.toMatchObject<PartialCaptureData>({
                 content: [
-                    { lines: [makeLine('first write')] },
-                    { lines: [makeLine('second write')] },
+                    { time: 0, endTime: 500, lines: [makeLine('first write')] },
+                    { time: 500, endTime: 1000, lines: [makeLine('second write')] },
                 ],
                 cursor: [
-                    { line: 0, column: 11, hidden: false },
-                    { line: 0, column: 12, hidden: false },
+                    { time: 0, endTime: 500, ...makeCursor(0, 11) },
+                    { time: 500, endTime: 1000, ...makeCursor(0, 12) },
                 ],
+                duration: 1000,
             });
         });
 
@@ -94,15 +96,16 @@ describe('captureSource', () => {
                 { content: 'first write\n', time: 0 },
                 { content: 'second write\n', time: 5, adjustment: 500 },
                 { type: 'finish', time: 100, adjustment: 500 },
-            ])).resolves.toMatchObject<PartialCaptureData>({
+            ], { endTimePadding: 400 })).resolves.toMatchObject<PartialCaptureData>({
                 content: [
-                    { lines: [makeLine('first write')] },
-                    { lines: [makeLine('first write'), makeLine('second write')] },
+                    { time: 0, endTime: 505, lines: [makeLine('first write')] },
+                    { time: 505, endTime: 1000, lines: [makeLine('first write'), makeLine('second write')] },
                 ],
                 cursor: [
-                    { line: 1, column: 0, hidden: false },
-                    { line: 2, column: 0, hidden: false },
+                    { time: 0, endTime: 505, ...makeCursor(1, 0) },
+                    { time: 505, endTime: 1000, ...makeCursor(2, 0) },
                 ],
+                duration: 1000,
             });
         });
     });
@@ -165,11 +168,10 @@ describe('captureSource', () => {
                     { time: 400, endTime: 1400, lines: [makeLine('> ls'), makeLine('first write')] },
                 ],
                 cursor: [
-                    { time: 0, endTime: 100, ...makeCursor(0, 2, false) },
-                    { time: 100, endTime: 200, ...makeCursor(0, 3, false) },
-                    { time: 200, endTime: 300, ...makeCursor(0, 4, false) },
-                    { time: 300, endTime: 400, ...makeCursor(1, 0, false) },
-                    { time: 400, endTime: 1400, ...makeCursor(1, 0, true) },
+                    { time: 0, endTime: 100, ...makeCursor(0, 2) },
+                    { time: 100, endTime: 200, ...makeCursor(0, 3) },
+                    { time: 200, endTime: 300, ...makeCursor(0, 4) },
+                    { time: 300, endTime: 400, ...makeCursor(1, 0) },
                 ],
                 duration: 1400,
             });
@@ -191,7 +193,7 @@ describe('captureSource', () => {
                     { time: 0, endTime: 500, lines: [makeLine('> ls'), makeLine('first write')] },
                 ],
                 cursor: [
-                    { time: 0, endTime: 500, ...makeCursor(1, 11, false) },
+                    { time: 0, endTime: 500, ...makeCursor(1, 11) },
                 ],
                 duration: 500,
             });
@@ -235,7 +237,7 @@ describe('captureSource', () => {
                     { time: 0, endTime: 500, lines: [] },
                 ],
                 cursor: [
-                    { time: 0, endTime: 500, ...makeCursor(0, 0, false) },
+                    { time: 0, endTime: 500, ...makeCursor(0, 0) },
                 ],
                 title: [],
                 duration: 500,
@@ -259,10 +261,10 @@ describe('captureSource', () => {
                     { time: 200, endTime: 900, lines: [makeLine('> ls')] },
                 ],
                 cursor: [
-                    { time: 0, endTime: 100, ...makeCursor(0, 2, false) },
-                    { time: 100, endTime: 200, ...makeCursor(0, 3, false) },
-                    { time: 200, endTime: 300, ...makeCursor(0, 4, false) },
-                    { time: 300, endTime: 900, ...makeCursor(1, 0, false) },
+                    { time: 0, endTime: 100, ...makeCursor(0, 2) },
+                    { time: 100, endTime: 200, ...makeCursor(0, 3) },
+                    { time: 200, endTime: 300, ...makeCursor(0, 4) },
+                    { time: 300, endTime: 900, ...makeCursor(1, 0) },
                 ],
                 duration: 900,
             });

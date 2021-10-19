@@ -1,6 +1,8 @@
 import { create } from 'react-test-renderer';
 import { resolveTheme } from '@src/theme';
 import { resolveTitle } from '@src/title';
+import type { CursorRecordingFrame } from '@src/types';
+import type { KeyTime } from '@src/render/Animation';
 import Context, { RenderContext } from '@src/render/Context';
 import Window from '@src/render/Window';
 import WindowTitle from '@src/render/WindowTitle';
@@ -267,19 +269,18 @@ describe('<Cursor/>', () => {
 });
 
 describe('<CursorFrames/>', () => {
-    const makeFrames = (stages: [0 | 1, number, number][], stageDuration = 500) => ({
-        frames: stages.map(([hidden, line, column], i) => ({
+    const makeFrames = (stages: ([number, number] | null)[], stageDuration = 500) => [
+        stages.map<CursorRecordingFrame | null>((stage, i) => (stage ? {
             time: i * stageDuration,
             endTime: (i + 1) * stageDuration,
-            line,
-            column,
-            hidden: Boolean(hidden ^ 1),
-        })),
-        duration: stages.length * stageDuration,
-    });
+            line: stage[0],
+            column: stage[1],
+        } : null)).filter((frame) => frame !== null) as CursorRecordingFrame[],
+        stages.length * stageDuration,
+    ] as const;
 
     test('renders a `rect` element with `animate` and `animateTransform` children', () => {
-        const { frames, duration } = makeFrames([[1, 0, 5], [1, 1, 5], [0, 1, 10], [0, 1, 10]]);
+        const [frames, duration] = makeFrames([[0, 5], [1, 5], null, null]);
         expect(render(<CursorFrames frames={frames}/>, { duration })).toMatchObject({
             type: 'rect',
             children: [
@@ -291,9 +292,14 @@ describe('<CursorFrames/>', () => {
 
     describe('opacityKeyTimes', () => {
         test('returns array of cursor opacity values and times', () => {
-            const { frames, duration } = makeFrames([[0, 0, 5], [0, 1, 5], [1, 1, 10], [0, 1, 10]]),
-                keyTimes = opacityKeyTimes(frames, duration);
-            expect(keyTimes).toEqual<typeof keyTimes>([
+            expect(opacityKeyTimes(...makeFrames([null, [0, 5], null, [1, 10]]))).toEqual<KeyTime<number>[]>([
+                { value: 0, time: 0 },
+                { value: 1, time: 0.25 },
+                { value: 0, time: 0.5 },
+                { value: 1, time: 0.75 },
+            ]);
+            // ends with a null frame
+            expect(opacityKeyTimes(...makeFrames([null, null, [1, 10], null]))).toEqual<KeyTime<number>[]>([
                 { value: 0, time: 0 },
                 { value: 1, time: 0.5 },
                 { value: 0, time: 0.75 },
@@ -301,16 +307,15 @@ describe('<CursorFrames/>', () => {
         });
 
         test('returns an empty array if cursor visibility never changes', () => {
-            const { frames, duration } = makeFrames([[1, 0, 5], [1, 1, 5]]);
+            const [frames, duration] = makeFrames([[0, 5], [1, 5]]);
             expect(opacityKeyTimes(frames, duration)).toHaveLength(0);
         });
     });
 
     describe('transformKeyTimes', () => {
         test('returns array of cursor translation values and times', () => {
-            const { frames, duration } = makeFrames([[1, 0, 5], [1, 1, 5], [1, 1, 10], [1, 2, 5]]),
-                keyTimes = translateKeyTimes(frames, duration, [1, 1]);
-            expect(keyTimes).toEqual<typeof keyTimes>([
+            const [frames, duration] = makeFrames([[0, 5], [1, 5], [1, 10], [2, 5]]);
+            expect(translateKeyTimes(frames, duration, [1, 1])).toEqual<KeyTime<string>[]>([
                 { value: '0,0', time: 0 },
                 { value: '0,1', time: 0.25 },
                 { value: '5,1', time: 0.5 },
@@ -319,16 +324,15 @@ describe('<CursorFrames/>', () => {
         });
 
         test('does not include position changes when cursor is hidden', () => {
-            const { frames, duration } = makeFrames([[1, 0, 5], [1, 1, 5], [0, 1, 10], [1, 1, 5]]),
-                keyTimes = translateKeyTimes(frames, duration, [1, 1]);
-            expect(keyTimes).toEqual<typeof keyTimes>([
+            const [frames, duration] = makeFrames([[0, 5], [1, 5], null, [1, 5]]);
+            expect(translateKeyTimes(frames, duration, [1, 1])).toEqual<KeyTime<string>[]>([
                 { value: '0,0', time: 0 },
                 { value: '0,1', time: 0.25 },
             ]);
         });
 
         test('returns empty array when cursor is only visible during a single frame', () => {
-            const { frames, duration } = makeFrames([[0, 0, 5], [0, 1, 5], [1, 1, 10], [0, 1, 10]]);
+            const [frames, duration] = makeFrames([null, null, [1, 10], null]);
             expect(translateKeyTimes(frames, duration, [1, 1])).toHaveLength(0);
         });
     });

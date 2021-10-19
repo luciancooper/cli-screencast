@@ -1,11 +1,5 @@
 import type { CaptureData, CursorLocation, Title, CaptureFrame } from './types';
 
-const hiddenCursor = (): CursorLocation => ({
-    hidden: true,
-    line: NaN,
-    column: NaN,
-});
-
 const emptyTitle = (): Title => ({
     icon: undefined,
     text: undefined,
@@ -15,15 +9,15 @@ const emptyTitle = (): Title => ({
 
 export default function extractCaptureFrames(capture: CaptureData): CaptureFrame[] {
     // fill cursor frames
-    const cursorFrames: { time: number, endTime: number, data: CursorLocation }[] = [];
+    const cursorFrames: { time: number, endTime: number, loc: CursorLocation | null }[] = [];
     {
         let last = 0;
-        for (const { time, endTime, ...data } of capture.cursor.filter(({ hidden }) => !hidden)) {
-            if (last < time) cursorFrames.push({ time: last, endTime: time, data: hiddenCursor() });
-            cursorFrames.push({ time, endTime, data });
+        for (const { time, endTime, ...loc } of capture.cursor) {
+            if (last < time) cursorFrames.push({ time: last, endTime: time, loc: null });
+            cursorFrames.push({ time, endTime, loc });
             last = endTime;
         }
-        if (last < capture.duration) cursorFrames.push({ time: last, endTime: capture.duration, data: hiddenCursor() });
+        if (last < capture.duration) cursorFrames.push({ time: last, endTime: capture.duration, loc: null });
     }
     // fill title frames
     const titleFrames: { time: number, endTime: number, data: Title }[] = [];
@@ -44,9 +38,14 @@ export default function extractCaptureFrames(capture: CaptureData): CaptureFrame
     const frames: CaptureFrame[] = [];
     while (content && cursor && title) {
         const time = Math.max(content.time, cursor.time, title.time),
-            endTime = Math.min(content.endTime, cursor.endTime, title.endTime),
-            screen = { lines: content.lines, cursor: cursor.data, title: title.data };
-        frames.push({ time, endTime, screen });
+            endTime = Math.min(content.endTime, cursor.endTime, title.endTime);
+        frames.push({
+            time,
+            endTime,
+            title: title.data,
+            lines: content.lines,
+            cursor: cursor.loc,
+        });
         if (content.endTime === endTime) content = contentFrames.shift();
         if (cursor.endTime === endTime) cursor = cursorFrames.shift();
         if (title.endTime === endTime) title = titleFrames.shift();

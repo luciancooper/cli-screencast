@@ -76,7 +76,6 @@ export interface Dimensions {
 export interface CursorLocation {
     line: number
     column: number
-    hidden: boolean
 }
 
 export interface TextChunk {
@@ -101,9 +100,16 @@ export interface Title extends TextLine {
     text: string | undefined
 }
 
-export interface ScreenData {
+export interface TerminalState {
+    title: Title
     lines: TerminalLine[]
     cursor: CursorLocation
+    cursorHidden: boolean
+}
+
+export interface ScreenData {
+    lines: TerminalLine[]
+    cursor: CursorLocation | null
     title: Title
 }
 
@@ -127,9 +133,7 @@ export interface CaptureData {
     duration: number
 }
 
-export interface CaptureFrame extends RecordingFrame {
-    screen: ScreenData
-}
+export interface CaptureFrame extends RecordingFrame, ScreenData {}
 
 export interface Size {
     width: number

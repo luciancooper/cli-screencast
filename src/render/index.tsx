@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type {
     Dimensions,
     CaptureData,
+    TerminalState,
     ScreenData,
     Size,
     SVGData,
@@ -70,14 +71,16 @@ export function renderCaptureSvg(data: CaptureData, options: RenderProps): strin
     );
 }
 
-export function renderScreenSvg({ lines, cursor, title }: ScreenData, options: RenderProps): SVGData {
-    const [context, windowOptions] = resolveContext(options);
+export function renderScreenSvg(data: ScreenData | TerminalState, options: RenderProps): SVGData {
+    const { lines, title } = data,
+        cursor = 'cursorHidden' in data ? (!data.cursorHidden ? data.cursor : null) : data.cursor,
+        [context, windowOptions] = resolveContext(options);
     let size = { width: NaN, height: NaN };
     const svg = renderToStaticMarkup(
         <Context.Provider value={context}>
             <Window ref={(s) => { size = s!; }} {...windowOptions} title={(title.icon || title.text) ? title : null}>
                 <Frame lines={lines}/>
-                {!cursor.hidden ? <Cursor {...cursor}/> : null}
+                {cursor && <Cursor {...cursor}/>}
             </Window>
         </Context.Provider>,
     );
@@ -86,7 +89,7 @@ export function renderScreenSvg({ lines, cursor, title }: ScreenData, options: R
 
 export function renderCaptureFrames(captureFrames: CaptureFrame[], options: RenderProps): SVGCaptureData {
     const [context, windowOptions] = resolveContext(options),
-        hasTitle = captureFrames.some(({ screen }) => (!!screen.title.icon || !!screen.title.text)),
+        hasTitle = captureFrames.some(({ title }) => (!!title.icon || !!title.text)),
         frames = [];
     let size = { width: 0, height: 0 };
     const sizeRef = (s: Size | null) => {
@@ -95,23 +98,23 @@ export function renderCaptureFrames(captureFrames: CaptureFrame[], options: Rend
             height: Math.max(size.height, s!.height),
         };
     };
-    for (const { screen: { lines, cursor, title }, ...time } of captureFrames) {
+    for (const { time, endTime, ...frame } of captureFrames) {
         // render svg frame
         const svg = renderToStaticMarkup(
             <Context.Provider value={context}>
                 <Window
                     ref={sizeRef}
-                    title={(title.icon || title.text) ? title : null}
+                    title={(frame.title.icon || frame.title.text) ? frame.title : null}
                     forceTitleInset={hasTitle}
                     {...windowOptions}
                 >
-                    <Frame lines={lines}/>
-                    {!cursor.hidden ? <Cursor {...cursor}/> : null}
+                    <Frame lines={frame.lines}/>
+                    {frame.cursor && <Cursor {...frame.cursor}/>}
                 </Window>
             </Context.Provider>,
         );
         // push rendered frame
-        frames.push({ ...time, svg });
+        frames.push({ time, endTime, svg });
     }
     return { ...size, frames };
 }

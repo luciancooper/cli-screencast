@@ -1,4 +1,4 @@
-import type { Dimensions, CursorLocation, Title, ScreenData, TerminalLine } from '@src/types';
+import type { Dimensions, CursorLocation, Title, TerminalState, TerminalLine } from '@src/types';
 import { resolveTheme } from '@src/theme';
 import { clone } from '@src/utils';
 import parse, { ParseContext } from '@src/parse';
@@ -7,21 +7,18 @@ import * as ansi from './helpers/ansi';
 
 const { theme, palette } = resolveTheme();
 
-type CursorPartial = Partial<CursorLocation>;
-
-const makeContext = (dim: Dimensions): ParseContext => ({ ...dim, tabSize: 8, palette });
-
 interface Parser {
-    (...content: string[]): ScreenData
-    state: ScreenData
-    prev: ScreenData
+    (...content: string[]): TerminalState
+    state: TerminalState
+    prev: TerminalState
 }
 
 const makeParser = (dim: Dimensions, cursorHidden = false, title: Partial<Title> = {}): Parser => {
-    const context = makeContext(dim),
+    const context: ParseContext = { ...dim, tabSize: 8, palette },
         state = {
             lines: [],
-            cursor: { line: 0, column: 0, hidden: cursorHidden },
+            cursor: { line: 0, column: 0 },
+            cursorHidden,
             title: {
                 columns: 0,
                 chunks: [],
@@ -40,34 +37,34 @@ const makeParser = (dim: Dimensions, cursorHidden = false, title: Partial<Title>
 describe('parse', () => {
     test('show / hide cursor', () => {
         const parser = makeParser({ columns: 40, rows: 10 }, false);
-        expect(parser.state.cursor.hidden).toBe(false);
-        expect(parser(ansi.hideCursor).cursor.hidden).toBe(true);
-        expect(parser(ansi.showCursor).cursor.hidden).toBe(false);
+        expect(parser.state.cursorHidden).toBe(false);
+        expect(parser(ansi.hideCursor).cursorHidden).toBe(true);
+        expect(parser(ansi.showCursor).cursorHidden).toBe(false);
     });
 
     test('move cursor', () => {
         const parser = makeParser({ columns: 40, rows: 10 });
         // cursor to
         parser(ansi.cursorTo(5, 10));
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 5, column: 10 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 5, column: 10 });
         // cursor backward + up
         parser(ansi.cursorBackward(5) + ansi.cursorUp(2));
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 3, column: 5 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 3, column: 5 });
         // cursor forward + down
         parser(ansi.cursorForward(10) + ansi.cursorDown(1));
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 4, column: 15 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 15 });
         // cursor line up
         parser(ansi.cursorLineUp(2));
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 2, column: 0 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 0 });
         // cursor to column
         parser(ansi.cursorColumn(10));
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 2, column: 10 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 10 });
         // cursor line down
         parser(ansi.cursorLineDown());
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 3, column: 0 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 3, column: 0 });
         // cursor home
         parser(ansi.cursorHome);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 0, column: 0 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 0 });
     });
 
     test('ignore unsupported control escapes', () => {
@@ -132,7 +129,7 @@ describe('parse', () => {
         expect(parser.state.lines).toEqual<TerminalLine[]>([
             { index: 0, ...makeLine('yyyxxxxxxx') },
         ]);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 0, column: 3 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 3 });
     });
 
     test('overwrite middle lines and handle line wrap continuity', () => {
@@ -154,7 +151,7 @@ describe('parse', () => {
             { index: 0, ...makeLine('bbbbbbbbbb') },
             { index: 1, ...makeLine('bbbbbbbbbb') },
         ]);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 2, column: 10 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 10 });
     });
 
     test('truncate lines to the specified row height of the terminal window', () => {
@@ -166,7 +163,7 @@ describe('parse', () => {
             { index: 0, ...makeLine('ccccc') },
             { index: 0, ...makeLine('ddddd') },
         ]);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 4, column: 0 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 0 });
         // overwrite middle 2 lines
         parser('eeeee\n', 'fffff\n', 'ggggg');
         expect(parser.state.lines).toEqual<TerminalLine[]>([
@@ -176,7 +173,7 @@ describe('parse', () => {
             { index: 0, ...makeLine('fffff') },
             { index: 0, ...makeLine('ggggg') },
         ]);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 4, column: 5 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 5 });
     });
 
     test('clear from cursor to end of screen (0J)', () => {
@@ -232,7 +229,7 @@ describe('parse', () => {
         expect(parser.state.lines).toEqual<TerminalLine[]>([
             { index: 0, ...makeLine('xxxxxxxxxxxxxxx') },
         ]);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 1, column: 0 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 1, column: 0 });
         // does nothing
         parser(ansi.eraseLineEnd);
         expect(parser.state).toEqual(parser.prev);
@@ -241,7 +238,7 @@ describe('parse', () => {
         expect(parser.state.lines).toEqual<TerminalLine[]>([
             { index: 0, ...makeLine('xxxxx') },
         ]);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 0, column: 5 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 5 });
     });
 
     test('clear from cursor to start of line (1K)', () => {
@@ -250,7 +247,7 @@ describe('parse', () => {
         expect(parser.state.lines).toEqual<TerminalLine[]>([
             { index: 0, ...makeLine('xxxxxxxxxxxxxxx') },
         ]);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 1, column: 10 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 1, column: 10 });
         // does nothing
         parser(ansi.eraseLineStart);
         expect(parser.state).toEqual(parser.prev);
@@ -259,7 +256,7 @@ describe('parse', () => {
         expect(parser.state.lines).toEqual<TerminalLine[]>([
             { index: 0, ...makeLine(10, 'xxxxx') },
         ]);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 0, column: 10 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 10 });
     });
 
     test('clear the entire line (2K)', () => {
@@ -268,14 +265,14 @@ describe('parse', () => {
         expect(parser.state.lines).toEqual<TerminalLine[]>([
             { index: 0, ...makeLine('xxxxxxxxxxxxxxx') },
         ]);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 1, column: 0 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 1, column: 0 });
         // does nothing
         parser(ansi.eraseLine);
         expect(parser.state).toEqual(parser.prev);
         // move up and erase to start of line
         parser(ansi.cursorUp(), ansi.eraseLine);
         expect(parser.state.lines).toEqual<TerminalLine[]>([]);
-        expect(parser.state.cursor).toMatchObject<CursorPartial>({ line: 0, column: 0 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 0 });
     });
 
     test('cursor backwards line wrapping dependent on line wrap continuity', () => {
@@ -288,7 +285,7 @@ describe('parse', () => {
         ]);
         // cursor wraps to first line
         parser(ansi.cursorTo(1, 5), ansi.cursorBackward(10));
-        expect(parser.state.cursor).toMatchObject<Partial<CursorLocation>>({ line: 0, column: 5 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 5 });
         // break line continuation
         parser(ansi.eraseLineEnd);
         expect(parser.state.lines).toEqual<TerminalLine[]>([
@@ -298,7 +295,7 @@ describe('parse', () => {
         ]);
         // cursor will not wrap to first line
         parser(ansi.cursorTo(1, 5), ansi.cursorBackward(10));
-        expect(parser.state.cursor).toMatchObject<Partial<CursorLocation>>({ line: 1, column: 0 });
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 1, column: 0 });
     });
 
     test('set window title and icon', () => {

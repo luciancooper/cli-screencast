@@ -13,8 +13,8 @@ const lines = (array: TerminalLine[]): string => (
     array.map(({ chunks }) => chunks.map(chunk).join(' ')).join('\n')
 );
 
-const cursor = ({ hidden, line: l, column: c }: CursorLocation) => (
-    hidden ? '' : `${l}:${c}`
+const cursor = (loc: CursorLocation | null) => (
+    loc ? `${loc.line}:${loc.column}` : ''
 );
 
 const title = ({ icon, text }: Title) => (

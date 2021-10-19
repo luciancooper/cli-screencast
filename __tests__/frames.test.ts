@@ -1,6 +1,6 @@
 import type { ScreenData, CaptureData, CaptureFrame } from '@src/types';
 import extractCaptureFrames from '@src/frames';
-import { makeCursor, makeLine } from './helpers/objects';
+import { makeLine } from './helpers/objects';
 
 const makeCaptureData = (
     content: [number, number, string][],
@@ -12,10 +12,11 @@ const makeCaptureData = (
         endTime,
         lines: [{ index: 0, ...makeLine(line) }],
     })),
-    cursor: cursor.map(([time, endTime, hidden = false], i) => ({
+    cursor: cursor.map(([time, endTime], i) => ({
         time,
         endTime,
-        ...makeCursor(i, i, hidden),
+        line: i,
+        column: i,
     })),
     title: title.map(([time, endTime, text]) => ({
         time,
@@ -33,9 +34,7 @@ const makeCaptureData = (
 
 const makeScreen = (line: string, cursor: number, title?: string): ScreenData => ({
     lines: [{ index: 0, ...makeLine(line) }],
-    cursor: Number.isNaN(cursor)
-        ? makeCursor(expect.any(Number) as number, expect.any(Number) as number, true)
-        : makeCursor(cursor, cursor, false),
+    cursor: !Number.isNaN(cursor) ? { line: cursor, column: cursor } : null,
     title: { icon: undefined, text: title, ...makeLine(title) },
 });
 
@@ -51,9 +50,9 @@ describe('extractCaptureFrames', () => {
             [2, 3, 'title 3'],
         ]);
         expect(extractCaptureFrames(data)).toEqual<CaptureFrame[]>([
-            { time: 0, endTime: 1, screen: makeScreen('content 1', 0, 'title 1') },
-            { time: 1, endTime: 2, screen: makeScreen('content 2', 1, 'title 2') },
-            { time: 2, endTime: 3, screen: makeScreen('content 3', 2, 'title 3') },
+            { time: 0, endTime: 1, ...makeScreen('content 1', 0, 'title 1') },
+            { time: 1, endTime: 2, ...makeScreen('content 2', 1, 'title 2') },
+            { time: 2, endTime: 3, ...makeScreen('content 3', 2, 'title 3') },
         ]);
     });
 
@@ -67,15 +66,15 @@ describe('extractCaptureFrames', () => {
             [5, 8, 'title 2'],
         ]);
         expect(extractCaptureFrames(data)).toEqual<CaptureFrame[]>([
-            { time: 0, endTime: 1, screen: makeScreen('content 1', NaN) },
-            { time: 1, endTime: 2, screen: makeScreen('content 1', 0) },
-            { time: 2, endTime: 3, screen: makeScreen('content 1', 0, 'title 1') },
-            { time: 3, endTime: 4, screen: makeScreen('content 2', 0, 'title 1') },
-            { time: 4, endTime: 5, screen: makeScreen('content 2', 1, 'title 1') },
-            { time: 5, endTime: 6, screen: makeScreen('content 2', 1, 'title 2') },
-            { time: 6, endTime: 7, screen: makeScreen('content 3', 1, 'title 2') },
-            { time: 7, endTime: 8, screen: makeScreen('content 3', NaN, 'title 2') },
-            { time: 8, endTime: 9, screen: makeScreen('content 3', NaN) },
+            { time: 0, endTime: 1, ...makeScreen('content 1', NaN) },
+            { time: 1, endTime: 2, ...makeScreen('content 1', 0) },
+            { time: 2, endTime: 3, ...makeScreen('content 1', 0, 'title 1') },
+            { time: 3, endTime: 4, ...makeScreen('content 2', 0, 'title 1') },
+            { time: 4, endTime: 5, ...makeScreen('content 2', 1, 'title 1') },
+            { time: 5, endTime: 6, ...makeScreen('content 2', 1, 'title 2') },
+            { time: 6, endTime: 7, ...makeScreen('content 3', 1, 'title 2') },
+            { time: 7, endTime: 8, ...makeScreen('content 3', NaN, 'title 2') },
+            { time: 8, endTime: 9, ...makeScreen('content 3', NaN) },
         ]);
     });
 });

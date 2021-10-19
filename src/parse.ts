@@ -1,5 +1,5 @@
 import { splitLines, charWidths } from 'tty-strings';
-import type { Dimensions, Palette, ScreenData, TerminalLine, TextLine, TextChunk } from './types';
+import type { Dimensions, Palette, TerminalState, TerminalLine, TextLine, TextChunk } from './types';
 import parseAnsi, { stylesEqual } from './ansi';
 import { matchIcon, parseTitle } from './title';
 import { regexChunks } from './utils';
@@ -63,7 +63,7 @@ function sliceChunkAfter(chunk: TextChunk, column: number): TextChunk | null {
  * @param state - screen state upon which content will be written
  * @returns a terminal line partial
  */
-export function cursorLinePartial(state: Omit<ScreenData, 'title'>): TerminalLine {
+export function cursorLinePartial(state: Omit<TerminalState, 'title' | 'cursorHidden'>): TerminalLine {
     const { lines, cursor } = state;
     if (cursor.line >= lines.length) {
         return { index: 0, columns: cursor.column, chunks: [] };
@@ -114,7 +114,7 @@ function parseContent({
     rows,
     tabSize,
     palette,
-}: ParseContext, state: ScreenData, content: string) {
+}: ParseContext, state: Omit<TerminalState, 'title' | 'cursorHidden'>, content: string) {
     const lines: TerminalLine[] = [];
     let line = cursorLinePartial(state);
     for (const [i, contentLine] of [...splitLines(content)].entries()) {
@@ -165,9 +165,8 @@ function parseContent({
                 .map(({ index, ...ln }, i) => ({ index: Math.min(index, i), ...ln }))
             : lines.slice(state.lines.length - cursor.line),
     ].slice(-rows);
-    // update cursor location
+    // set updated cursor location
     state.cursor = {
-        ...cursor,
         line: Math.min(cursor.line + lines.length - 1, rows - 1),
         column: lines[lines.length - 1]!.columns,
     };
@@ -220,14 +219,14 @@ function updateSubsequentLineContinuity(lines: TerminalLine[], i: number, insert
     }
 }
 
-function parseEscape({ columns, rows, palette }: ParseContext, state: ScreenData, esc: string) {
+function parseEscape({ columns, rows, palette }: ParseContext, state: TerminalState, esc: string) {
     const { lines, cursor, title } = state;
     // move cursor with `ESC[#;#H`
     let m = /^\x1b\[(?:(\d+)?;(\d+)?)?[Hf]$/.exec(esc);
     if (m) {
         const line = Math.min(Number(m[1] ?? '1') - 1, rows - 1),
             column = Math.min(Number(m[2] ?? '1') - 1, columns - 1);
-        state.cursor = { ...cursor, line, column };
+        state.cursor = { line, column };
         return;
     }
     // move cursor with `ESC[#A`, `ESC[#B`, `ESC[#C`, `ESC[#D`, `ESC[#E`, `ESC[#F`, & `ESC[#G`
@@ -256,16 +255,16 @@ function parseEscape({ columns, rows, palette }: ParseContext, state: ScreenData
                     idx -= 1;
                     col += columns;
                 }
-                state.cursor = { ...cursor, column: Math.max(col, 0), line: idx };
+                state.cursor = { line: idx, column: Math.max(col, 0) };
                 break;
             }
             case 'E':
                 // moves cursor to beginning of next line, # lines down
-                state.cursor = { ...cursor, line: Math.min(cursor.line + delta, rows - 1), column: 0 };
+                state.cursor = { line: Math.min(cursor.line + delta, rows - 1), column: 0 };
                 break;
             case 'F':
                 // moves cursor to beginning of previous line, # lines up
-                state.cursor = { ...cursor, line: Math.max(cursor.line - delta, 0), column: 0 };
+                state.cursor = { line: Math.max(cursor.line - delta, 0), column: 0 };
                 break;
             case 'G':
                 // moves cursor to column #
@@ -336,7 +335,7 @@ function parseEscape({ columns, rows, palette }: ParseContext, state: ScreenData
     // toggle cursor visibility `\x1b[?25l` & `\x1b[?25h`
     m = /^\x1b\[\?25([hl])$/.exec(esc);
     if (m) {
-        state.cursor = { ...cursor, hidden: m[1] === 'l' };
+        state.cursorHidden = m[1] === 'l';
         return;
     }
     // set window title
@@ -350,7 +349,7 @@ function parseEscape({ columns, rows, palette }: ParseContext, state: ScreenData
     // unsupported escapes fallthrough to here
 }
 
-export default function parse(context: ParseContext, state: ScreenData, content: string): ScreenData {
+export default function parse(context: ParseContext, state: TerminalState, content: string): TerminalState {
     const re = new RegExp(`(?:${ctrlRegex})+`, 'g');
     for (const [chunk, ctrl] of regexChunks(re, content)) {
         if (ctrl) {

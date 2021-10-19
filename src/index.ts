@@ -55,7 +55,8 @@ export async function renderScreen(content: string, options: RenderScreenOptions
     const { type, ...props } = applyDefaults(options, { cursor: false }),
         state = parse(props, {
             lines: [],
-            cursor: { line: 0, column: 0, hidden: !props.cursor },
+            cursor: { line: 0, column: 0 },
+            cursorHidden: !props.cursor,
             title: resolveTitle(props.palette, props.windowTitle, props.windowIcon),
         }, content),
         data = renderScreenSvg(state, props);
