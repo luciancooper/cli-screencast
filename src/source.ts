@@ -2,7 +2,7 @@ import { Duplex } from 'stream';
 
 export interface StartEvent {
     type: 'start'
-    command?: string
+    command?: string | undefined
 }
 
 interface EventTime {

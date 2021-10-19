@@ -16,8 +16,8 @@ export interface SpawnResult {
     timedOut: boolean
     killed: boolean
     failed: boolean
-    signal?: NodeJS.Signals | number
-    error?: Error
+    signal?: NodeJS.Signals | number | undefined
+    error?: Error | undefined
 }
 
 export interface SpawnOptions {

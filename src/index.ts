@@ -41,8 +41,8 @@ function applyDefaults<T extends BaseOptions, D>(options: T, defaults: D) {
 
 export interface RenderScreenOptions extends BaseOptions, RenderOptions {
     cursor?: boolean
-    windowTitle?: string
-    windowIcon?: string | boolean
+    windowTitle?: string | undefined
+    windowIcon?: string | boolean | undefined
 }
 
 /**

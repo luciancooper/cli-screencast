@@ -48,15 +48,15 @@ export interface AnsiStyle {
     /**
      * Foreground color
      */
-    readonly fg?: string
+    readonly fg?: string | undefined
     /**
      * Background color
      */
-    readonly bg?: string
+    readonly bg?: string | undefined
     /**
      * Hyperlink
      */
-    readonly link?: string
+    readonly link?: string | undefined
 }
 
 export interface AnsiStyleProps {

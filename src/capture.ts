@@ -24,13 +24,13 @@ export interface CaptureOptions {
      * Terminal window title at the start of the capture
      * @defaultValue `undefined`
      */
-    windowTitle?: string
+    windowTitle?: string | undefined
 
     /**
      * Terminal window icon at the start of the capture
      * @defaultValue `undefined`
      */
-    windowIcon?: string | boolean
+    windowIcon?: string | boolean | undefined
 
     /**
      * Include the command prompt string at the beginning of the captured recording if it is present in the source
