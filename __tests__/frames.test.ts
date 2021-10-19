@@ -1,4 +1,4 @@
-import type { ScreenData, CaptureData, CaptureFrame } from '@src/types';
+import type { ScreenData, CaptureData, CaptureKeyFrame } from '@src/types';
 import extractCaptureFrames from '@src/frames';
 import { makeLine } from './helpers/objects';
 
@@ -49,7 +49,7 @@ describe('extractCaptureFrames', () => {
             [1, 2, 'title 2'],
             [2, 3, 'title 3'],
         ]);
-        expect(extractCaptureFrames(data)).toEqual<CaptureFrame[]>([
+        expect(extractCaptureFrames(data)).toEqual<CaptureKeyFrame[]>([
             { time: 0, endTime: 1, ...makeScreen('content 1', 0, 'title 1') },
             { time: 1, endTime: 2, ...makeScreen('content 2', 1, 'title 2') },
             { time: 2, endTime: 3, ...makeScreen('content 3', 2, 'title 3') },
@@ -65,7 +65,7 @@ describe('extractCaptureFrames', () => {
             [2, 5, 'title 1'],
             [5, 8, 'title 2'],
         ]);
-        expect(extractCaptureFrames(data)).toEqual<CaptureFrame[]>([
+        expect(extractCaptureFrames(data)).toEqual<CaptureKeyFrame[]>([
             { time: 0, endTime: 1, ...makeScreen('content 1', NaN) },
             { time: 1, endTime: 2, ...makeScreen('content 1', 0) },
             { time: 2, endTime: 3, ...makeScreen('content 1', 0, 'title 1') },

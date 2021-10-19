@@ -6,7 +6,7 @@ import type {
     ScreenData,
     Size,
     SVGData,
-    CaptureFrame,
+    CaptureKeyFrame,
     SVGCaptureData,
 } from '../types';
 import type { Theme } from '../theme';
@@ -87,7 +87,7 @@ export function renderScreenSvg(data: ScreenData | TerminalState, options: Rende
     return { ...size, svg };
 }
 
-export function renderCaptureFrames(captureFrames: CaptureFrame[], options: RenderProps): SVGCaptureData {
+export function renderCaptureFrames(captureFrames: CaptureKeyFrame[], options: RenderProps): SVGCaptureData {
     const [context, windowOptions] = resolveContext(options),
         hasTitle = captureFrames.some(({ title }) => (!!title.icon || !!title.text)),
         frames = [];

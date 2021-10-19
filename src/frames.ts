@@ -1,4 +1,4 @@
-import type { CaptureData, CursorLocation, Title, CaptureFrame } from './types';
+import type { CaptureData, CursorLocation, Title, CaptureKeyFrame } from './types';
 
 const emptyTitle = (): Title => ({
     icon: undefined,
@@ -7,7 +7,7 @@ const emptyTitle = (): Title => ({
     chunks: [],
 });
 
-export default function extractCaptureFrames(capture: CaptureData): CaptureFrame[] {
+export default function extractCaptureFrames(capture: CaptureData): CaptureKeyFrame[] {
     // fill cursor frames
     const cursorFrames: { time: number, endTime: number, loc: CursorLocation | null }[] = [];
     {
@@ -35,7 +35,7 @@ export default function extractCaptureFrames(capture: CaptureData): CaptureFrame
     let content = contentFrames.shift(),
         cursor = cursorFrames.shift(),
         title = titleFrames.shift();
-    const frames: CaptureFrame[] = [];
+    const frames: CaptureKeyFrame[] = [];
     while (content && cursor && title) {
         const time = Math.max(content.time, cursor.time, title.time),
             endTime = Math.min(content.endTime, cursor.endTime, title.endTime);

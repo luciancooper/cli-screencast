@@ -1,7 +1,7 @@
 import { create } from 'react-test-renderer';
 import { resolveTheme } from '@src/theme';
 import { resolveTitle } from '@src/title';
-import type { CursorRecordingFrame } from '@src/types';
+import type { CursorKeyFrame } from '@src/types';
 import type { KeyTime } from '@src/render/Animation';
 import Context, { RenderContext } from '@src/render/Context';
 import Window from '@src/render/Window';
@@ -270,12 +270,12 @@ describe('<Cursor/>', () => {
 
 describe('<CursorFrames/>', () => {
     const makeFrames = (stages: ([number, number] | null)[], stageDuration = 500) => [
-        stages.map<CursorRecordingFrame | null>((stage, i) => (stage ? {
+        stages.map<CursorKeyFrame | null>((stage, i) => (stage ? {
             time: i * stageDuration,
             endTime: (i + 1) * stageDuration,
             line: stage[0],
             column: stage[1],
-        } : null)).filter((frame) => frame !== null) as CursorRecordingFrame[],
+        } : null)).filter((frame) => frame !== null) as CursorKeyFrame[],
         stages.length * stageDuration,
     ] as const;
 

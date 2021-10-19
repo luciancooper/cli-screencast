@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import type { FunctionComponent, SVGProps } from 'react';
-import type { TerminalLine, RecordingFrame } from '../types';
+import type { TerminalLine, KeyFrame } from '../types';
 import { expandProps } from '../ansi';
 import Context from './Context';
 import Text from './Text';
@@ -8,7 +8,7 @@ import { Animation } from './Animation';
 
 interface FrameProps extends SVGProps<SVGGElement> {
     lines: TerminalLine[]
-    keyFrame?: RecordingFrame
+    keyFrame?: KeyFrame
 }
 
 const Frame: FunctionComponent<FrameProps> = ({ lines, keyFrame, ...svgProps }) => {

@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import type { FunctionComponent } from 'react';
 import { stringWidth, sliceColumns } from 'tty-strings';
-import type { Title, RecordingFrame, TextChunk } from '../types';
+import type { Title, KeyFrame, TextChunk } from '../types';
 import { expandProps } from '../ansi';
 import Context from './Context';
 import Text from './Text';
@@ -10,7 +10,7 @@ import { Animation } from './Animation';
 interface WindowTitleProps {
     title: Title
     columnInset: number
-    keyFrame?: RecordingFrame
+    keyFrame?: KeyFrame
 }
 
 function truncateTitle(chunks: TextChunk[], cols: number): readonly [TextChunk[], number] {

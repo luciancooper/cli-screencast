@@ -1,5 +1,5 @@
 import { useContext, forwardRef, SVGProps } from 'react';
-import type { IconID, Size, Title, TitleRecordingFrame } from '../types';
+import type { IconID, Size, Title, TitleKeyFrame } from '../types';
 import iconPaths from './icons.json';
 import Context from './Context';
 import WindowTitle from './WindowTitle';
@@ -45,7 +45,7 @@ export interface WindowOptions {
 }
 
 interface WindowProps extends WindowOptions, SVGProps<SVGSVGElement> {
-    title?: Title | TitleRecordingFrame[] | null
+    title?: Title | TitleKeyFrame[] | null
     forceTitleInset?: boolean
 }
 

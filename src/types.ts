@@ -113,27 +113,27 @@ export interface ScreenData {
     title: Title
 }
 
-export interface RecordingFrame {
+export interface KeyFrame {
     time: number
     endTime: number
 }
 
-export interface ContentRecordingFrame extends RecordingFrame {
+export interface ContentKeyFrame extends KeyFrame {
     lines: TerminalLine[]
 }
 
-export interface CursorRecordingFrame extends CursorLocation, RecordingFrame {}
+export interface CursorKeyFrame extends KeyFrame, CursorLocation {}
 
-export interface TitleRecordingFrame extends Title, RecordingFrame {}
+export interface TitleKeyFrame extends KeyFrame, Title {}
 
 export interface CaptureData {
-    content: ContentRecordingFrame[]
-    cursor: CursorRecordingFrame[]
-    title: TitleRecordingFrame[]
+    content: ContentKeyFrame[]
+    cursor: CursorKeyFrame[]
+    title: TitleKeyFrame[]
     duration: number
 }
 
-export interface CaptureFrame extends RecordingFrame, ScreenData {}
+export interface CaptureKeyFrame extends KeyFrame, ScreenData {}
 
 export interface Size {
     width: number
@@ -144,10 +144,10 @@ export interface SVGData extends Size {
     svg: string
 }
 
-export interface SVGDataFrame extends RecordingFrame {
+export interface SVGKeyFrame extends KeyFrame {
     svg: string
 }
 
 export interface SVGCaptureData extends Size {
-    frames: SVGDataFrame[]
+    frames: SVGKeyFrame[]
 }

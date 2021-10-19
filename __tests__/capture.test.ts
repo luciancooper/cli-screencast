@@ -1,4 +1,4 @@
-import type { DeepPartial, CaptureData, ContentRecordingFrame, TitleRecordingFrame } from '@src/types';
+import type { DeepPartial, CaptureData, ContentKeyFrame, TitleKeyFrame } from '@src/types';
 import { resolveTheme } from '@src/theme';
 import type { SourceEvent } from '@src/source';
 import { resolveTitle } from '@src/title';
@@ -61,7 +61,7 @@ describe('captureSource', () => {
             { content: '\x1b]2;window title without icon\x07\x1b]1;\x07', time: 1000 },
             { type: 'finish', time: 1000 },
         ], defaultOptions);
-        expect(title).toEqual<TitleRecordingFrame[]>([
+        expect(title).toEqual<TitleKeyFrame[]>([
             { time: 0, endTime: 500, ...resolveTitle(palette, undefined, 'shell') },
             { time: 500, endTime: 1000, ...resolveTitle(palette, 'window title', 'shell') },
             { time: 1000, endTime: 1500, ...resolveTitle(palette, 'window title without icon') },
@@ -117,7 +117,7 @@ describe('captureSource', () => {
                 { content: 'first write', time: 500 },
                 { type: 'finish', time: 1000 },
             ], { cropStartDelay: false, endTimePadding: 0, cursorHidden: true });
-            expect(content).toEqual<ContentRecordingFrame[]>([
+            expect(content).toEqual<ContentKeyFrame[]>([
                 { time: 0, endTime: 500, lines: [] },
                 { time: 500, endTime: 1000, lines: [{ index: 0, ...makeLine('first write') }] },
             ]);
@@ -129,7 +129,7 @@ describe('captureSource', () => {
                 { content: 'first write', time: 500 },
                 { type: 'finish', time: 1000 },
             ], { cropStartDelay: true, endTimePadding: 0, cursorHidden: true });
-            expect(content).toEqual<ContentRecordingFrame[]>([
+            expect(content).toEqual<ContentKeyFrame[]>([
                 { time: 0, endTime: 500, lines: [{ index: 0, ...makeLine('first write') }] },
             ]);
         });
@@ -140,7 +140,7 @@ describe('captureSource', () => {
                 { content: 'first write', time: 500, adjustment: 500 },
                 { type: 'finish', time: 1000, adjustment: 500 },
             ], { cropStartDelay: true, endTimePadding: 0, cursorHidden: true });
-            expect(content).toEqual<ContentRecordingFrame[]>([
+            expect(content).toEqual<ContentKeyFrame[]>([
                 { time: 0, endTime: 500, lines: [] },
                 { time: 500, endTime: 1000, lines: [{ index: 0, ...makeLine('first write') }] },
             ]);

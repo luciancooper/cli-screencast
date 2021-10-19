@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import type { FunctionComponent, SVGProps } from 'react';
-import type { CursorLocation, CursorRecordingFrame } from '../types';
+import type { CursorLocation, CursorKeyFrame } from '../types';
 import Context from './Context';
 import { Animation, TransformAnimation, KeyTime } from './Animation';
 
@@ -31,7 +31,7 @@ export const Cursor: FunctionComponent<CursorProps> = ({
     );
 };
 
-export function opacityKeyTimes(frames: CursorRecordingFrame[], duration: number) {
+export function opacityKeyTimes(frames: CursorKeyFrame[], duration: number) {
     // determine if the cursor hidden at some point
     const isHidden = frames.some(({ time, endTime }, i) => (
         (i === 0 && time > 0) || (endTime < (i === frames.length - 1 ? duration : frames[i + 1]!.time))
@@ -48,11 +48,7 @@ export function opacityKeyTimes(frames: CursorRecordingFrame[], duration: number
     return times;
 }
 
-export function translateKeyTimes(
-    frames: CursorRecordingFrame[],
-    duration: number,
-    [dx, dy]: readonly [number, number],
-) {
+export function translateKeyTimes(frames: CursorKeyFrame[], duration: number, [dx, dy]: readonly [number, number]) {
     const times: KeyTime<string>[] = [],
         [first, ...subsequent] = frames,
         [cy, cx] = [first!.line, first!.column];
@@ -70,7 +66,7 @@ export function translateKeyTimes(
 }
 
 interface CursorFramesProps extends SVGProps<SVGRectElement> {
-    frames: CursorRecordingFrame[]
+    frames: CursorKeyFrame[]
 }
 
 export const CursorFrames: FunctionComponent<CursorFramesProps> = ({ frames, ...props }) => {
