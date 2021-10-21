@@ -36,12 +36,12 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
         theme,
         grid: [dx, dy],
         duration,
-        iconSpan,
+        iconColumnWidth,
     } = useContext(Context);
     let iconX: number,
         textElement = null;
     if (title.columns) {
-        const iconInset = title.icon ? Math.ceil(iconSpan) + 1 : 0;
+        const iconInset = title.icon ? Math.ceil(iconColumnWidth) + 1 : 0;
         let { chunks, columns: textSpan } = title;
         if (textSpan + iconInset > columns - columnInset) {
             [chunks, textSpan] = truncateTitle(chunks, columns - iconInset - columnInset);
@@ -51,15 +51,15 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
             <Text key={j} x={iconX + iconInset + x} y={0} span={span} {...style} {...expandProps(props)}>{str}</Text>
         ));
     } else {
-        iconX = Math.floor((columns - Math.ceil(iconSpan)) / 2);
+        iconX = Math.floor((columns - Math.ceil(iconColumnWidth)) / 2);
     }
-    const iconSize = Math.min(dx * iconSpan, dy);
+    const iconSize = Math.min(dx * iconColumnWidth, dy);
     return (
         <g className='title-frame' dominantBaseline='central'>
             {title.icon && (
                 <use
                     xlinkHref={`#${title.icon}`}
-                    x={(iconX + (Math.ceil(iconSpan) - iconSpan) / 2) * dx + (dx * iconSpan - iconSize) / 2}
+                    x={dx * (iconX + Math.ceil(iconColumnWidth) / 2) - iconSize / 2}
                     y={(dy - iconSize) / 2}
                     width={iconSize}
                     height={iconSize}

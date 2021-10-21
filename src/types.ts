@@ -13,7 +13,7 @@ export type DeepPartial<T> = T extends (...args: any[]) => any ? T
         : T extends Record<string, any> ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
 /**
- * Get the optional keys of type `T`
+ * Get the optional keys of type `T` (all keys defined like `{ k?: v }`)
  */
 export type OptionalKeys<T> = { [K in keyof T]-?: undefined extends { [P in keyof T]: P }[K] ? K : never; }[keyof T];
 
@@ -31,6 +31,50 @@ export type Entry<T> = readonly [keyof T, T[keyof T]];
  * Create a type that represents an array of an objects `[key, value]` entry pairs.
  */
 export type Entries<T> = Entry<T>[];
+
+export interface TerminalOptions {
+    /**
+     * Tab column width
+     * @defaultValue `8`
+     */
+    tabSize?: number
+
+    /**
+     * Default cursor visibility. When capturing an animated screen recording, this will be the cursors
+     * visibility at the start of the capture. When rendering a screen shot, this will be
+     * the cursor visibility for the rendered frame.
+     * @defaultValue `false`
+     */
+    cursorHidden?: boolean
+
+    /**
+     * Default terminal window title. When rendering a captured screen cast recording, this will be the window title
+     * at the start of the capture. When rendering a screen shot, this will be the window title for the rendered frame.
+     * @defaultValue `undefined`
+     */
+    windowTitle?: string | undefined
+
+    /**
+     * Default terminal window icon. When rendering a captured screen cast recording, this will be the window icon
+     * at the start of the capture. When rendering a screen shot, this will be the window icon for the rendered frame.
+     * @defaultValue `undefined`
+     */
+    windowIcon?: string | boolean | undefined
+}
+
+export interface OutputOptions {
+    /**
+     * The desired output format, either `svg` or `png`.
+     * @defaultValue `'svg'`
+     */
+    output?: 'svg' | 'png'
+
+    /**
+     * the device scale factor used when rendering to png, only applicable when `output` is `'png'`.
+     * @defaultValue `4`
+     */
+    scaleFactor?: number
+}
 
 export type RGB = readonly [number, number, number];
 

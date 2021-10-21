@@ -32,7 +32,7 @@ export interface RenderOptions extends WindowOptions {
     iconColumnWidth?: number
 }
 
-export interface RenderProps extends Dimensions, RenderOptions {
+export interface RenderProps extends Dimensions, Required<RenderOptions> {
     theme: Theme<string>
 }
 
@@ -40,9 +40,9 @@ function resolveContext({
     columns,
     rows,
     theme,
-    fontSize = 16,
-    lineHeight = 1.25,
-    iconColumnWidth = 1.6,
+    fontSize,
+    lineHeight,
+    iconColumnWidth,
     ...options
 }: RenderProps, duration = 0) {
     const context: RenderContext = {
@@ -51,7 +51,7 @@ function resolveContext({
         theme,
         fontSize,
         grid: [fontSize * 0.6, fontSize * lineHeight],
-        iconSpan: iconColumnWidth,
+        iconColumnWidth,
         duration,
     };
     return [context, options] as const;

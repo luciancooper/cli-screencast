@@ -1,7 +1,7 @@
 import { Writable } from 'stream';
 import type { Readable } from 'stream';
 import { splitChars } from 'tty-strings';
-import type { TerminalState, TerminalLine, CursorLocation, Title, CaptureData } from './types';
+import type { TerminalOptions, TerminalState, TerminalLine, CursorLocation, Title, CaptureData } from './types';
 import type { WriteEvent, FinishEvent, SourceEvent } from './source';
 import { resolveTitle } from './title';
 import parse, { ParseContext } from './parse';
@@ -14,24 +14,6 @@ interface BufferedWrite {
 }
 
 export interface CaptureOptions {
-    /**
-     * Whether cursor is hidden at the start of the capture
-     * @defaultValue `false`
-     */
-    cursorHidden?: boolean
-
-    /**
-     * Terminal window title at the start of the capture
-     * @defaultValue `undefined`
-     */
-    windowTitle?: string | undefined
-
-    /**
-     * Terminal window icon at the start of the capture
-     * @defaultValue `undefined`
-     */
-    windowIcon?: string | boolean | undefined
-
     /**
      * Include the command prompt string at the beginning of the captured recording if it is present in the source
      * stream. Applies when capturing the output of a child process, or if a `command` string is passed to the `start`
@@ -54,10 +36,11 @@ export interface CaptureOptions {
     keystrokeAnimation?: boolean
 
     /**
-     * The time interval to use in command keystroke animations. Only applicable if `keystrokeAnimation` is `true`.
+     * The delay in milliseconds between keystrokes to use when creating a command input animation. Only applicable if
+     * `keystrokeAnimation` is `true`.
      * @defaultValue `140`
      */
-    keystrokeInterval?: number
+    keystrokeAnimationInterval?: number
 
     /**
      * Consecutive writes will be merged if they occur within this number of milliseconds of each other.
@@ -78,7 +61,7 @@ export interface CaptureOptions {
     cropStartDelay?: boolean
 }
 
-export type ScreenCaptureOptions = ParseContext & CaptureOptions;
+export interface ScreenCaptureOptions extends Required<TerminalOptions & CaptureOptions>, ParseContext {}
 
 export class ScreenCapture extends Writable {
     private started = false;
@@ -123,16 +106,16 @@ export class ScreenCapture extends Writable {
     context: ParseContext;
 
     constructor({
-        writeMergeThreshold = 80,
-        endTimePadding = 500,
-        cropStartDelay = true,
-        cursorHidden = false,
+        cursorHidden,
         windowTitle,
         windowIcon,
-        captureCommand = true,
-        prompt = '> ',
-        keystrokeAnimation = true,
-        keystrokeInterval = 140,
+        writeMergeThreshold,
+        endTimePadding,
+        cropStartDelay,
+        captureCommand,
+        prompt,
+        keystrokeAnimation,
+        keystrokeAnimationInterval,
         ...context
     }: ScreenCaptureOptions) {
         super({ objectMode: true });
@@ -144,7 +127,7 @@ export class ScreenCapture extends Writable {
         this.captureCommand = captureCommand;
         this.prompt = prompt;
         this.keystrokeAnimation = keystrokeAnimation;
-        this.keystrokeInterval = keystrokeInterval;
+        this.keystrokeInterval = keystrokeAnimationInterval;
         this.context = context;
         // initial state
         const title = resolveTitle(context.palette, windowTitle, windowIcon);

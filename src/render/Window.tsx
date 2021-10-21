@@ -44,7 +44,7 @@ export interface WindowOptions {
     paddingY?: number
 }
 
-interface WindowProps extends WindowOptions, SVGProps<SVGSVGElement> {
+interface WindowProps extends Required<WindowOptions>, SVGProps<SVGSVGElement> {
     title?: Title | TitleKeyFrame[] | null
     forceTitleInset?: boolean
 }
@@ -53,12 +53,12 @@ const Window = forwardRef<Size, WindowProps>(({
     children,
     title = null,
     forceTitleInset = false,
-    borderRadius = 5,
-    decorations = true,
-    insetMajor = 40,
-    insetMinor = 20,
-    paddingY = 5,
-    paddingX = 5,
+    borderRadius,
+    decorations,
+    insetMajor,
+    insetMinor,
+    paddingY,
+    paddingX,
 }, ref) => {
     const {
             columns,

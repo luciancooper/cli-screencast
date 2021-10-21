@@ -6,7 +6,7 @@ export interface RenderContext extends Dimensions {
     theme: Theme<string>
     fontSize: number
     grid: readonly [number, number]
-    iconSpan: number
+    iconColumnWidth: number
     duration: number
 }
 

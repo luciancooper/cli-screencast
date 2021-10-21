@@ -1,4 +1,5 @@
 import { create } from 'react-test-renderer';
+import { applyDefaults } from '@src/options';
 import { resolveTheme } from '@src/theme';
 import { resolveTitle } from '@src/title';
 import type { CursorKeyFrame } from '@src/types';
@@ -10,15 +11,15 @@ import Text from '@src/render/Text';
 import { Cursor, CursorFrames, opacityKeyTimes, translateKeyTimes } from '@src/render/Cursor';
 import * as ansi from './helpers/ansi';
 
-const { theme: defTheme, palette } = resolveTheme();
+const { theme: defTheme, palette, ...defProps } = applyDefaults({});
 
 const defContext: RenderContext = {
+    ...defProps,
     columns: 50,
     rows: 50,
     theme: defTheme,
     fontSize: 1,
     grid: [1, 2],
-    iconSpan: 1.6,
     duration: 0,
 };
 
@@ -31,7 +32,7 @@ const render = (element: any, context: Partial<RenderContext> = {}) => create(
 describe('<Window/>', () => {
     test('render a root <svg> that wraps an inner content <svg> element', () => {
         expect(render(
-            <Window decorations={false} paddingX={0} paddingY={0}/>,
+            <Window {...defProps} decorations={false} paddingX={0} paddingY={0}/>,
         )).toMatchObject({
             type: 'svg',
             props: { width: expect.any(Number) as number, height: expect.any(Number) as number },
@@ -45,7 +46,7 @@ describe('<Window/>', () => {
 
     test('render window decorations by default', () => {
         expect(render(
-            <Window insetMajor={40} insetMinor={20}/>,
+            <Window {...defProps} insetMajor={40} insetMinor={20}/>,
         )).toMatchObject({
             type: 'svg',
             props: { width: expect.any(Number) as number, height: expect.any(Number) as number },
@@ -60,7 +61,7 @@ describe('<Window/>', () => {
 
     test('render with a title', () => {
         expect(render(
-            <Window decorations={false} title={resolveTitle(palette, 'window title', 'node')}/>,
+            <Window {...defProps} decorations={false} title={resolveTitle(palette, 'window title', 'node')}/>,
         )).toMatchObject({
             type: 'svg',
             children: [
@@ -80,6 +81,7 @@ describe('<Window/>', () => {
     test('render with title frames', () => {
         expect(render(
             <Window
+                {...defProps}
                 decorations={false}
                 title={[
                     { ...resolveTitle(palette, 'first title frame', 'shell'), time: 0, endTime: 1000 },

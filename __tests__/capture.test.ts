@@ -1,24 +1,24 @@
-import type { DeepPartial, CaptureData, ContentKeyFrame, TitleKeyFrame } from '@src/types';
+import type { DeepPartial, Dimensions, CaptureData, ContentKeyFrame, TitleKeyFrame } from '@src/types';
 import { resolveTheme } from '@src/theme';
+import { applyDefaults, Options } from '@src/options';
 import type { SourceEvent } from '@src/source';
 import { resolveTitle } from '@src/title';
-import captureSource, { ScreenCaptureOptions } from '@src/capture';
+import captureSource from '@src/capture';
 import { makeLine, makeCursor } from './helpers/objects';
 import { objectStream } from './helpers/streams';
 import * as ansi from './helpers/ansi';
 
 const { palette } = resolveTheme();
 
-const defaultOptions: ScreenCaptureOptions = {
+const defaultDimensions: Dimensions = {
     columns: 50,
     rows: 10,
-    tabSize: 8,
-    palette,
 };
 
-function runCapture(events: SourceEvent[], options?: Partial<ScreenCaptureOptions>) {
-    const readable = objectStream<SourceEvent>(events);
-    return captureSource(readable, { ...defaultOptions, ...options });
+function runCapture(events: SourceEvent[], options?: Options) {
+    const readable = objectStream<SourceEvent>(events),
+        props = applyDefaults({ ...defaultDimensions, ...options ?? {} });
+    return captureSource(readable, props);
 }
 
 type PartialCaptureData = DeepPartial<CaptureData>;
@@ -49,7 +49,7 @@ describe('captureSource', () => {
             { content: 'first write', time: 0 },
             { content: 'second write', time: 500 },
             { type: 'finish', time: 500 },
-        ], { ...defaultOptions, cursorHidden: true });
+        ], { cursorHidden: true });
         expect(data.cursor).toHaveLength(0);
     });
 
@@ -60,7 +60,7 @@ describe('captureSource', () => {
             { content: '\x1b]2;window title\x07', time: 500 },
             { content: '\x1b]2;window title without icon\x07\x1b]1;\x07', time: 1000 },
             { type: 'finish', time: 1000 },
-        ], defaultOptions);
+        ]);
         expect(title).toEqual<TitleKeyFrame[]>([
             { time: 0, endTime: 500, ...resolveTitle(palette, undefined, 'shell') },
             { time: 500, endTime: 1000, ...resolveTitle(palette, 'window title', 'shell') },
@@ -157,7 +157,7 @@ describe('captureSource', () => {
                 captureCommand: true,
                 prompt: '> ',
                 keystrokeAnimation: true,
-                keystrokeInterval: 100,
+                keystrokeAnimationInterval: 100,
                 endTimePadding: 500,
                 cursorHidden: true,
             })).resolves.toMatchObject<PartialCaptureData>({
@@ -252,7 +252,7 @@ describe('captureSource', () => {
                 captureCommand: true,
                 prompt: '> ',
                 keystrokeAnimation: true,
-                keystrokeInterval: 100,
+                keystrokeAnimationInterval: 100,
                 endTimePadding: 500,
             })).resolves.toMatchObject<PartialCaptureData>({
                 content: [
