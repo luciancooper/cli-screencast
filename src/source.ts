@@ -1,4 +1,6 @@
 import { Duplex } from 'stream';
+import type { DuplexOptions } from 'stream';
+import type { Frame } from './types';
 
 export interface StartEvent {
     type: 'start'
@@ -23,7 +25,13 @@ export interface FinishEvent extends EventTime {
 
 export type SourceEvent = StartEvent | WriteEvent | FinishEvent;
 
-export default class RecordingStream extends Duplex {
+interface TypedDuplex extends Duplex {
+    push: (chunk: SourceEvent | null) => boolean
+}
+
+const DuplexConstructor: new(opts?: DuplexOptions | undefined) => TypedDuplex = Duplex;
+
+export default class RecordingStream extends DuplexConstructor {
     private started = false;
 
     private startTime = NaN;
@@ -41,16 +49,29 @@ export default class RecordingStream extends Duplex {
         });
     }
 
+    static fromFrames(frames: Frame[]): RecordingStream {
+        const stream = new RecordingStream();
+        stream.push({ type: 'start' });
+        let time = 0;
+        for (const { content, duration } of frames) {
+            stream.push({ time, content });
+            time += duration;
+        }
+        stream.push({ type: 'finish', time });
+        stream.push(null);
+        return stream;
+    }
+
     get ended(): boolean {
         return ((this as { _readableState?: { ended: boolean } })._readableState!).ended;
     }
 
-    private createWrite(content: string): WriteEvent {
-        return {
+    private pushWrite(content: string) {
+        this.push({
             content,
             time: Date.now() - this.startTime,
             adjustment: this.timeAdjustment,
-        };
+        });
     }
 
     override _read() {}
@@ -66,8 +87,7 @@ export default class RecordingStream extends Duplex {
             // push a start event if the source is inactive
             if (!this.started) this.start();
             // push write event
-            const event = this.createWrite(content);
-            this.push(event);
+            this.pushWrite(content);
         }
         cb();
     }
@@ -95,8 +115,7 @@ export default class RecordingStream extends Duplex {
         this.started = true;
         this.startTime = Date.now();
         // create start event
-        const event: StartEvent = { type: 'start', command };
-        this.push(event);
+        this.push({ type: 'start', command });
         this.emit('recording-start', this.startTime);
     }
 
@@ -104,16 +123,16 @@ export default class RecordingStream extends Duplex {
         if (this.ended) {
             throw new Error('Source stream is closed');
         }
-        const event: FinishEvent = {
+        const time = this.started ? Date.now() - this.startTime : 0;
+        this.push({
             type: 'finish',
-            time: this.started ? Date.now() - this.startTime : 0,
+            time,
             adjustment: this.timeAdjustment,
             error,
             result,
-        };
-        this.push(event);
+        });
         this.push(null);
-        this.emit('recording-end', event.time);
+        this.emit('recording-end', time);
     }
 
     setTitle(title: string, icon: string | boolean = false) {
@@ -123,11 +142,10 @@ export default class RecordingStream extends Duplex {
         // push an initial start event to the readable stream if necessary
         if (!this.started) this.start();
         // push write event
-        const event = this.createWrite(
+        this.pushWrite(
             typeof icon === 'string'
                 ? `\x1b]2;${title}\x07\x1b]1;${icon}\x07`
                 : `\x1b]${icon ? 0 : 2};${title}\x07`,
         );
-        this.push(event);
     }
 }

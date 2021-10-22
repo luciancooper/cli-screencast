@@ -1,8 +1,9 @@
 import type { Readable } from 'stream';
-import type { Dimensions } from './types';
+import type { Dimensions, Frame } from './types';
 import { applyDefaults, Options, Config } from './options';
 import parse from './parse';
 import { resolveTitle } from './title';
+import RecordingStream from './source';
 import readableSpawn, { SpawnOptions } from './spawn';
 import TerminalRecordingStream, { SessionOptions, RunCallback } from './terminal';
 import captureSource from './capture';
@@ -45,6 +46,21 @@ async function renderSource(
 }
 
 /**
+ * Render an animated terminal screen capture from an array of content frames.
+ * @param frames - array of content frames
+ * @param options - render options
+ * @returns animated screen capture svg or png
+ */
+export async function renderFrames(
+    frames: Frame[],
+    options: Dimensions & Options,
+): Promise<string | Buffer> {
+    const props = applyDefaults(options),
+        source = RecordingStream.fromFrames(frames);
+    return renderSource(source, props);
+}
+
+/**
  * Record the terminal output of a command and render it as an animated SVG
  * @param command - the command to run
  * @param args - list of string arguments
@@ -82,4 +98,4 @@ export async function renderCapture(
 
 export type { RGB } from './types';
 export type { Theme } from './theme';
-export type { Options, SpawnOptions, SessionOptions };
+export type { Frame, Options, SpawnOptions, SessionOptions };

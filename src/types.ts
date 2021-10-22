@@ -157,6 +157,11 @@ export interface ScreenData {
     title: Title
 }
 
+export interface Frame {
+    content: string
+    duration: number
+}
+
 export interface KeyFrame {
     time: number
     endTime: number

@@ -152,4 +152,21 @@ describe('RecordingStream', () => {
             }).toThrow('Source stream is closed');
         });
     });
+
+    describe('fromFrames', () => {
+        test('creates a source stream from a sequence of frame objects', async () => {
+            const source = RecordingStream.fromFrames([
+                { content: 'line 1', duration: 500 },
+                { content: 'line 2', duration: 500 },
+                { content: 'line 3', duration: 500 },
+            ]);
+            await expect(consume<SourceEvent>(source)).resolves.toEqual<SourceEvent[]>([
+                { type: 'start' },
+                { content: 'line 1', time: 0 },
+                { content: 'line 2', time: 500 },
+                { content: 'line 3', time: 1000 },
+                { type: 'finish', time: 1500 },
+            ]);
+        });
+    });
 });

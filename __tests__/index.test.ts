@@ -1,4 +1,4 @@
-import { renderScreen, renderSpawn, renderCapture } from '../src';
+import { renderScreen, renderFrames, renderSpawn, renderCapture } from '../src';
 
 const dimensions = { columns: 50, rows: 10 };
 
@@ -17,6 +17,18 @@ describe('renderScreen', () => {
             cursorHidden: false,
             scaleFactor: 1,
         }).then((value) => Buffer.isBuffer(value))).resolves.toBe(true);
+    });
+});
+
+describe('renderFrames', () => {
+    test('renders animated svg from array of content frames', async () => {
+        await expect(
+            renderFrames([
+                { content: 'line 1', duration: 500 },
+                { content: 'line 2', duration: 500 },
+                { content: 'line 3', duration: 500 },
+            ], dimensions).then((value) => typeof value),
+        ).resolves.toBe('string');
     });
 });
 
