@@ -2,7 +2,7 @@ import signalExit from 'signal-exit';
 import type { DeepPartial } from '@src/types';
 import type { SourceEvent } from '@src/source';
 import readableSpawn, { colorEnv, SpawnResult } from '@src/spawn';
-import { readStream } from './helpers/streams';
+import { consume } from './helpers/streams';
 
 interface MockSignalExit extends jest.Mocked<typeof signalExit> {
     flush: () => number
@@ -40,7 +40,7 @@ describe('readableSpawn', () => {
 
     test('creates readable source events from subprocess writes to stdout', async () => {
         const source = readableSpawn('echo', ['echo to source stream'], dimensions),
-            events = await readStream<SourceEvent>(source);
+            events = await consume<SourceEvent>(source);
         expect(events[0]).toEqual<SourceEvent>({
             type: 'start',
             command: 'echo "echo to source stream"',

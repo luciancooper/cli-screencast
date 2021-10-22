@@ -1,5 +1,5 @@
 import RecordingStream, { SourceEvent } from '@src/source';
-import { readStream } from './helpers/streams';
+import { consume } from './helpers/streams';
 
 describe('RecordingStream', () => {
     describe('write', () => {
@@ -10,7 +10,7 @@ describe('RecordingStream', () => {
             source.write(Buffer.from('buffer write', 'utf-8'));
             source.write('');
             source.finish();
-            await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start' },
                 { content: 'string write' },
                 { content: 'buffer write' },
@@ -22,7 +22,7 @@ describe('RecordingStream', () => {
             const source = new RecordingStream();
             source.write('pre-start write');
             source.finish();
-            await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start' },
                 { content: 'pre-start write' },
                 { type: 'finish' },
@@ -45,7 +45,7 @@ describe('RecordingStream', () => {
             source.start();
             source.start();
             source.finish();
-            await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start' },
                 { type: 'finish' },
             ]);
@@ -66,7 +66,7 @@ describe('RecordingStream', () => {
             const source = new RecordingStream();
             source.write('first write');
             source.end('end write');
-            await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start' },
                 { content: 'first write' },
                 { content: 'end write' },
@@ -91,7 +91,7 @@ describe('RecordingStream', () => {
             source.wait(500);
             source.write('write 2');
             source.finish();
-            await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start' },
                 { content: 'write 1', adjustment: 0 },
                 { content: 'write 2', adjustment: 500 },
@@ -103,7 +103,7 @@ describe('RecordingStream', () => {
             const source = new RecordingStream();
             source.wait(500);
             source.finish();
-            await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start' },
                 { type: 'finish', adjustment: 500 },
             ]);
@@ -125,7 +125,7 @@ describe('RecordingStream', () => {
             source.setTitle('window title', 'node');
             source.setTitle('node task', true);
             source.finish();
-            await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start' },
                 { content: '\x1b]2;window title\x07\x1b]1;node\x07' },
                 { content: '\x1b]0;node task\x07' },
@@ -137,7 +137,7 @@ describe('RecordingStream', () => {
             const source = new RecordingStream();
             source.setTitle('window title');
             source.finish();
-            await expect(readStream(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start' },
                 { content: '\x1b]2;window title\x07' },
                 { type: 'finish' },

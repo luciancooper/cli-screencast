@@ -1,3 +1,4 @@
+import { Readable } from 'stream';
 import type { DeepPartial, Dimensions, CaptureData, ContentKeyFrame, TitleKeyFrame } from '@src/types';
 import { resolveTheme } from '@src/theme';
 import { applyDefaults, Options } from '@src/options';
@@ -5,7 +6,6 @@ import type { SourceEvent } from '@src/source';
 import { resolveTitle } from '@src/title';
 import captureSource from '@src/capture';
 import { makeLine, makeCursor } from './helpers/objects';
-import { objectStream } from './helpers/streams';
 import * as ansi from './helpers/ansi';
 
 const { palette } = resolveTheme();
@@ -16,9 +16,15 @@ const defaultDimensions: Dimensions = {
 };
 
 function runCapture(events: SourceEvent[], options?: Options) {
-    const readable = objectStream<SourceEvent>(events),
+    const eventIterator = events[Symbol.iterator](),
         props = applyDefaults({ ...defaultDimensions, ...options ?? {} });
-    return captureSource(readable, props);
+    return captureSource(new Readable({
+        objectMode: true,
+        read() {
+            const next = eventIterator.next();
+            this.push(next.done ? null : next.value);
+        },
+    }), props);
 }
 
 type PartialCaptureData = DeepPartial<CaptureData>;

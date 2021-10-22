@@ -1,7 +1,7 @@
 import type { Writable } from 'stream';
 import type { SourceEvent, WriteEvent } from '@src/source';
 import TerminalRecordingStream from '@src/terminal';
-import { readStream } from './helpers/streams';
+import { consume } from './helpers/streams';
 import stub from './helpers/stub';
 
 const options = {
@@ -33,7 +33,7 @@ describe('TerminalRecordingStream', () => {
         expect(stream.ended).toBe(true);
         expect(stdout).not.toHaveBeenCalled();
         expect(stderr).not.toHaveBeenCalled();
-        await expect(readStream(stream)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+        await expect(consume<SourceEvent>(stream)).resolves.toMatchObject<Partial<SourceEvent>[]>([
             { type: 'start' },
             { content: 'write to stdout' },
             { content: 'write to stderr' },
@@ -61,7 +61,7 @@ describe('TerminalRecordingStream', () => {
         // restore original isTTY value on `process.stdout`
         restore();
         // check source write events for correct output from tty write stream methods
-        const writes = ((await readStream<SourceEvent>(stream)).filter((e) => !('type' in e)) as WriteEvent[])
+        const writes = ((await consume<SourceEvent>(stream)).filter((e) => !('type' in e)) as WriteEvent[])
             .map(({ content }) => content);
         expect(writes).toEqual([
             '\x1b[1G', // cursorTo(0)
@@ -123,7 +123,7 @@ describe('TerminalRecordingStream', () => {
             })).rejects.toMatchObject({ message: 'run error' });
             expect(stdout).not.toHaveBeenCalled();
             expect(stderr).not.toHaveBeenCalled();
-            const events = await readStream(stream);
+            const events = await consume<SourceEvent>(stream);
             expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({
                 type: 'finish',
                 error: { message: 'run error' },
