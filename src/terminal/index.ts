@@ -2,6 +2,7 @@ import * as readline from 'readline';
 import type { Interface, ReadLineOptions } from 'readline';
 import RecordingStream from '../source';
 import type { OmitStrict, Dimensions } from '../types';
+import type { CaptureOptions } from '../capture';
 import InputStream from './input';
 import { restoreProperty } from '../utils';
 
@@ -12,7 +13,7 @@ export interface SessionOptions {
 
 export type RunCallback<T> = (source: TerminalRecordingStream) => Promise<T> | T;
 
-interface Options extends Dimensions, SessionOptions {
+interface Options extends Dimensions, SessionOptions, Required<Pick<CaptureOptions, 'keystrokeAnimationInterval'>> {
     tabSize: number
 }
 
@@ -51,10 +52,13 @@ export default class TerminalRecordingStream extends RecordingStream {
 
     silent: boolean;
 
+    keystrokeAnimationInterval: number;
+
     constructor({
         columns,
         rows,
         tabSize,
+        keystrokeAnimationInterval,
         connectStdin = false,
         silent = true,
     }: Options) {
@@ -63,6 +67,7 @@ export default class TerminalRecordingStream extends RecordingStream {
         this.rows = rows;
         this.tabSize = tabSize;
         this.silent = silent;
+        this.keystrokeAnimationInterval = keystrokeAnimationInterval;
         // setup input stream
         this.input = new InputStream(connectStdin);
     }
@@ -88,10 +93,10 @@ export default class TerminalRecordingStream extends RecordingStream {
         });
     }
 
-    emitKeypressSequence(string: string | string[], delayBetween = 500): Promise<void> {
+    emitKeypressSequence(string: string | string[]): Promise<void> {
         const keys = typeof string === 'string' ? [...string] : string;
         return keys.reduce<Promise<void>>((p, key) => p.then(() => {
-            this.wait(delayBetween);
+            this.wait(this.keystrokeAnimationInterval);
             return this.emitKeypress(key);
         }), Promise.resolve());
     }

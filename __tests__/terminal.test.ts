@@ -1,14 +1,15 @@
 import type { Writable } from 'stream';
 import type { SourceEvent, WriteEvent } from '@src/source';
 import TerminalRecordingStream from '@src/terminal';
+import { applyDefaults } from '@src/options';
 import { consume } from './helpers/streams';
 import stub from './helpers/stub';
 
-const options = {
+const options = applyDefaults({
     columns: 80,
     rows: 5,
     tabSize: 8,
-};
+});
 
 let stdout: jest.SpyInstance<boolean, Parameters<typeof process.stdout.write>>,
     stderr: jest.SpyInstance<boolean, Parameters<typeof process.stderr.write>>;
