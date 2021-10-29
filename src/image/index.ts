@@ -50,18 +50,18 @@ export async function createPng({ svg, ...size }: SVGData, scale: number): Promi
 }
 
 export async function createAnimatedPng({ frames, ...size }: SVGCaptureData, scale: number): Promise<Buffer> {
-    const png = new PNG({ width: size.width * scale, height: size.height * scale });
-    // set png pixels per inch
-    png.setPixelDensity(scale * 72);
-    png.setText('Software', 'cli-screencast');
-    // create renderer
-    const renderer = await createImageRenderer(size, scale);
+    const png = new PNG(),
+        // create renderer
+        renderer = await createImageRenderer(size, scale);
     // render png buffer for each frame
     for (const { svg, time, endTime } of frames) {
         png.addFrame(await renderer(svg), endTime - time);
     }
     // close renderer
     await renderer.close();
+    // set png pixels per inch
+    png.setPixelDensity(scale * 72);
+    png.setText('Software', 'cli-screencast');
     // return encoded png buffer
     return png.pack();
 }

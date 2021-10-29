@@ -114,8 +114,6 @@ export default class PNG {
 
     pixels?: Buffer;
 
-    animated = false;
-
     frames: PNGAnimationFrame[] = [];
 
     colors: number[] = [];
@@ -126,15 +124,16 @@ export default class PNG {
 
     text: Record<string, string> = {};
 
-    constructor(arg: Buffer | Size) {
-        if (!Buffer.isBuffer(arg)) {
-            this.size = arg;
+    constructor(buffer?: Buffer) {
+        if (!buffer) {
+            this.size = { width: NaN, height: NaN };
             return;
         }
-        const chunks = PNG.decodeChunks(arg),
-            { width, height, pixels } = PNG.decodePixels(chunks);
-        this.size = { width, height };
-        this.setPixels(pixels);
+        const chunks = PNG.decodeChunks(buffer),
+            { pixels, ...size } = PNG.decodePixels(chunks);
+        this.size = size;
+        this.addPixelColors(pixels);
+        this.pixels = pixels;
         // decode `pHYs`
         const pHYs = chunks.find(({ type }) => type === 'pHYs')?.data ?? null;
         if (pHYs) this.density = { x: pHYs.readUInt32BE(0), y: pHYs.readUInt32BE(4), unit: pHYs[8]! as 0 | 1 };
@@ -361,23 +360,86 @@ export default class PNG {
     }
 
     addFrame(data: Buffer, duration: number): this {
-        const { pixels, ...size } = this.constructor.decodePixels(data);
-        this.animated = true;
-        this.addPixelColors(pixels);
+        const { pixels, width, height } = this.constructor.decodePixels(data);
+        if (!this.frames.length) {
+            this.size = { width, height };
+            // set initial pixel buffer
+            this.pixels = pixels;
+            // add pixel colors from initial frame
+            this.addPixelColors(pixels);
+            // add initial frame
+            this.frames.push({
+                size: { width, height },
+                pixels: deflateSync(pixels),
+                coordinates: { x: 0, y: 0 },
+                duration,
+                dispose: 0,
+                blend: 0,
+            });
+            return this;
+        }
+        // overlay new frame on current pixel buffer
+        const buffer = this.pixels!,
+            bufferWidth = this.size.width,
+            // determine transparent pixel value
+            transparent = (this.colors.length && (this.colors[0]! >>> 24) === 0)
+                ? [this.colors[0]! & 0xFF, (this.colors[0]! >>> 8) & 0xFF, this.colors[0]! >>> 16, 0]
+                : [0, 0, 0, 0],
+            // create a map to track pixel overlay diff
+            diff = Buffer.alloc(width * height);
+        for (let i = 0; i < height; i += 1) {
+            for (let j = 0; j < width; j += 1) {
+                const [px, bx] = [i * width + j, i * bufferWidth + j],
+                    prev = this.pixelColor(buffer, bx * 4),
+                    next = this.pixelColor(pixels, px * 4);
+                if (prev !== next) {
+                    // pixel color has changed, update buffer
+                    buffer.set(pixels.subarray(px * 4, (px + 1) * 4), bx * 4);
+                    diff[px] = 1;
+                } else {
+                    // pixel color has not changed
+                    pixels.set(transparent, px * 4);
+                }
+            }
+        }
+        // check if there is no difference between this frame and the last
+        if (!diff.includes(1)) {
+            // add duration of this frame to the previous one
+            this.frames[this.frames.length - 1]!.duration += duration;
+            return this;
+        }
+        // calculate crop insets
+        const [y1, y2] = [Math.floor(diff.indexOf(1) / width), Math.floor(diff.lastIndexOf(1) / width)];
+        let [x1, x2] = [width - 1, 0];
+        for (let y = y1; y <= y2; y += 1) {
+            const row = diff.subarray(y * width, (y + 1) * width),
+                idx = row.indexOf(1);
+            if (idx >= 0) {
+                [x1, x2] = [Math.min(idx, x1), Math.max(row.lastIndexOf(1), x2)];
+            }
+        }
+        // size of the cropped frame
+        const [w, h] = [x2 - x1 + 1, y2 - y1 + 1];
+        // create cropped pixel buffer
+        let croppedPixels = pixels;
+        if (w !== width || h !== height) {
+            croppedPixels = Buffer.alloc(w * h * 4);
+            for (let y = y1; y <= y2; y += 1) {
+                const row = pixels.subarray((y * width + x1) * 4, (y * width + x2 + 1) * 4);
+                croppedPixels.set(row, (y - y1) * w * 4);
+            }
+        }
+        // add colors from cropped pixel buffer to palette
+        this.addPixelColors(croppedPixels);
+        // add cropped frame
         this.frames.push({
-            size,
-            pixels: deflateSync(pixels),
-            coordinates: { x: 0, y: 0 },
+            size: { width: w, height: h },
+            pixels: deflateSync(croppedPixels),
+            coordinates: { x: x1, y: y1 },
             duration,
             dispose: 0,
-            blend: 0,
+            blend: 1,
         });
-        return this;
-    }
-
-    setPixels(pixels: Buffer): this {
-        this.addPixelColors(pixels);
-        this.pixels = deflateSync(pixels);
         return this;
     }
 
@@ -444,12 +506,14 @@ export default class PNG {
         return { colorType, bitDepth, interlaced };
     }
 
-    protected encodePixels(compressedPixels: Buffer, { colorType, bitDepth, interlaced }: PNGEncoding): Buffer {
-        const { width, height } = this.size,
-            channelsPerPixel = ((colorType & 3) === 2 ? 3 : 1) + (colorType >>> 2),
+    protected encodePixels(
+        pixels: Buffer,
+        { width, height }: Size,
+        { colorType, bitDepth, interlaced }: PNGEncoding,
+    ): Buffer {
+        const channelsPerPixel = ((colorType & 3) === 2 ? 3 : 1) + (colorType >>> 2),
             bitPerPixel = channelsPerPixel * bitDepth,
             pixelBytes = bitPerPixel >> 3 || 1,
-            pixels = inflateSync(compressedPixels),
             passes: Buffer[] = [];
         for (const [cx, cy, dx, dy] of getPasses(interlaced)) {
             const [w, h] = [Math.ceil((width - cx) / dx), Math.ceil((height - cy) / dy)];
@@ -548,7 +612,7 @@ export default class PNG {
             chunks.push({ type: 'IHDR', data: IHDR });
         }
         // encode 'acTL' chunk if animated
-        if (this.animated) {
+        if (this.frames.length > 0) {
             const acTL = Buffer.alloc(8);
             acTL.writeUInt32BE(this.frames.length, 0);
             // insert after header chunk
@@ -616,11 +680,7 @@ export default class PNG {
             }
         }
         // pack content chunks
-        if (this.animated) {
-            // throw error if png contains no frames
-            if (!this.frames.length) {
-                throw new Error('png contains no content frames');
-            }
+        if (this.frames.length > 0) {
             // track sequence index encoded into the first 4 bits of every `fcTL` & `fdAT` chunk
             let seqIndex = 0;
             // pack 'fcTL' + 'IDAT' + ['fcTL', 'fdAT', ...] ...
@@ -640,7 +700,7 @@ export default class PNG {
                 // increment sequence index
                 seqIndex += 1;
                 // encode pixel data
-                const encoded = this.encodePixels(pixels, { colorType, bitDepth, interlaced });
+                const encoded = this.encodePixels(inflateSync(pixels), size, { colorType, bitDepth, interlaced });
                 for (let i = 0, n = encoded.length, c = idx ? 8188 : 8192; i < n; i += c) {
                     const len = Math.min(c, n - i);
                     if (!idx) {
@@ -660,15 +720,14 @@ export default class PNG {
                     seqIndex += 1;
                 }
             }
-        } else {
-            if (!this.pixels) {
-                throw new Error('png contains no pixel data');
-            }
+        } else if (this.pixels) {
             // encode 'IDAT' chunks
-            const encoded = this.encodePixels(this.pixels, { colorType, bitDepth, interlaced });
+            const encoded = this.encodePixels(this.pixels, this.size, { colorType, bitDepth, interlaced });
             for (let i = 0, n = encoded.length; i < n; i += 8192) {
                 chunks.push({ type: 'IDAT', data: encoded.slice(i, i + Math.min(8192, n - i)) });
             }
+        } else {
+            throw new Error('png contains no pixel data');
         }
         // add large text chunks
         chunks.push(...endTextChunks);

@@ -183,7 +183,7 @@ describe('PNG', () => {
         });
 
         test('manually set pixel dimensions', () => {
-            const png = new PNG({ width: 1, height: 1 }).setPixels(Buffer.from([0, 0, 0, 255]));
+            const png = new PNG(fixtures.blank);
             // set pixel density
             png.setPixelDensity(144);
             expect(png.density).toBeDefined();
@@ -193,7 +193,7 @@ describe('PNG', () => {
 
     describe('text', () => {
         test('encode text chunks', () => {
-            const png = new PNG({ width: 1, height: 1 }).setPixels(Buffer.from([0, 0, 0, 255]));
+            const png = new PNG(fixtures.blank);
             // set text key-value pairs
             png.setText('title', 'empty png file');
             png.setText('label', 'png text metadata');
@@ -201,16 +201,34 @@ describe('PNG', () => {
         });
 
         test('encode text as zTXt chunk when text is sufficiently long', () => {
-            const png = new PNG({ width: 1, height: 1 }).setPixels(Buffer.from([0, 0, 0, 255]));
+            const png = new PNG(fixtures.blank);
             // set text key-value pair
             png.setText('label', 'x'.repeat(1500));
             expect(png.packChunks().map(({ type }) => type)).toContain('zTXt');
         });
     });
 
+    describe('animated frames', () => {
+        test('performs alpha compositing to crop each frame following the first', () => {
+            const png = new PNG();
+            png.addFrame(fixtures.tbbn0g04, 500);
+            png.addFrame(fixtures.tbrn2c08, 500);
+            expect(png.frames[0]?.size).toEqual({ width: 32, height: 32 });
+            expect(png.frames[1]?.size).not.toEqual({ width: 32, height: 32 });
+        });
+
+        test('merges consecutive identical frames', () => {
+            const png = new PNG();
+            png.addFrame(fixtures.tbbn0g04, 500);
+            png.addFrame(fixtures.tbbn0g04, 500);
+            expect(png.frames).toHaveLength(1);
+            expect(png.frames[0]?.duration).toBe(1000);
+        });
+    });
+
     describe('packing', () => {
         test('resolveEncoding fixes invalid colorType and bitDepth combinations', () => {
-            const png = new PNG({ width: 32, height: 32 });
+            const png = new PNG();
             expect(png.resolveEncoding({ colorType: 3, bitDepth: 16 }))
                 .toMatchObject<Partial<PNGEncoding>>({ colorType: 3, bitDepth: 8 });
             expect(png.resolveEncoding({ colorType: 6, bitDepth: 4 }))
@@ -218,24 +236,19 @@ describe('PNG', () => {
         });
 
         test('throws error if png contains no pixel data', () => {
-            const png = new PNG({ width: 32, height: 32 });
+            const png = new PNG();
             expect(() => png.pack()).toThrow('png contains no pixel data');
         });
 
-        test('throws error if png is animated and contains no frames', () => {
-            const png = new PNG({ width: 32, height: 32 });
-            png.animated = true;
-            expect(() => png.pack()).toThrow('png contains no content frames');
-        });
-
         test('throws error if pixel cannot be found in color palette', () => {
-            const png = new PNG({ width: 1, height: 1 });
-            png.pixels = deflateSync(Buffer.from([0, 0, 0, 255]));
+            const png = new PNG();
+            png.size = { width: 1, height: 1 };
+            png.pixels = Buffer.from([0, 0, 0, 255]);
             expect(() => png.pack({ colorType: 3 })).toThrow('Color [0, 0, 0, 255] is not in palette');
         });
 
         test('encodes acTL, fcTL, & fdAT chunks if png is animated', () => {
-            const png = new PNG({ width: 32, height: 32 });
+            const png = new PNG();
             png.addFrame(fixtures.basi3p01, 1000);
             png.addFrame(fixtures.basi3p02, 1000);
             const chunks = png.packChunks().map(({ type }) => type).filter((t) => /^(?:[af]cTL|IDAT|fdAT)$/.test(t));
