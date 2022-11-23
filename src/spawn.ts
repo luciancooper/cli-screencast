@@ -57,6 +57,12 @@ export interface SpawnOptions {
      * @defaultValue `'SIGTERM'`
      */
     killSignal?: NodeJS.Signals
+
+    /**
+     * Windows only passed to `node-pty` concerning whether to use ConPTY over WinPTY.
+     * Added as a workaround until {@link https://github.com/microsoft/node-pty/issues/437} is resolved
+     */
+    useConpty?: boolean
 }
 
 export const colorEnv = {
@@ -127,6 +133,7 @@ export default function readableSpawn(command: string, args: string[], {
     extendEnv = true,
     timeout = 0,
     killSignal = 'SIGTERM',
+    useConpty,
 }: Dimensions & SpawnOptions) {
     // validate args
     if (typeof command !== 'string') {
@@ -152,6 +159,7 @@ export default function readableSpawn(command: string, args: string[], {
             name: term,
             env,
             cwd,
+            useConpty,
         });
     // emit stream start event
     stream.start([command, ...args.map((arg) => (

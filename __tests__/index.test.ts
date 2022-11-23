@@ -35,7 +35,7 @@ describe('renderFrames', () => {
 describe('renderSpawn', () => {
     test('promises a string when output type is `svg`', async () => {
         await expect(
-            renderSpawn('node', ['-e', "process.stdout.write('Hello World!');"], dimensions)
+            renderSpawn('node', ['-e', "process.stdout.write('Hello World!');"], { ...dimensions, useConpty: false })
                 .then((value) => typeof value),
         ).resolves.toBe('string');
     });
@@ -45,6 +45,7 @@ describe('renderSpawn', () => {
             ...dimensions,
             output: 'png',
             scaleFactor: 1,
+            useConpty: false,
         }).then((value) => Buffer.isBuffer(value))).resolves.toBe(true);
     });
 });

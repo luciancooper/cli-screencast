@@ -36,14 +36,14 @@ afterEach(() => {
 });
 
 describe('readableSpawn', () => {
-    const dimensions = { columns: 20, rows: 5 };
+    const baseOptions = { columns: 20, rows: 5, useConpty: false };
 
     test('creates readable source events from subprocess writes to stdout', async () => {
-        const source = readableSpawn('echo', ['echo to source stream'], dimensions),
+        const source = readableSpawn('node', ['-e', "process.stdout.write('echo to source stream');"], baseOptions),
             events = await consume<SourceEvent>(source);
         expect(events[0]).toEqual<SourceEvent>({
             type: 'start',
-            command: 'echo "echo to source stream"',
+            command: 'node -e "process.stdout.write(\'echo to source stream\');"',
         });
         expect(events[events.length - 1]).toMatchObject<DeepPartial<SourceEvent>>({
             type: 'finish',
@@ -53,7 +53,11 @@ describe('readableSpawn', () => {
     });
 
     test('kills spawned subprocess if parent process exits', async () => {
-        const source = readableSpawn('sleep', ['10'], dimensions);
+        const source = readableSpawn(
+            'node',
+            ['-e', 'new Promise((resolve) => setTimeout(resolve, 5000));'],
+            baseOptions,
+        );
         // mock the process exiting
         (signalExit as MockSignalExit).flush();
         await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({
@@ -63,7 +67,11 @@ describe('readableSpawn', () => {
     });
 
     test('subprocess env will not extend process.env if `extendEnv` is false', async () => {
-        const source = readableSpawn('sleep', ['0'], { ...dimensions, env: {}, extendEnv: false });
+        const source = readableSpawn(
+            'node',
+            ['-e', 'new Promise((resolve) => setTimeout(resolve, 0));'],
+            { ...baseOptions, env: {}, extendEnv: false },
+        );
         await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({ exitCode: 0, failed: false });
         expect(source.env).toEqual(colorEnv);
     });
@@ -71,30 +79,30 @@ describe('readableSpawn', () => {
     describe('validation', () => {
         test('throws an error if `command` arg is an empty string', async () => {
             expect(() => {
-                readableSpawn('', [], dimensions);
+                readableSpawn('', [], baseOptions);
             }).toThrow("'command' cannot be empty");
         });
 
         test('throws type error if `command` arg is not a string', async () => {
             expect(() => {
-                readableSpawn({} as unknown as string, [], dimensions);
+                readableSpawn({} as unknown as string, [], baseOptions);
             }).toThrow("'command' must be a string. Received [object Object]");
         });
 
         test('throws error if timeout option is invalid', () => {
             expect(() => {
-                readableSpawn('ls', [], { ...dimensions, timeout: -500 });
+                readableSpawn('ls', [], { ...baseOptions, timeout: -500 });
             }).toThrow('`timeout` must be a non-negative integer');
         });
     });
 
     describe('timeouts', () => {
         test('will send `killSignal` signal to spawned process on timeout', async () => {
-            await expect(readableSpawn('sleep', ['1'], {
-                ...dimensions,
-                timeout: 500,
-                killSignal: 'SIGKILL',
-            })).resolves.toMatchObject<Partial<SpawnResult>>({
+            await expect(readableSpawn(
+                'node',
+                ['-e', 'new Promise((resolve) => setTimeout(resolve, 1000));'],
+                { ...baseOptions, timeout: 500, killSignal: 'SIGKILL' },
+            )).resolves.toMatchObject<Partial<SpawnResult>>({
                 ...process.platform !== 'win32' ? { signal: 'SIGKILL' } : {},
                 timedOut: true,
                 killed: true,
@@ -102,7 +110,11 @@ describe('readableSpawn', () => {
         });
 
         test('timeout is cleared if process completes before it is reached', async () => {
-            const source = readableSpawn('sleep', ['1'], { ...dimensions, timeout: 2000 });
+            const source = readableSpawn(
+                'node',
+                ['-e', 'new Promise((resolve) => setTimeout(resolve, 1000));'],
+                { ...baseOptions, timeout: 2000 },
+            );
             await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({
                 timedOut: false,
                 failed: false,
