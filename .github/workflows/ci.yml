@@ -23,10 +23,10 @@ jobs:
 
     steps:
     - name: checkout repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: setup node ${{ matrix.node }}
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node }}
 
@@ -36,7 +36,7 @@ jobs:
 
     - name: restore yarn cache directory
       id: yarn-cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
@@ -50,8 +50,8 @@ jobs:
       run: yarn test --coverage
 
     - name: upload coverage artifact
-      uses: actions/upload-artifact@v2
-      if: matrix.node == 14
+      uses: actions/upload-artifact@v3
+      if: matrix.node == 16
       with:
         name: coverage-${{ runner.os }}
         path: coverage
@@ -69,10 +69,10 @@ jobs:
 
     steps:
     - name: checkout repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: download coverage artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: coverage-${{ runner.os }}
         path: coverage
@@ -82,7 +82,7 @@ jobs:
       working-directory: coverage
 
     - name: upload to codecov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: ${{ runner.os }}
