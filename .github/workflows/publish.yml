@@ -14,6 +14,7 @@ jobs:
       with:
         node-version: 16
         registry-url: https://registry.npmjs.org/
+    - run: npm config set node_gyp "$(npm prefix)/node_modules/node-gyp/bin/node-gyp.js"
     - run: yarn --frozen-lockfile
     - run: npm publish
       env:
