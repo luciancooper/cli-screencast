@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type {
     Dimensions,
     CaptureData,
-    TerminalState,
     ScreenData,
     Size,
     SVGData,
@@ -71,9 +70,8 @@ export function renderCaptureSvg(data: CaptureData, options: RenderProps): strin
     );
 }
 
-export function renderScreenSvg(data: ScreenData | TerminalState, options: RenderProps): SVGData {
-    const { lines, title } = data,
-        cursor = 'cursorHidden' in data ? (!data.cursorHidden ? data.cursor : null) : data.cursor,
+export function renderScreenSvg(data: ScreenData, options: RenderProps): SVGData {
+    const { lines, title, cursor } = data,
         [context, windowOptions] = resolveContext(options);
     let size = { width: NaN, height: NaN };
     const svg = renderToStaticMarkup(
