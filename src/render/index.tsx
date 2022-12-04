@@ -33,6 +33,7 @@ export interface RenderOptions extends WindowOptions {
 
 export interface RenderProps extends Dimensions, Required<RenderOptions> {
     theme: Theme<string>
+    css?: string | null
 }
 
 function resolveContext({
@@ -42,7 +43,7 @@ function resolveContext({
     fontSize,
     lineHeight,
     iconColumnWidth,
-    ...options
+    ...windowOptions
 }: RenderProps, duration = 0) {
     const context: RenderContext = {
         columns,
@@ -53,7 +54,7 @@ function resolveContext({
         iconColumnWidth,
         duration,
     };
-    return [context, options] as const;
+    return [context, windowOptions] as const;
 }
 
 export function renderCaptureSvg(data: CaptureData, options: RenderProps): string {

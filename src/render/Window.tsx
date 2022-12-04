@@ -47,12 +47,14 @@ export interface WindowOptions {
 interface WindowProps extends Required<WindowOptions>, SVGProps<SVGSVGElement> {
     title?: Title | TitleKeyFrame[] | null
     forceTitleInset?: boolean
+    css?: string | null
 }
 
 const Window = forwardRef<Size, WindowProps>(({
     children,
     title = null,
     forceTitleInset = false,
+    css,
     borderRadius,
     decorations,
     insetMajor,
@@ -87,7 +89,7 @@ const Window = forwardRef<Size, WindowProps>(({
             fontSize={fontSize}
             {...size}
         >
-            <style dangerouslySetInnerHTML={{ __html: 'text{white-space:pre}' }}/>
+            <style dangerouslySetInnerHTML={{ __html: `text{white-space:pre}${css ?? ''}` }}/>
             {icons.length > 0 && (
                 <defs>
                     {icons.map((id) => (

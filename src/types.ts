@@ -144,15 +144,17 @@ export interface Title extends TextLine {
     text: string | undefined
 }
 
-export interface TerminalState {
-    title: Title
+export interface TerminalLines {
     lines: TerminalLine[]
+}
+
+export interface TerminalState extends TerminalLines {
+    title: Title
     cursor: CursorLocation
     cursorHidden: boolean
 }
 
-export interface ScreenData {
-    lines: TerminalLine[]
+export interface ScreenData extends TerminalLines {
     cursor: CursorLocation | null
     title: Title
 }
@@ -167,9 +169,7 @@ export interface KeyFrame {
     endTime: number
 }
 
-export interface ContentKeyFrame extends KeyFrame {
-    lines: TerminalLine[]
-}
+export interface ContentKeyFrame extends KeyFrame, TerminalLines {}
 
 export interface CursorKeyFrame extends KeyFrame, CursorLocation {}
 

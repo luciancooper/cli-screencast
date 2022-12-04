@@ -8,6 +8,7 @@ import readableSpawn, { SpawnOptions } from './spawn';
 import TerminalRecordingStream, { SessionOptions, RunCallback } from './terminal';
 import captureSource from './capture';
 import extractCaptureFrames from './frames';
+import fetchFontCss from './fonts';
 import { renderScreenSvg, renderCaptureSvg, renderCaptureFrames } from './render';
 import { createPng, createAnimatedPng } from './image';
 
@@ -28,8 +29,10 @@ export async function renderScreen(
             cursorHidden: props.cursorHidden,
             title: resolveTitle(props.palette, props.windowTitle, props.windowIcon),
         }, content),
-        data = renderScreenSvg({ ...state, cursor: !cursorHidden ? cursor : null }, props);
-    return output === 'png' ? createPng(data, scaleFactor) : data.svg;
+        screenData = { ...state, cursor: !cursorHidden ? cursor : null },
+        css = await fetchFontCss(screenData, props.theme.fontFamily),
+        rendered = renderScreenSvg(screenData, { ...props, css });
+    return output === 'png' ? createPng(rendered, scaleFactor) : rendered.svg;
 }
 
 async function renderSource(
@@ -39,10 +42,12 @@ async function renderSource(
     const data = await captureSource(stream, props);
     if (output === 'png') {
         const frames = extractCaptureFrames(data),
-            svgFrames = renderCaptureFrames(frames, props);
+            css = await fetchFontCss(frames, props.theme.fontFamily),
+            svgFrames = renderCaptureFrames(frames, { ...props, css });
         return createAnimatedPng(svgFrames, scaleFactor);
     }
-    return renderCaptureSvg(data, props);
+    const css = await fetchFontCss(data, props.theme.fontFamily);
+    return renderCaptureSvg(data, { ...props, css });
 }
 
 /**
