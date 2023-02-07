@@ -108,8 +108,6 @@ function rescaleSample(value: number, depthIn: number, depthOut: number) {
 export default class PNG {
     static Header = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
 
-    ['constructor']: typeof PNG;
-
     size: Size;
 
     pixels?: Buffer;
@@ -360,7 +358,7 @@ export default class PNG {
     }
 
     addFrame(data: Buffer, duration: number): this {
-        const { pixels, width, height } = this.constructor.decodePixels(data);
+        const { pixels, width, height } = PNG.decodePixels(data);
         if (!this.frames.length) {
             this.size = { width, height };
             // set initial pixel buffer
@@ -738,6 +736,6 @@ export default class PNG {
 
     pack(enc?: Partial<PNGEncoding>): Buffer {
         const chunks = this.packChunks(enc);
-        return this.constructor.encodeChunks(chunks);
+        return PNG.encodeChunks(chunks);
     }
 }
