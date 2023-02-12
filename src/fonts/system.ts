@@ -1,0 +1,77 @@
+import { getAvailableFonts } from 'fontmanager-redux';
+import type { ContentSubsets } from './content';
+import type { SystemFont } from './types';
+import FontDecoder from './decoder';
+import CodePointRange from './range';
+import { styleAnsiMatchPriority } from './style';
+import { subsetFontFile } from './subset';
+
+export function systemFontPaths(): Promise<string[]> {
+    return new Promise<string[]>((resolve, reject) => {
+        getAvailableFonts((fonts) => {
+            resolve([...new Set(fonts.map(({ path }) => path))]);
+        });
+    });
+}
+
+export async function getSystemFonts(match?: string[]) {
+    // create a map of system font families
+    const families: Record<string, SystemFont[]> = {};
+    // extract system font info from each system font file
+    for (const filePath of (await systemFontPaths())) {
+        // instantiate font decoder
+        const decoder = new FontDecoder(filePath);
+        try {
+            // decode the font file
+            for (const font of (await decoder.decodeFileFonts(match))) {
+                if (!families[font.family]) {
+                    families[font.family] = [];
+                }
+                families[font.family]!.push(font);
+            }
+        } catch (e) {
+            continue;
+        }
+    }
+    return families;
+}
+
+export async function cssFromSystemFont(
+    css: string[],
+    content: ContentSubsets,
+    fonts: SystemFont[],
+): Promise<ContentSubsets> {
+    const fontCoverage = CodePointRange.mergeRanges(...fonts.map(({ coverage }) => coverage)),
+        coverage = content.coverage.intersect(fontCoverage);
+    if (coverage.intersection.empty()) return content;
+    const uncovered: ContentSubsets = { coverage: coverage.difference, subsets: [] },
+        fontMap = new Map<number, CodePointRange>();
+    for (const [ansi, cp] of content.subsets) {
+        let { intersection, difference } = cp.intersect(fontCoverage);
+        if (!difference.empty()) uncovered.subsets.push([ansi, difference]);
+        if (intersection.empty()) continue;
+        // prioritize font styles according to how well they match the ansi code for this char subset
+        for (const index of styleAnsiMatchPriority(fonts, ansi)) {
+            const fontset = intersection.intersect(fonts[index]!.coverage);
+            if (fontset.intersection.empty()) continue;
+            fontMap.set(index, fontMap.has(index) ? fontMap.get(index)!.union(intersection) : intersection);
+            intersection = fontset.difference;
+            if (intersection.empty()) break;
+        }
+    }
+    // now, create css blocks from each font variant spec
+    for (const [index, range] of fontMap.entries()) {
+        const font = fonts[index]!,
+            fontSubsetBuffer = await subsetFontFile(font, range);
+        if (!fontSubsetBuffer) continue;
+        // add css block to array
+        css.push(
+            '@font-face {'
+            + `font-family:'${font.family}';`
+            + `font-style:${font.style.slant ? 'italic' : 'normal'};`
+            + `font-weight:${font.style.weight};`
+            + `src:url(data:font/ttf;charset=utf-8;base64,${fontSubsetBuffer.toString('base64')}) format(truetype)}`,
+        );
+    }
+    return uncovered;
+}

@@ -27,6 +27,7 @@
   "types": "lib/index.d.ts",
   "files": [
     "lib",
+    "wasm",
     "src"
   ],
   "scripts": {
@@ -62,6 +63,7 @@
   "dependencies": {
     "@types/node": "*",
     "ansi-regex": "^5.0.0",
+    "fontmanager-redux": "^1.1.0",
     "node-gyp": "^9.3.0",
     "node-pty": "^0.10.1",
     "puppeteer": "^10.4.0",
