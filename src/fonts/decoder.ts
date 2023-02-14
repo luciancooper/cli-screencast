@@ -10,6 +10,12 @@ import { cmapCoverage, cmapEncodingPriority } from './cmap';
 
 const utf16Decoder = new TextDecoder('utf-16be');
 
+type DecodeCallback<T> = (
+    this: FontDecoder,
+    header: SfntHeader,
+    memo: Record<number, any> | null,
+) => T | PromiseLike<T>;
+
 export default class FontDecoder extends FontReader {
     protected buf: Buffer;
 
@@ -646,5 +652,56 @@ export default class FontDecoder extends FontReader {
         } finally {
             await this.close();
         }
+    }
+
+    /**
+     * Calls the provided decoder callback function on each font in the file
+     */
+    async* decodeAll<T>(decoder: DecodeCallback<T>): AsyncGenerator<T> {
+        try {
+            // read first 4 bytes of the font file
+            await this.read(4);
+            const type = this.buf.readUInt32BE(this.buf_pos); // this.uint32();
+            switch (type) {
+                case 0x4F54544F: // 'OTTO' -> open type with CFF data (version 1 or 2)
+                case 0x74727565: // 'true'
+                case 0x74797031: // 'typ1'
+                case 0x00010000: { // true type outlines
+                    // decode sfnt font header
+                    const header = await this.sfntHeader();
+                    yield (await decoder.call(this, header, null));
+                    break;
+                }
+                // 'ttcf'
+                case 0x74746366: {
+                    // create memo cache
+                    const memo: Record<number, any> = {};
+                    // decode ttc subfont headers
+                    for (const header of (await this.ttcHeaders())) {
+                        yield (await decoder.call(this, header, memo));
+                    }
+                    break;
+                }
+                case 0x774F4646: // 'wOFF'
+                    throw new Error('woff font decoding is not supported');
+                case 0x774F4632: // 'wOF2'
+                    throw new Error('woff2 font decoding is not supported');
+                default:
+                    throw new Error(`Invalid font signature ${type}`);
+            }
+        } finally {
+            await this.close();
+        }
+    }
+
+    /**
+     * Calls the provided decoder callback function on the first font in the file
+     */
+    async decodeFirst<T>(decoder: DecodeCallback<T>): Promise<T> {
+        const each = this.decodeAll(decoder),
+            { value } = (await each.next()) as IteratorYieldResult<T>;
+        // finish the generator to close the file
+        await each.return(null);
+        return value;
     }
 }
