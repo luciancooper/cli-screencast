@@ -112,21 +112,28 @@ describe('instance methods', () => {
             expect(intersect(e, e)).toEqual({ intersection: [], difference: [] });
         });
 
-        test('disjoint ranges', () => {
+        test('ranges with disjoint spans', () => {
             const a = new CodePointRange([[5, 9], [13, 17]]),
                 b = new CodePointRange([[1, 3], [9, 11], [17, 20]]);
             expect(intersect(a, b)).toEqual({ intersection: [], difference: a.ranges });
             expect(intersect(b, a)).toEqual({ intersection: [], difference: b.ranges });
         });
 
-        test('overlapping ranges', () => {
+        test('several disjoint spans at the end of a range', () => {
+            const a = new CodePointRange([[32, 33], [69, 71], [84, 85], [97, 102], [109, 112], [115, 117]]),
+                b = new CodePointRange([[32, 33], [97, 101]]);
+            expect(intersect(a, b)).toEqual(expectedIntersect([...a], [...b]));
+            expect(intersect(b, a)).toEqual(expectedIntersect([...b], [...a]));
+        });
+
+        test('ranges with overlapping spans', () => {
             const a = new CodePointRange([[1, 5], [8, 9], [15, 20]]),
                 b = new CodePointRange([[3, 9], [12, 17], [19, 23]]);
             expect(intersect(a, b)).toEqual(expectedIntersect([...a], [...b]));
             expect(intersect(b, a)).toEqual(expectedIntersect([...b], [...a]));
         });
 
-        test('subset range', () => {
+        test('single engulfing span', () => {
             const a = new CodePointRange([[3, 5], [8, 12], [15, 20]]),
                 b = new CodePointRange([[1, 25]]);
             expect(intersect(a, b)).toEqual({ intersection: a.ranges, difference: [] });
@@ -143,7 +150,7 @@ describe('instance methods', () => {
             expect((e.union(e)).ranges).toEqual(e.ranges);
         });
 
-        test('disjoint ranges', () => {
+        test('ranges with disjoint spans', () => {
             const a = new CodePointRange([[5, 9], [13, 17]]),
                 b = new CodePointRange([[1, 3], [9, 11], [17, 20]]),
                 u = CodePointRange.from([...new Set([...a, ...b])]).ranges;
@@ -151,14 +158,22 @@ describe('instance methods', () => {
             expect((b.union(a)).ranges).toEqual(u);
         });
 
-        test('overlapping ranges', () => {
+        test('several disjoint spans at the end of a range', () => {
+            const a = new CodePointRange([[32, 33], [69, 71], [84, 85], [97, 102], [109, 112], [115, 117]]),
+                b = new CodePointRange([[32, 33], [97, 101]]),
+                u = CodePointRange.from([...new Set([...a, ...b])]).ranges;
+            expect(a.union(b).ranges).toEqual(u);
+            expect(b.union(a).ranges).toEqual(u);
+        });
+
+        test('ranges with overlapping spans', () => {
             const a = new CodePointRange([[1, 5], [8, 9], [15, 20]]),
                 b = new CodePointRange([[3, 9], [12, 17], [19, 23]]),
                 u = CodePointRange.from([...new Set([...a, ...b])]).ranges;
             expect((a.union(b)).ranges).toEqual(u);
         });
 
-        test('subset range', () => {
+        test('single engulfing span', () => {
             const a = new CodePointRange([[3, 5], [8, 12], [15, 20]]),
                 b = new CodePointRange([[1, 25]]);
             expect((a.union(b)).ranges).toEqual(b.ranges);

@@ -122,8 +122,10 @@ export default class CodePointRange implements Iterable<number> {
         const intersection: [number, number][] = [],
             difference: [number, number][] = [];
         let [a1, a2] = this.ranges[0]!,
-            [b1, b2] = r.ranges[0]!;
-        for (let i1 = 0, i2 = 0, k1 = 0, k2 = 0; i1 < n1 && i2 < n2; i1 += k1, i2 += k2) {
+            [b1, b2] = r.ranges[0]!,
+            [i1, i2] = [0, 0],
+            [k1, k2] = [0, 0];
+        for (; i1 < n1 && i2 < n2; i1 += k1, i2 += k2) {
             if (k1) [[a1, a2], k1] = [this.ranges[i1]!, 0];
             if (k2) [[b1, b2], k2] = [r.ranges[i2]!, 0];
             if (a1 < b1) difference.push([a1, Math.min(b1, a2)]);
@@ -151,6 +153,8 @@ export default class CodePointRange implements Iterable<number> {
             }
         }
         if (a1 >= b2) difference.push([a1, a2]);
+        // add any remaining spans at the end of the range
+        for (i1 += k1 ^ 1; i1 < n1; i1 += 1) difference.push(this.ranges[i1]!);
         return {
             intersection: new CodePointRange(intersection),
             difference: new CodePointRange(difference),
@@ -165,8 +169,9 @@ export default class CodePointRange implements Iterable<number> {
         const union: [number, number][] = [];
         let [a1, a2] = this.ranges[0]!,
             [b1, b2] = r.ranges[0]!,
+            [i1, i2] = [0, 0],
             [k1, k2] = [0, 0];
-        for (let i1 = 0, i2 = 0; i1 < n1 && i2 < n2; i1 += k1, i2 += k2) {
+        for (; i1 < n1 && i2 < n2; i1 += k1, i2 += k2) {
             if (k1) [[a1, a2], k1] = [this.ranges[i1]!, 0];
             if (k2) [[b1, b2], k2] = [r.ranges[i2]!, 0];
             if (a2 < b1) {
@@ -191,6 +196,8 @@ export default class CodePointRange implements Iterable<number> {
         }
         if (!k1) union.push([a1, a2]);
         if (!k2) union.push([b1, b2]);
+        for (i1 += k1 ^ 1; i1 < n1; i1 += 1) union.push(this.ranges[i1]!);
+        for (i2 += k2 ^ 1; i2 < n2; i2 += 1) union.push(r.ranges[i2]!);
         return new CodePointRange(union);
     }
 }
