@@ -1,4 +1,5 @@
 import { getAvailableFonts } from 'fontmanager-redux';
+import { compress as woff2Compress } from 'wawoff2';
 import type { ContentSubsets } from './content';
 import type { SystemFont } from './types';
 import FontDecoder from './decoder';
@@ -64,13 +65,24 @@ export async function cssFromSystemFont(
         const font = fonts[index]!,
             fontSubsetBuffer = await subsetFontFile(font, range);
         if (!fontSubsetBuffer) continue;
+        // apply woff2 compression to font subset buffer
+        let src: string;
+        try {
+            src = `url(data:font/woff2;charset=utf-8;base64,${
+                Buffer.from(await woff2Compress(fontSubsetBuffer)).toString('base64')
+            }) format(woff2)`;
+        } catch (e) {
+            src = `src:url(data:font/ttf;charset=utf-8;base64,${
+                fontSubsetBuffer.toString('base64')
+            }) format(truetype)`;
+        }
         // add css block to array
         css.push(
             '@font-face {'
             + `font-family:'${font.family}';`
             + `font-style:${font.style.slant ? 'italic' : 'normal'};`
             + `font-weight:${font.style.weight};`
-            + `src:url(data:font/ttf;charset=utf-8;base64,${fontSubsetBuffer.toString('base64')}) format(truetype)}`,
+            + `src:${src}}`,
         );
     }
     return uncovered;
