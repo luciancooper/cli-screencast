@@ -6,7 +6,14 @@ import FontReader from './reader';
 
 declare global {
     const WebAssembly: {
-        instantiate: <T>(bufferSource: Buffer) => Promise<{ instance: { exports: T } }>
+        instantiate: <T>(
+            bufferSource: Buffer,
+            importObject: {
+                env: {
+                    emscripten_notify_memory_growth: (...args: any[]) => any
+                }
+            },
+        ) => Promise<{ instance: { exports: T } }>
     };
 }
 
@@ -97,16 +104,30 @@ interface HarfbuzzSubset {
     hb_subset_or_fail: (source: number, input: number) => number
 }
 
-const harfbuzz: (() => Promise<[HarfbuzzSubset, Uint8Array]>) = (() => {
-    let initialized: [HarfbuzzSubset, Uint8Array] | null = null;
-    return async () => {
-        if (!initialized) {
-            const { instance: { exports: hb } } = await WebAssembly.instantiate<HarfbuzzSubset>(
-                await fs.promises.readFile(path.resolve(__dirname, '../../wasm/hb-subset.wasm')),
-            );
-            initialized = [hb, new Uint8Array(hb.memory.buffer)];
-        }
-        return initialized;
+const harfbuzz: {
+    hb: () => Promise<HarfbuzzSubset>
+    readonly heapu8: Uint8Array
+} = (() => {
+    let hb: HarfbuzzSubset | null = null,
+        heapu8: Uint8Array = new Uint8Array();
+    return {
+        async hb() {
+            if (!hb) {
+                const wasmSource = await fs.promises.readFile(path.resolve(__dirname, '../../wasm/hb-subset.wasm'));
+                ({ instance: { exports: hb } } = await WebAssembly.instantiate<HarfbuzzSubset>(wasmSource, {
+                    env: {
+                        emscripten_notify_memory_growth: () => {
+                            heapu8 = new Uint8Array(hb!.memory.buffer);
+                        },
+                    },
+                }));
+                heapu8 = new Uint8Array(hb.memory.buffer);
+            }
+            return hb;
+        },
+        get heapu8(): Uint8Array {
+            return heapu8;
+        },
     };
 })();
 
@@ -121,11 +142,6 @@ export async function subsetFontFile(
     { filePath, ttcSubfont, fvarInstance }: SystemFont,
     coverage: CodePointRange,
 ): Promise<Buffer | null> {
-    const [hb, heapu8] = await harfbuzz(),
-        input = hb.hb_subset_input_create_or_fail();
-    if (input === 0) {
-        throw new Error('hb_subset_input_create_or_fail (harfbuzz) returned zero, indicating failure');
-    }
     // read the original font file
     let originalFont: Buffer;
     if (ttcSubfont) {
@@ -133,9 +149,16 @@ export async function subsetFontFile(
     } else {
         originalFont = await fs.promises.readFile(filePath);
     }
-    // create font buffer
+    // get harfbuzz webassembly exports
+    const hb = await harfbuzz.hb(),
+        input = hb.hb_subset_input_create_or_fail();
+    if (input === 0) {
+        throw new Error('hb_subset_input_create_or_fail (harfbuzz) returned zero, indicating failure');
+    }
+    // allocate space for the original font file
     const fontBuffer = hb.malloc(originalFont.byteLength);
-    heapu8.set(new Uint8Array(originalFont), fontBuffer);
+    // copy the original font to the harfbuzz memory array
+    harfbuzz.heapu8.set(new Uint8Array(originalFont), fontBuffer);
     // Create the face
     const blob = hb.hb_blob_create(fontBuffer, originalFont.byteLength, 2, 0, 0),
         face = hb.hb_face_create(blob, 0);
@@ -178,7 +201,7 @@ export async function subsetFontFile(
         hb.free(fontBuffer);
         return null;
     }
-    const subsetFont = Buffer.from(heapu8.subarray(offset, offset + subsetByteLength));
+    const subsetFont = Buffer.from(harfbuzz.heapu8.subarray(offset, offset + subsetByteLength));
     hb.hb_blob_destroy(result);
     hb.hb_face_destroy(subset);
     hb.hb_face_destroy(face);
