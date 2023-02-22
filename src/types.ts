@@ -18,6 +18,12 @@ export type DeepPartial<T> = T extends (...args: any[]) => any ? T
 export type OptionalKeys<T> = { [K in keyof T]-?: undefined extends { [P in keyof T]: P }[K] ? K : never; }[keyof T];
 
 /**
+ * Adds `undefined` to all properties of `T` defined with the `?` prefix.
+ * For cases where you want to ignore the stricter rules `exactOptionalPropertyTypes` applies to object types.
+ */
+export type Optionalize<T> = { [K in keyof T]: undefined extends { [P in keyof T]: P }[K] ? T[K] | undefined : T[K] };
+
+/**
  * Create a type from all the optional keys of `T`.
  */
 export type PickOptional<T> = Pick<T, OptionalKeys<T>>;

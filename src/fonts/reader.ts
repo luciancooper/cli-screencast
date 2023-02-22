@@ -4,7 +4,7 @@ import { TextDecoder } from 'util';
 const utf16Decoder = new TextDecoder('utf-16be');
 
 export default class FontReader {
-    readonly filePath: string;
+    protected filePath: string | null = null;
 
     private _handle: fs.FileHandle | null = null;
 
@@ -25,8 +25,8 @@ export default class FontReader {
     /** Used to adjust relative pointers */
     protected fd_offset = 0;
 
-    constructor(filePath: string) {
-        this.filePath = filePath;
+    constructor(filePath?: string) {
+        this.filePath = filePath ?? null;
         // allocate an empty buffer
         this.buf = Buffer.alloc(0);
     }
@@ -37,6 +37,9 @@ export default class FontReader {
     private handle(): Promise<fs.FileHandle> {
         if (this._handle) {
             return Promise.resolve(this._handle);
+        }
+        if (!this.filePath) {
+            return Promise.reject(new Error('A target font file has not been specified'));
         }
         return fs.open(this.filePath, 'r').then((handle) => {
             this._handle = handle;
@@ -53,6 +56,7 @@ export default class FontReader {
         }
         return this._handle.close().then(() => {
             this._handle = null;
+            this.filePath = null;
         });
     }
 
@@ -100,7 +104,6 @@ export default class FontReader {
         this.buf_pos = 0;
         // replace the active buffer
         this.buf = buf;
-        // execute read
         // get file handle for the underlying font file
         const handle = await this.handle();
         // call read on the file handle until all bytes have been read

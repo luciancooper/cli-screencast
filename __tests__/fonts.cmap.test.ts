@@ -3,9 +3,10 @@ import FontDecoder from '@src/fonts/decoder';
 import { cmapCoverage } from '@src/fonts/cmap';
 
 function decodeCmapFixture(fixture: string) {
-    const fixturePath = joinPath(__dirname, 'fixtures', fixture);
-    return new FontDecoder(fixturePath).decodeFirst(function cmap(this: FontDecoder, header, memo) {
-        return this.decodeSfntTable(header, 'cmap', async () => cmapCoverage(await this.cmapTable()).ranges, memo, 4);
+    return new FontDecoder({
+        filePath: joinPath(__dirname, 'fixtures', fixture),
+    }).decodeFirst(function cmap(this: FontDecoder, header) {
+        return this.decodeSfntTable(header, 'cmap', async () => cmapCoverage(await this.cmapTable()).ranges, 4);
     });
 }
 

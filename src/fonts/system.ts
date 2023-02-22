@@ -17,14 +17,14 @@ export function systemFontPaths(): Promise<string[]> {
 
 export async function getSystemFonts(match?: string[]) {
     // create a map of system font families
-    const families: Record<string, SystemFont[]> = {};
+    const families: Record<string, SystemFont[]> = {},
+        // instantiate font decoder
+        decoder = new FontDecoder({ match });
     // extract system font info from each system font file
     for (const filePath of (await systemFontPaths())) {
-        // instantiate font decoder
-        const decoder = new FontDecoder(filePath);
         try {
             // decode the font file
-            for (const font of (await decoder.decodeFileFonts(match))) {
+            for (const font of (await decoder.decodeFileFonts(filePath))) {
                 if (!families[font.family]) {
                     families[font.family] = [];
                 }

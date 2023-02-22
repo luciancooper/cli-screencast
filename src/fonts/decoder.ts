@@ -1,3 +1,4 @@
+import type { Optionalize } from '../types';
 import type {
     NameTable, FvarTable, Os2Table, HeadTable, CmapTable, SfntHeader, SystemFont,
 } from './types';
@@ -7,21 +8,34 @@ import { localizeNames } from './names';
 import { getFontStyle, extendFontStyle } from './style';
 import { cmapCoverage, cmapEncodingPriority } from './cmap';
 
-type DecodeCallback<T> = (
-    this: FontDecoder,
-    header: SfntHeader,
-    memo: Record<number, any> | null,
-) => T | PromiseLike<T>;
+type DecodeCallback<T> = (this: FontDecoder, header: SfntHeader) => T | PromiseLike<T>;
 
 export default class FontDecoder extends FontReader {
+    /** optional list of font family names to match */
+    private readonly match: string[] | null;
+
+    /** lookup to memoize decoded parts of the font file */
+    private memoized: Record<number, any> | null = null;
+
+    constructor({ filePath, match }: Optionalize<{ filePath?: string, match?: string[] }> = {}) {
+        super(filePath);
+        this.match = match ?? null;
+    }
+
+    protected override close() {
+        return super.close().then(() => {
+            // reset memoization lookup when file is closed
+            this.memoized = null;
+        });
+    }
+
     /**
      * Reads the span of bytes for a font table from the file, then calls the provided callback
      */
     protected async decodeSfntTable<T>(
         { tables }: SfntHeader,
         tableTag: number | string,
-        decode: () => T | PromiseLike<T>,
-        memoized: Record<number, any> | null = null,
+        decode: (this: FontDecoder) => T | PromiseLike<T>,
         initialBytes?: number,
     ): Promise<T | null> {
         const tag = typeof tableTag === 'string' ? this.tagUInt32(tableTag) : tableTag,
@@ -29,8 +43,8 @@ export default class FontDecoder extends FontReader {
         if (!record) return null;
         const { offset, bytes } = record;
         // check if table has already been decoded and result has been memoized
-        if (memoized?.[offset]) {
-            return memoized[offset] as T;
+        if (this.memoized?.[offset]) {
+            return this.memoized[offset] as T;
         }
         // set pointer adjustment offset
         this.fd_offset = offset;
@@ -41,18 +55,20 @@ export default class FontDecoder extends FontReader {
         // reset pointer adjustment offset
         this.fd_offset = 0;
         // memoize decoded table
-        if (memoized) memoized[offset] = decoded;
+        if (this.memoized) {
+            this.memoized[offset] = decoded;
+        }
         // return decoded table
         return decoded;
     }
 
-    protected async decodeLocalizedNames(header: SfntHeader, memo: Record<number, any> | null = null) {
+    protected async decodeLocalizedNames(header: SfntHeader) {
         // decode 'name' table for this subfont
-        const name = await this.decodeSfntTable(header, 'name', this.nameTable, memo);
+        const name = await this.decodeSfntTable(header, 'name', this.nameTable);
         // throw error if font does not have a 'name' table
         if (!name) throw new Error("Font does not include required 'name' table");
         // decode 'ltag' table if present
-        const ltag = await this.decodeSfntTable(header, 'ltag', this.ltagTable, memo);
+        const ltag = await this.decodeSfntTable(header, 'ltag', this.ltagTable);
         // localize name table records
         return localizeNames(name, ltag);
     }
@@ -397,30 +413,25 @@ export default class FontDecoder extends FontReader {
         return fontHeaders;
     }
 
-    private async* decodeSfntSystemFonts(
-        header: SfntHeader,
-        match?: string[],
-        memoized?: Record<number, any>,
-    ): AsyncGenerator<SystemFont> {
+    private async* decodeSfntSystemFonts(header: SfntHeader) {
         // decode localized 'name' table
-        const names = await this.decodeLocalizedNames(header, memoized),
+        const names = await this.decodeLocalizedNames(header),
             // decode 'OS/2' table
-            os2 = await this.decodeSfntTable(header, 'OS/2', this.os2Table, memoized),
+            os2 = await this.decodeSfntTable(header, 'OS/2', this.os2Table),
             // decode 'head' table
-            head = await this.decodeSfntTable(header, 'head', this.headTable, memoized),
+            head = await this.decodeSfntTable(header, 'head', this.headTable),
             // determine font family name and font style
             { family, style } = getFontStyle(names, os2, head);
         // apply family name filter if provided
-        if (!family || (match && !match.includes(family))) return;
+        if (!family || (this.match && !this.match.includes(family))) return;
         // decode 'cmap' table
-        const cmap = await this.decodeSfntTable(header, 'cmap', this.cmapTable, memoized, 4);
+        const cmap = await this.decodeSfntTable(header, 'cmap', this.cmapTable, 4);
         // code point coverage cannot be determined if font does not contain a 'cmap' table
         if (!cmap) return;
-        const { filePath } = this,
-            // determine code point coverage
-            coverage = cmapCoverage(cmap),
+        // determine code point coverage
+        const coverage = cmapCoverage(cmap),
             // decode 'fvar' table if present
-            fvar = await this.decodeSfntTable(header, 'fvar', this.fvarTable, memoized);
+            fvar = await this.decodeSfntTable(header, 'fvar', this.fvarTable);
         // check for fvar variants
         if (fvar) {
             // create fvar axis map
@@ -440,7 +451,6 @@ export default class FontDecoder extends FontReader {
                 }
                 // yield fvar instance data
                 yield {
-                    filePath,
                     family,
                     coverage,
                     style: extendFontStyle(style, axes, names[sfNameID]!, coords),
@@ -448,12 +458,7 @@ export default class FontDecoder extends FontReader {
                 };
             }
         } else {
-            yield {
-                filePath,
-                family,
-                style,
-                coverage,
-            };
+            yield { family, style, coverage };
         }
     }
 
@@ -461,8 +466,9 @@ export default class FontDecoder extends FontReader {
      * Decode the font file and extract system font info
      * @param match - optional array of font family names to match
      */
-    async decodeFileFonts(match?: string[]): Promise<SystemFont[]> {
+    async decodeFileFonts(filePath: string): Promise<SystemFont[]> {
         try {
+            this.filePath = filePath;
             // create array to store system font data
             const fonts: SystemFont[] = [];
             // read first 4 bytes of the font file
@@ -476,22 +482,22 @@ export default class FontDecoder extends FontReader {
                     // decode sfnt font header
                     const header = await this.sfntHeader();
                     // extract system font info
-                    for await (const font of this.decodeSfntSystemFonts(header, match)) {
-                        fonts.push(font);
+                    for await (const font of this.decodeSfntSystemFonts(header)) {
+                        fonts.push({ filePath, ...font });
                     }
                     break;
                 }
                 // 'ttcf'
                 case 0x74746366: {
+                    // initialize memoization lookup avoid re-decoding shared tables
+                    this.memoized = {};
                     // decode ttc subfont headers
-                    const headers = await this.ttcHeaders(),
-                        // initialize lookup to memoize decoded tables
-                        memo: Record<number, any> = {};
+                    const headers = await this.ttcHeaders();
                     // loop through ttc subfonts
                     for (const header of headers) {
                         // extract system font info from the subfont
-                        for await (const font of this.decodeSfntSystemFonts(header, match, memo)) {
-                            fonts.push({ ...font, ttcSubfont: header });
+                        for await (const font of this.decodeSfntSystemFonts(header)) {
+                            fonts.push({ filePath, ...font, ttcSubfont: header });
                         }
                     }
                     break;
@@ -521,22 +527,18 @@ export default class FontDecoder extends FontReader {
                 case 0x4F54544F: // 'OTTO' -> open type with CFF data (version 1 or 2)
                 case 0x74727565: // 'true'
                 case 0x74797031: // 'typ1'
-                case 0x00010000: { // true type outlines
-                    // decode sfnt font header
-                    const header = await this.sfntHeader();
-                    yield (await decoder.call(this, header, null));
+                case 0x00010000: // true type outlines
+                    yield (await decoder.call(this, await this.sfntHeader()));
                     break;
-                }
                 // 'ttcf'
-                case 0x74746366: {
-                    // create memo cache
-                    const memo: Record<number, any> = {};
+                case 0x74746366:
+                    // initialize memoization lookup avoid re-decoding shared tables
+                    this.memoized = {};
                     // decode ttc subfont headers
                     for (const header of (await this.ttcHeaders())) {
-                        yield (await decoder.call(this, header, memo));
+                        yield (await decoder.call(this, header));
                     }
                     break;
-                }
                 case 0x774F4646: // 'wOFF'
                     throw new Error('woff font decoding is not supported');
                 case 0x774F4632: // 'wOF2'
