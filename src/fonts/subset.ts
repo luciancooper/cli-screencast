@@ -1,8 +1,7 @@
-import fs from 'fs';
 import path from 'path';
-import type { SystemFont } from './types';
+import { promises as fs } from 'fs';
+import type { SystemFont, SfntHeader } from './types';
 import CodePointRange from './range';
-import FontReader from './reader';
 
 declare global {
     const WebAssembly: {
@@ -113,7 +112,7 @@ const harfbuzz: {
     return {
         async hb() {
             if (!hb) {
-                const wasmSource = await fs.promises.readFile(path.resolve(__dirname, '../../wasm/hb-subset.wasm'));
+                const wasmSource = await fs.readFile(path.resolve(__dirname, '../../wasm/hb-subset.wasm'));
                 ({ instance: { exports: hb } } = await WebAssembly.instantiate<HarfbuzzSubset>(wasmSource, {
                     env: {
                         emscripten_notify_memory_growth: () => {
@@ -131,6 +130,51 @@ const harfbuzz: {
     };
 })();
 
+/**
+ * Extract a subfont from a ttc font collection and encode it as a standalone font
+ */
+async function extractTtcFont(filePath: string, header: SfntHeader): Promise<Buffer> {
+    let fd: fs.FileHandle | null = null;
+    try {
+        // open the ttc font file
+        fd = await fs.open(filePath, 'r');
+        // calculate byte length of subfont
+        const tableOffsets: number[] = [];
+        let bytes = 12 + header.tables.length * 16;
+        for (const table of header.tables) {
+            tableOffsets.push(bytes);
+            bytes += table.bytes;
+        }
+        // allocate a dest buffer to write extracted subfont to
+        const buf = Buffer.alloc(bytes);
+        // encode header fields
+        buf.writeInt32BE(header.signature, 0);
+        buf.writeUInt16BE(header.numTables, 4);
+        buf.writeUInt16BE(header.searchRange, 6);
+        buf.writeUInt16BE(header.entrySelector, 8);
+        buf.writeUInt16BE(header.rangeShift, 10);
+        // encode each table & table record
+        for (const [i, table] of header.tables.entries()) {
+            // get the remapped offset for this table
+            const offset = tableOffsets[i]!;
+            // read table bytes from file to the dest buffer
+            for (let read = 0; read < table.bytes;) {
+                const { bytesRead } = await fd.read(buf, offset + read, table.bytes - read, table.offset + read);
+                read += bytesRead;
+                if (bytesRead === 0) break;
+            }
+            // encode table record
+            buf.writeUInt32BE(table.tag, 12 + i * 16);
+            buf.writeUInt32BE(table.checksum, 14 + i * 16);
+            buf.writeUInt32BE(offset, 16 + i * 16);
+            buf.writeUInt32BE(table.bytes, 18 + i * 16);
+        }
+        return buf;
+    } finally {
+        await fd?.close();
+    }
+}
+
 function hb_tag(tag: string): number {
     return ((tag.charCodeAt(0) & 0xFF) << 24)
         | ((tag.charCodeAt(1) & 0xFF) << 16)
@@ -145,9 +189,9 @@ export async function subsetFontFile(
     // read the original font file
     let originalFont: Buffer;
     if (ttcSubfont) {
-        originalFont = await new FontReader(filePath).readFont(ttcSubfont);
+        originalFont = await extractTtcFont(filePath, ttcSubfont);
     } else {
-        originalFont = await fs.promises.readFile(filePath);
+        originalFont = await fs.readFile(filePath);
     }
     // get harfbuzz webassembly exports
     const hb = await harfbuzz.hb(),

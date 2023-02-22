@@ -1,4 +1,3 @@
-import { TextDecoder } from 'util';
 import type {
     NameTable, FvarTable, Os2Table, HeadTable, CmapTable, SfntHeader, SystemFont,
 } from './types';
@@ -8,8 +7,6 @@ import { localizeNames } from './names';
 import { getFontStyle, extendFontStyle } from './style';
 import { cmapCoverage, cmapEncodingPriority } from './cmap';
 
-const utf16Decoder = new TextDecoder('utf-16be');
-
 type DecodeCallback<T> = (
     this: FontDecoder,
     header: SfntHeader,
@@ -17,151 +14,9 @@ type DecodeCallback<T> = (
 ) => T | PromiseLike<T>;
 
 export default class FontDecoder extends FontReader {
-    protected buf: Buffer;
-
-    protected fd_pos = 0;
-
-    protected fd_eof = false;
-
-    protected buf_pos = 0;
-
-    protected buf_bytes = 0;
-
     /**
-     * Used to adjust relative pointers
+     * Reads the span of bytes for a font table from the file, then calls the provided callback
      */
-    protected fd_offset = 0;
-
-    constructor(filePath: string) {
-        super(filePath);
-        this.buf = Buffer.alloc(0);
-    }
-
-    protected async read(bytes: number, offset?: number) {
-        // byte index range of data to be read
-        const f1 = offset != null ? this.fd_offset + offset : this.fd_pos + this.buf_pos,
-            f2 = f1 + bytes;
-        // check if requested byte range has already been read
-        if (f1 >= this.fd_pos && f2 <= this.fd_pos + this.buf_bytes) {
-            // if offset arg was provided, update buffer position
-            if (offset != null) this.buf_pos = f1 - this.fd_pos;
-            return;
-        }
-        // allocate a new buffer
-        const buf = Buffer.alloc(bytes);
-        let [read_pos, read_bytes, extra_bytes] = [f1, bytes, 0];
-        // handle overlaps between current buffer and byte read span
-        if (f1 >= this.fd_pos && f1 < this.fd_pos + this.buf_bytes) {
-            // copy overlapping bytes to the beginning of the new buffer
-            this.buf.copy(buf, 0, f1 - this.fd_pos, this.buf_bytes);
-            // update buffer byte length
-            this.buf_bytes = this.fd_pos + this.buf_bytes - f1;
-            // update read position + read byte count
-            [read_pos, read_bytes] = [read_pos + this.buf_bytes, read_bytes - this.buf_bytes];
-        } else if (f1 < this.fd_pos && f2 > this.fd_pos) {
-            // copy overlapping bytes to the end of the new buffer
-            this.buf.copy(buf, this.fd_pos - f1, 0, f2 - this.fd_pos);
-            // reset buffer byte length
-            this.buf_bytes = 0;
-            // store overlapping byte count
-            [extra_bytes, read_bytes] = [f2 - this.fd_pos, this.fd_pos - f1];
-        } else {
-            // reset buffer byte length
-            this.buf_bytes = 0;
-        }
-        // set the byte index position in the source file
-        this.fd_pos = f1;
-        // reset the byte position in the buffer
-        this.buf_pos = 0;
-        // replace the active buffer
-        this.buf = buf;
-        // execute read
-        const { bytesRead, eof } = await this.executeRead(buf, this.buf_bytes, read_bytes, read_pos);
-        this.fd_eof = eof;
-        this.buf_bytes += bytesRead + extra_bytes;
-    }
-
-    protected setPointer(pointer: number) {
-        const pos = this.fd_offset + pointer;
-        if (pos < this.fd_pos || pos > this.fd_pos + this.buf_bytes) {
-            if (pos < 0) throw new Error(`Invalid pointer: ${pointer}`);
-            this.fd_pos = pos;
-            this.buf_pos = 0;
-            this.buf_bytes = 0;
-        } else this.buf_pos = pos - this.fd_pos;
-    }
-
-    protected skip(bytes: number): this {
-        this.buf_pos += bytes;
-        return this;
-    }
-
-    protected uint8() {
-        const int = this.buf.readUInt8(this.buf_pos);
-        this.buf_pos += 1;
-        return int;
-    }
-
-    protected int16() {
-        const int = this.buf.readInt16BE(this.buf_pos);
-        this.buf_pos += 2;
-        return int;
-    }
-
-    protected uint16() {
-        const int = this.buf.readUInt16BE(this.buf_pos);
-        this.buf_pos += 2;
-        return int;
-    }
-
-    protected uint32() {
-        const int = this.buf.readUInt32BE(this.buf_pos);
-        this.buf_pos += 4;
-        return int;
-    }
-
-    protected fixed32() {
-        const [whole, frac] = [this.uint16(), this.uint16()];
-        return whole + frac / (2 ** 16);
-    }
-
-    protected array<T>(length: number, cb: () => T): T[] {
-        const array: T[] = [];
-        for (let i = 0; i < length; i += 1) array.push(cb.call(this));
-        return array;
-    }
-
-    protected utf8(bytes: number) {
-        const str = this.buf.toString('utf-8', this.buf_pos, this.buf_pos + bytes);
-        this.buf_pos += bytes;
-        return str;
-    }
-
-    protected utf16(bytes: number) {
-        const str = utf16Decoder.decode(this.buf.subarray(this.buf_pos, this.buf_pos + bytes));
-        this.buf_pos += bytes;
-        return str;
-    }
-
-    protected string(bytes: number, encoding: string) {
-        const span = this.buf.subarray(this.buf_pos, this.buf_pos + bytes);
-        this.buf_pos += bytes;
-        try {
-            return new TextDecoder(encoding).decode(span);
-        } catch (err) {
-            return utf16Decoder.decode(span);
-        }
-    }
-
-    /**
-     * convert a 4 char tag value to its uint32 value
-     */
-    protected tagUInt32(tag: string): number {
-        let int = 0;
-        for (let i = 0; i < 4; i += 1) int |= (tag.charCodeAt(i) & 0xFF) << 8 * (3 - i);
-        return int;
-    }
-
     protected async decodeSfntTable<T>(
         { tables }: SfntHeader,
         tableTag: number | string,
