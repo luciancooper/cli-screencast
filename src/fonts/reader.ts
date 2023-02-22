@@ -1,22 +1,12 @@
-import fs from 'fs';
-import { EventEmitter } from 'events';
+import { promises as fs } from 'fs';
 import { TextDecoder } from 'util';
-
-interface QueuedPromise<T> {
-    resolve: (value: T | PromiseLike<T>) => void
-    reject: (reason?: any) => void
-}
 
 const utf16Decoder = new TextDecoder('utf-16be');
 
-export default class FontReader extends EventEmitter {
+export default class FontReader {
     readonly filePath: string;
 
-    private readonly io_queue: QueuedPromise<boolean>[] = [];
-
-    private _fd: number | null = null;
-
-    private performing_io = false;
+    private _handle: fs.FileHandle | null = null;
 
     /** buffer that holds the data currently being read from the underlying file */
     protected buf: Buffer;
@@ -36,124 +26,42 @@ export default class FontReader extends EventEmitter {
     protected fd_offset = 0;
 
     constructor(filePath: string) {
-        super();
         this.filePath = filePath;
-        // set up io_queue listeners
-        this.on('readable', () => {
-            if (!this.io_queue.length) return;
-            const next = this.io_queue.shift()!;
-            next.resolve(this.performing_io);
-        });
-        this.on('error', (error) => {
-            while (this.io_queue.length) {
-                const next = this.io_queue.shift()!;
-                next.reject(error);
-            }
-        });
-        this.on('closed', () => {
-            while (this.io_queue.length) {
-                const next = this.io_queue.shift()!;
-                next.reject(new Error('File is closed'));
-            }
-        });
         // allocate an empty buffer
         this.buf = Buffer.alloc(0);
     }
 
-    private queueIO(): Promise<boolean> {
-        if (!this.performing_io) {
-            return Promise.resolve(this.performing_io);
-        }
-        return new Promise<boolean>((resolve, reject) => {
-            this.io_queue.push({ resolve, reject });
-        });
-    }
-
     /**
-     * Get the file descriptor, opening the underlying font file if it is closed
+     * Get the file handle, opening one if it does not currently exist
      */
-    private async fd(): Promise<number> {
-        // fsPromises.open(path, flags[, mode])
-        if (this._fd != null) {
-            return this._fd;
+    private handle(): Promise<fs.FileHandle> {
+        if (this._handle) {
+            return Promise.resolve(this._handle);
         }
-        return this.queueIO().then(() => new Promise<number>((resolve, reject) => {
-            this.performing_io = true;
-            fs.open(this.filePath, 'r', (err, fd) => {
-                this.performing_io = false;
-                if (err) {
-                    this.emit('error', err);
-                    reject(err);
-                } else {
-                    this._fd = fd;
-                    this.emit('readable');
-                    resolve(fd);
-                }
-            });
-        }));
+        return fs.open(this.filePath, 'r').then((handle) => {
+            this._handle = handle;
+            return handle;
+        });
     }
 
     /**
      * Closes the file handle
      */
-    protected async close(): Promise<void> {
-        if (this._fd == null) {
-            return;
+    protected close(): Promise<void> {
+        if (!this._handle) {
+            return Promise.resolve();
         }
-        return this.queueIO().then(() => new Promise((resolve, reject) => {
-            this.performing_io = true;
-            fs.close(this._fd!, (err: NodeJS.ErrnoException | null) => {
-                this.performing_io = false;
-                if (err) {
-                    // failed to close stream
-                    this.emit('error', err);
-                    reject(err);
-                } else {
-                    this._fd = null;
-                    this.emit('closed');
-                    resolve();
-                }
-            });
-        }));
+        return this._handle.close().then(() => {
+            this._handle = null;
+        });
     }
 
     /**
-     * Read data from the underlying font file
-     * @param buffer - The buffer that data will be written to
-     * @param offset - Position in `buffer` to write the data to.
-     * @param bytes - Number of bytes to read
-     * @param fdpos - Position in the file to begin reading from
+     * Read data from the underlying font file.
+     * If no offset position is provided, data will be read from the current file position.
+     * @param bytes - The number of bytes to read
+     * @param offset - The file position to start reading from (relative to `fd_position`).
      */
-    private async executeRead(
-        buffer: Buffer,
-        offset: number,
-        bytes: number,
-        fdpos: number,
-    ): Promise<{ bytesRead: number, eof: boolean }> {
-        // get file descriptor
-        const fd = await this.fd();
-        // queue io operation
-        return this.queueIO().then<{ bytesRead: number, eof: boolean }>(() => new Promise((resolve, reject) => {
-            // lock thread
-            this.performing_io = true;
-            // initiate file read
-            fs.read(fd, buffer, offset, bytes, fdpos, (err, bytesRead) => {
-                // unlock thread
-                this.performing_io = false;
-                if (err) {
-                    this.emit('error', err);
-                    reject(err);
-                } else {
-                    this.emit('readable');
-                    resolve({ bytesRead, eof: bytesRead === 0 });
-                }
-            });
-        })).then((r) => ((r.bytesRead < bytes && !r.eof) ? (
-            this.executeRead(buffer, offset + r.bytesRead, bytes - r.bytesRead, fdpos + r.bytesRead)
-                .then((nextRead) => ({ ...nextRead, bytesRead: r.bytesRead + nextRead.bytesRead }))
-        ) : r));
-    }
-
     protected async read(bytes: number, offset?: number) {
         // byte index range of data to be read
         const f1 = offset != null ? this.fd_offset + offset : this.fd_pos + this.buf_pos,
@@ -193,9 +101,20 @@ export default class FontReader extends EventEmitter {
         // replace the active buffer
         this.buf = buf;
         // execute read
-        const { bytesRead, eof } = await this.executeRead(buf, this.buf_bytes, read_bytes, read_pos);
-        this.fd_eof = eof;
-        this.buf_bytes += bytesRead + extra_bytes;
+        // get file handle for the underlying font file
+        const handle = await this.handle();
+        // call read on the file handle until all bytes have been read
+        for (let b = 0, bytesRead = 0; b < read_bytes; b += bytesRead) {
+            ({ bytesRead } = await handle.read(buf, this.buf_bytes, read_bytes - b, read_pos + b));
+            // update the count of bytes that have been read into the buffer
+            this.buf_bytes += bytesRead;
+            // check for end of file
+            if (bytesRead === 0) {
+                this.fd_eof = true;
+                break;
+            }
+        }
+        this.buf_bytes += extra_bytes;
     }
 
     protected setPointer(pointer: number) {
