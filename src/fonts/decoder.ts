@@ -22,11 +22,10 @@ export default class FontDecoder extends FontReader {
         this.match = match ?? null;
     }
 
-    protected override close() {
-        return super.close().then(() => {
-            // reset memoization lookup when file is closed
-            this.memoized = null;
-        });
+    protected override reset() {
+        super.reset();
+        // reset memoization lookup
+        this.memoized = null;
     }
 
     /**

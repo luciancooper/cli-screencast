@@ -57,7 +57,20 @@ export default class FontReader {
         return this._handle.close().then(() => {
             this._handle = null;
             this.filePath = null;
+            this.reset();
         });
+    }
+
+    protected reset() {
+        // clear buffer
+        this.buf_bytes = 0;
+        this.buf_pos = 0;
+        this.buf = Buffer.alloc(0);
+        // reset file position
+        this.fd_pos = 0;
+        this.fd_eof = false;
+        // reset pointer offset
+        this.fd_offset = 0;
     }
 
     /**
