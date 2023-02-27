@@ -20,14 +20,26 @@ const StyleParams: Record<string, string> = {
     '700i': ':ital,wght@1,700',
 } as const;
 
+// user-agent for requests to fonts.googleapis.com/css2
+const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36';
+
+interface FetchResponse {
+    /** http status code */
+    status: number
+    /** 'content-type' response header */
+    type?: string
+    /** request response data buffer */
+    data?: Buffer
+}
+
 /**
  * Make a GET request
- * @param url - request url
+ * @param req - request url or options object
  * @returns fetched data
  */
-export function fetchData(url: string): Promise<{ status: number, type?: string, data?: Buffer }> {
+export function fetchData(req: string | https.RequestOptions): Promise<FetchResponse> {
     return new Promise((resolve, reject) => {
-        https.get(encodeURI(url), (res) => {
+        https.get(typeof req === 'string' ? encodeURI(req) : req, (res) => {
             const status = res.statusCode!;
             if (status >= 400) {
                 resolve({ status });
@@ -44,11 +56,8 @@ export function fetchData(url: string): Promise<{ status: number, type?: string,
             });
             // response complete
             res.on('end', () => {
-                resolve({
-                    status,
-                    type: res.headers['content-type'] ?? '',
-                    data: Buffer.concat(chunks),
-                });
+                const type = res.headers['content-type'] ?? '';
+                resolve({ status, type, data: Buffer.concat(chunks) });
             });
         }).on('error', (err) => {
             reject(err);
@@ -91,28 +100,38 @@ export async function fetchGoogleFontMetadata(font: string): Promise<GoogleFontM
     };
 }
 
-async function fetchFontSubset(embeddedFamily: string, url: string) {
+async function fetchFontSubset(embeddedFamily: string, urlParams: string) {
     // fetch css from google api
     let css: string;
     try {
-        const res = await fetchData(url);
+        const res = await fetchData({
+            host: 'fonts.googleapis.com',
+            path: `/css2?${encodeURI(urlParams)}`,
+            headers: { 'User-Agent': UA },
+        });
         if (res.status !== 200) return '';
         css = res.data!.toString();
     } catch (error) {
         return '';
     }
     // replace @font-face family name with embedded font family
-    css = css.replace(/font-family: ?'[^']+'(?=;)/g, `font-family: '${embeddedFamily}'`);
+    css = css.replace(/font-family: ?'[^']+'(?=;)/g, `font-family:'${embeddedFamily}'`);
+    // remove any comments returned by the google fonts api
+    css = css.replace(/^\/\* .+\*\/\n/gm, '').trim();
+    // remove newlines & extra whitespace from each @font-face declaration
+    css = css.split(/\n(?=@font-face)/g).map((fontFace) => fontFace.replace(/\s*\n\s*/g, '').trim()).join('\n');
     // build a base-64 css string
-    let base64 = '',
-        idx = 0;
+    let [base64, idx] = ['', 0];
     // find all font urls to replace in css code
     for (let regex = /url\((https?:\/\/.+?)\)/g, m = regex.exec(css); m; m = regex.exec(css)) {
-        const [urlIdx, fontUrl] = [m.index + m[0]!.indexOf(m[1]!), m[1]!],
-            fetched = await fetchData(fontUrl);
+        // add preceeding css & the src descriptor
+        base64 += css.slice(idx, m.index);
+        // fetch font from the source url
+        const fontData = await fetchData(m[1]!);
         // replace the url in the css source code with fetched data base64 encoded
-        base64 += `${css.slice(idx, urlIdx)}data:${fetched.type};charset=utf-8;base64,${fetched.data!.toString('base64')}`;
-        idx = urlIdx + fontUrl.length;
+        base64 += `url(data:${fontData.type!};charset=utf-8;base64,${fontData.data!.toString('base64')})`;
+        // update index within the css source
+        idx = m.index + m[0].length;
     }
     // return css with font urls replace with base64 encoded versions
     return base64 + css.slice(idx);
@@ -146,14 +165,14 @@ export async function cssFromGoogleFont(
         }
         variants[key] = variants[key] ? variants[key]!.union(chars) : chars;
     }
-    // font family google uri base
-    const urlBase = `https://fonts.googleapis.com/css2?family=${meta.family.replace(' ', '+')}`;
+    // font family base url params
+    const baseParams = `family=${meta.family.replace(/ /g, '+')}`;
     // boolean to track whether a fetched font actually gets embedded
     let fontEmbedded = false;
     // fetch font style character subsets
     for (const [key, range] of Object.entries(variants)) {
         // fetch css from google fonts api
-        const block = await fetchFontSubset(embeddedFamily, `${urlBase}${StyleParams[key]!}&text=${range.chars()}`);
+        const block = await fetchFontSubset(embeddedFamily, `${baseParams}${StyleParams[key]!}&text=${range.chars()}`);
         if (!block) continue;
         // add css block to embedded font data
         embedded.css.push(block);
