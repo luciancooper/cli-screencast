@@ -121,36 +121,43 @@ describe('getSystemFonts', () => {
 });
 
 describe('createFontCss', () => {
+    type FontCSS = Awaited<ReturnType<typeof createFontCss>>;
+
+    const expectedFontCSS = (fontFaceCount: number) => ({
+        css: expect.toContainOccurrences('@font-face', fontFaceCount),
+        fontFamily: expect.stringMatching(/^sc-[a-z]{12}-1,monospace$/) as string,
+    });
+
     describe('google fonts', () => {
         test('fetches @font-face css blocks', async () => {
             const subset = createContentSubsets(['abc', 'def', '', '']);
-            await expect(createFontCss(subset, 'Fira Code')).resolves.toContainOccurrences('@font-face', 2);
+            await expect(createFontCss(subset, 'Fira Code')).resolves.toEqual<FontCSS>(expectedFontCSS(2));
         });
 
         test('uses fallbacks when a font family does not support a style', async () => {
             const subset = createContentSubsets(['abc', '', 'def', '']);
-            await expect(createFontCss(subset, 'Fira Code')).resolves.toContainOccurrences('@font-face', 1);
+            await expect(createFontCss(subset, 'Fira Code')).resolves.toEqual<FontCSS>(expectedFontCSS(1));
         });
     });
 
     describe('system fonts', () => {
         test('creates @font-face css blocks', async () => {
             const subset = createContentSubsets(['abc', 'def', 'ghi', 'jkl']);
-            await expect(createFontCss(subset, 'Cascadia Code')).resolves.toContainOccurrences('@font-face', 4);
+            await expect(createFontCss(subset, 'Cascadia Code')).resolves.toEqual<FontCSS>(expectedFontCSS(4));
         });
 
         test('uses fallbacks when a font family does not support a style', async () => {
             const subset = createContentSubsets(['abc', 'def', 'ghi', '']);
-            await expect(createFontCss(subset, 'Monaco')).resolves.toContainOccurrences('@font-face', 1);
+            await expect(createFontCss(subset, 'Monaco')).resolves.toEqual<FontCSS>(expectedFontCSS(1));
         });
 
         test('creates @font-face css blocks from ttc font collections', async () => {
             const subset = createContentSubsets(['abc', 'def', '', '']);
-            await expect(createFontCss(subset, 'Menlo')).resolves.toContainOccurrences('@font-face', 2);
+            await expect(createFontCss(subset, 'Menlo')).resolves.toEqual<FontCSS>(expectedFontCSS(2));
         });
     });
 
     test('returns null if font-family is not installed or a google font', async () => {
-        await expect(createFontCss(fixtures.frame, 'monospace')).resolves.toBeNull();
+        await expect(createFontCss(fixtures.frame, 'monospace')).resolves.toStrictEqual<FontCSS>({ css: null });
     });
 });

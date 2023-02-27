@@ -33,6 +33,7 @@ export interface RenderOptions extends WindowOptions {
 
 export interface RenderProps extends Dimensions, Required<RenderOptions> {
     theme: Theme<string>
+    fontFamily?: string
     css?: string | null
 }
 

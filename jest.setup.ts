@@ -11,11 +11,11 @@ declare global {
         }
         interface Expect {
             toBeApprox: (expected: number | bigint, threshold?: number) => number
-            toContainOccurrences: (match: string | RegExp, count: number) => number
+            toContainOccurrences: (match: string | RegExp, count: number) => string
         }
         interface InverseAsymmetricMatchers {
             toBeApprox: (expected: number | bigint, threshold?: number) => number
-            toContainOccurrences: (match: string | RegExp, count: number) => number
+            toContainOccurrences: (match: string | RegExp, count: number) => string
         }
     }
 }

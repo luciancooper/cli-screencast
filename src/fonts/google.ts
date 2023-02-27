@@ -91,7 +91,7 @@ export async function fetchGoogleFontMetadata(font: string): Promise<GoogleFontM
     };
 }
 
-async function fetchFontSubset(url: string) {
+async function fetchFontSubset(embeddedFamily: string, url: string) {
     // fetch css from google api
     let css: string;
     try {
@@ -101,6 +101,8 @@ async function fetchFontSubset(url: string) {
     } catch (error) {
         return '';
     }
+    // replace @font-face family name with embedded font family
+    css = css.replace(/font-family: ?'[^']+'(?=;)/g, `font-family: '${embeddedFamily}'`);
     // build a base-64 css string
     let base64 = '',
         idx = 0;
@@ -117,7 +119,8 @@ async function fetchFontSubset(url: string) {
 }
 
 export async function cssFromGoogleFont(
-    css: string[],
+    embeddedFamily: string,
+    embedded: { css: string[], family: string[] },
     content: ContentSubsets,
     meta: GoogleFontMetadata,
 ): Promise<ContentSubsets> {
@@ -145,11 +148,19 @@ export async function cssFromGoogleFont(
     }
     // font family google uri base
     const urlBase = `https://fonts.googleapis.com/css2?family=${meta.family.replace(' ', '+')}`;
+    // boolean to track whether a fetched font actually gets embedded
+    let fontEmbedded = false;
     // fetch font style character subsets
     for (const [key, range] of Object.entries(variants)) {
         // fetch css from google fonts api
-        const block = await fetchFontSubset(`${urlBase}${StyleParams[key]!}&text=${range.chars()}`);
-        css.push(block);
+        const block = await fetchFontSubset(embeddedFamily, `${urlBase}${StyleParams[key]!}&text=${range.chars()}`);
+        if (!block) continue;
+        // add css block to embedded font data
+        embedded.css.push(block);
+        // add embedded family id to the font-family list if this is the first css block
+        if (!fontEmbedded) embedded.family.push(embeddedFamily);
+        // update font embedded status
+        fontEmbedded = true;
     }
     return { coverage: coverage.difference, subsets: subsetsDifference };
 }

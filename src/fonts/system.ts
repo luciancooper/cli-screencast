@@ -38,7 +38,8 @@ export async function getSystemFonts(match?: string[]) {
 }
 
 export async function cssFromSystemFont(
-    css: string[],
+    embeddedFamily: string,
+    embedded: { css: string[], family: string[] },
     content: ContentSubsets,
     fonts: SystemFont[],
 ): Promise<ContentSubsets> {
@@ -60,6 +61,8 @@ export async function cssFromSystemFont(
             if (intersection.empty()) break;
         }
     }
+    // boolean to track whether a subset actually gets embedded
+    let fontEmbedded = false;
     // now, create css blocks from each font variant spec
     for (const [index, range] of fontMap.entries()) {
         const font = fonts[index]!,
@@ -77,13 +80,17 @@ export async function cssFromSystemFont(
             }) format(truetype)`;
         }
         // add css block to array
-        css.push(
+        embedded.css.push(
             '@font-face {'
-            + `font-family:'${font.family}';`
+            + `font-family:'${embeddedFamily}';`
             + `font-style:${font.style.slant ? 'italic' : 'normal'};`
             + `font-weight:${font.style.weight};`
             + `src:${src}}`,
         );
+        // add embedded family id to the font-family list if this is the first css block
+        if (!fontEmbedded) embedded.family.push(embeddedFamily);
+        // update font embedded status
+        fontEmbedded = true;
     }
     return uncovered;
 }
