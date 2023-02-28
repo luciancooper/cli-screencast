@@ -94,7 +94,7 @@ export async function fetchGoogleFontMetadata(font: string): Promise<GoogleFontM
         coverage: CodePointRange.fromRanges(
             Object.values(coverage).flatMap((cov) => cov.split(',').map<[number, number]>((r) => {
                 const { 1: i1, 2: i2 = i1 } = /(\d+)(?:-(\d+))?/.exec(r)!;
-                return [parseInt(i1!, 10), parseInt(i2!, 10)];
+                return [parseInt(i1!, 10), parseInt(i2!, 10) + 1];
             })),
         ),
     };
