@@ -1,4 +1,4 @@
-import type CodePointRange from './range';
+import type { CodePointRange } from './range';
 
 export interface FontStyle {
     /**

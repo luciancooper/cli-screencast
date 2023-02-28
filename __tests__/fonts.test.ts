@@ -1,6 +1,6 @@
 import { applyDefaults } from '@src/options';
 import { resolveTitle } from '@src/title';
-import CodePointRange from '@src/fonts/range';
+import { GraphemeSet } from '@src/fonts/range';
 import extractContentSubsets, { createContentSubsets, type ContentSubsets } from '@src/fonts/content';
 import { getSystemFonts } from '@src/fonts/system';
 import { fetchGoogleFontMetadata } from '@src/fonts/google';
@@ -40,9 +40,9 @@ const fixtures = {
 describe('extractContentSubsets', () => {
     type ReplaceType<T, A, B> = T extends A ? B : T extends object ? { [K in keyof T]: ReplaceType<T[K], A, B> } : T;
 
-    const makeExpected = (cp: ReplaceType<ContentSubsets, CodePointRange, string>): ContentSubsets => ({
-        coverage: CodePointRange.from(cp.coverage),
-        subsets: cp.subsets.map(([ansi, chars]) => [ansi, CodePointRange.from(chars)]),
+    const makeExpected = (cp: ReplaceType<ContentSubsets, GraphemeSet, string>): ContentSubsets => ({
+        coverage: GraphemeSet.from(cp.coverage),
+        subsets: cp.subsets.map(([ansi, chars]) => [ansi, GraphemeSet.from(chars)]),
     });
 
     test('extracts codepoint subsets from terminal frame data', () => {

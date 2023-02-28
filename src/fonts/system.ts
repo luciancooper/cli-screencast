@@ -3,7 +3,7 @@ import { compress as woff2Compress } from 'wawoff2';
 import type { ContentSubsets } from './content';
 import type { SystemFont } from './types';
 import FontDecoder from './decoder';
-import CodePointRange from './range';
+import { CodePointRange, type GraphemeSet } from './range';
 import { styleAnsiMatchPriority } from './style';
 import { subsetFontFile } from './subset';
 
@@ -43,14 +43,14 @@ export async function cssFromSystemFont(
     content: ContentSubsets,
     fonts: SystemFont[],
 ): Promise<ContentSubsets> {
-    const fontCoverage = CodePointRange.mergeRanges(...fonts.map(({ coverage }) => coverage)),
+    const fontCoverage = CodePointRange.merge(...fonts.map(({ coverage }) => coverage)),
         coverage = content.coverage.intersect(fontCoverage);
     if (coverage.intersection.empty()) return content;
-    const uncovered: ContentSubsets = { coverage: coverage.difference, subsets: [] },
-        fontMap = new Map<number, CodePointRange>();
-    for (const [ansi, cp] of content.subsets) {
-        let { intersection, difference } = cp.intersect(fontCoverage);
-        if (!difference.empty()) uncovered.subsets.push([ansi, difference]);
+    const contentDifference: ContentSubsets = { coverage: coverage.difference, subsets: [] },
+        fontMap = new Map<number, GraphemeSet>();
+    for (const [ansi, chars] of content.subsets) {
+        let { intersection, difference } = chars.intersect(fontCoverage);
+        if (!difference.empty()) contentDifference.subsets.push([ansi, difference]);
         if (intersection.empty()) continue;
         // prioritize font styles according to how well they match the ansi code for this char subset
         for (const index of styleAnsiMatchPriority(fonts, ansi)) {
@@ -64,9 +64,9 @@ export async function cssFromSystemFont(
     // boolean to track whether a subset actually gets embedded
     let fontEmbedded = false;
     // now, create css blocks from each font variant spec
-    for (const [index, range] of fontMap.entries()) {
+    for (const [index, chars] of fontMap.entries()) {
         const font = fonts[index]!,
-            fontSubsetBuffer = await subsetFontFile(font, range);
+            fontSubsetBuffer = await subsetFontFile(font, chars);
         if (!fontSubsetBuffer) continue;
         // apply woff2 compression to font subset buffer
         let src: string;
@@ -92,5 +92,5 @@ export async function cssFromSystemFont(
         // update font embedded status
         fontEmbedded = true;
     }
-    return uncovered;
+    return contentDifference;
 }

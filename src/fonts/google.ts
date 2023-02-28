@@ -1,6 +1,6 @@
 import https from 'https';
 import type { AnsiCode, ContentSubsets } from './content';
-import CodePointRange from './range';
+import { CodePointRange, type GraphemeSet } from './range';
 
 const StyleID = ['400', '700', '400i', '700i'] as const;
 
@@ -145,16 +145,16 @@ export async function cssFromGoogleFont(
 ): Promise<ContentSubsets> {
     const coverage = content.coverage.intersect(meta.coverage);
     if (coverage.intersection.empty()) return content;
-    const subsetsIntersection: [AnsiCode, CodePointRange][] = [],
-        subsetsDifference: [AnsiCode, CodePointRange][] = [];
-    for (const [ansi, cp] of content.subsets) {
-        const { intersection, difference } = cp.intersect(meta.coverage);
-        if (!intersection.empty()) subsetsIntersection.push([ansi, intersection]);
-        if (!difference.empty()) subsetsDifference.push([ansi, difference]);
+    const subsets: [AnsiCode, GraphemeSet][] = [],
+        contentDifference: ContentSubsets = { coverage: coverage.difference, subsets: [] };
+    for (const [ansi, chars] of content.subsets) {
+        const { intersection, difference } = chars.intersect(meta.coverage);
+        if (!intersection.empty()) subsets.push([ansi, intersection]);
+        if (!difference.empty()) contentDifference.subsets.push([ansi, difference]);
     }
-    const variants: { [K in GoogleFontVariantID]?: CodePointRange } = {};
+    const variants: { [K in GoogleFontVariantID]?: GraphemeSet } = {};
     // loop through each covered subset
-    for (const [ansi, chars] of subsetsIntersection) {
+    for (const [ansi, chars] of subsets) {
         let key = StyleID[ansi];
         // find a variant fallback key if necessary
         if (!meta.styles.includes(key)) {
@@ -170,9 +170,10 @@ export async function cssFromGoogleFont(
     // boolean to track whether a fetched font actually gets embedded
     let fontEmbedded = false;
     // fetch font style character subsets
-    for (const [key, range] of Object.entries(variants)) {
+    for (const [key, chars] of Object.entries(variants)) {
         // fetch css from google fonts api
-        const block = await fetchFontSubset(embeddedFamily, `${baseParams}${StyleParams[key]!}&text=${range.chars()}`);
+        const params = `${baseParams}${StyleParams[key]!}&text=${chars.string()}`,
+            block = await fetchFontSubset(embeddedFamily, params);
         if (!block) continue;
         // add css block to embedded font data
         embedded.css.push(block);
@@ -181,5 +182,5 @@ export async function cssFromGoogleFont(
         // update font embedded status
         fontEmbedded = true;
     }
-    return { coverage: coverage.difference, subsets: subsetsDifference };
+    return contentDifference;
 }

@@ -1,5 +1,5 @@
 import type { CmapTable } from './types';
-import CodePointRange from './range';
+import { CodePointRange } from './range';
 
 export const cmapEncodingPriority = [
     // 32-bit subtables

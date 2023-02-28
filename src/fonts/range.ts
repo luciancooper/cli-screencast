@@ -1,96 +1,106 @@
-export default class CodePointRange implements Iterable<number> {
+import { splitChars } from 'tty-strings';
+
+function sortTopDown<T extends string | number>(b: T[], a: T[], l: number, r: number): number {
+    if (r - l <= 1) return r - l;
+    // split the run longer than 1 item into halves
+    const m = (l + r) >> 1,
+        // recursively sort left run from array a[] into b[]
+        n1 = sortTopDown(a, b, l, m),
+        // recursively sort right run from array a[] into b[]
+        n2 = sortTopDown(a, b, m, r);
+    // merge the resulting runs from array b[] into a[]
+    let [k, i, j] = [l, 0, 0];
+    for (; i < n1 && j < n2; k += 1) {
+        const dx = b[l + i]! < b[m + j]! ? -1 : b[l + i]! > b[m + j]! ? 1 : 0;
+        a[k] = dx <= 0 ? b[l + i]! : b[m + j]!;
+        i += dx <= 0 ? 1 : 0;
+        j += dx >= 0 ? 1 : 0;
+    }
+    for (; i < n1; i += 1, k += 1) a[k] = b[l + i]!;
+    for (; j < n2; j += 1, k += 1) a[k] = b[m + j]!;
+    return k - l;
+}
+
+/**
+ * Top-down implementation of merge sort that removes duplicate array elements
+ */
+function mergeSort<T extends string | number>(array: T[]) {
+    return array.slice(0, sortTopDown(array.slice(), array, 0, array.length));
+}
+
+function sortRangesTopDown(b: [number, number][], a: [number, number][], l: number, r: number): number {
+    if (r - l <= 1) return r - l;
+    // split the run longer than 1 item into halves
+    const m = (l + r) >> 1,
+        // recursively sort left run from array a[] into b[]
+        n1 = sortRangesTopDown(a, b, l, m),
+        // recursively sort right run from array a[] into b[]
+        n2 = sortRangesTopDown(a, b, m, r);
+    // merge the resulting runs from array b[] into a[]
+    let [k, i, j, k1, k2, [x1, x2], [y1, y2]] = [l, 0, 0, 0, 0, b[l]!, b[m]!];
+    for (; i < n1 && j < n2; i += k1, j += k2) {
+        if (k1) [[x1, x2], k1] = [b[l + i]!, 0];
+        if (k2) [[y1, y2], k2] = [b[m + j]!, 0];
+        if (x2 < y1) {
+            // [x1...x2] ... [y1...y2]
+            a[k] = [x1, x2];
+            k1 = 1;
+            k += 1;
+        } else if (y2 < x1) {
+            // [y1...y2] ... [y1...y2]
+            a[k] = [y1, y2];
+            k2 = 1;
+            k += 1;
+        } else if (y2 < x2) {
+            // [x1 ... [y1 ... y2] ... x2] / [y1 ... [x1 ... y2] ... x2]
+            [x1, k2] = [Math.min(x1, y1), 1];
+        } else if (x2 < y2) {
+            // [x1 ... [y1 ... x2] ... y2] / [y1 ... [x1 ... x2] ... y2]
+            [y1, k1] = [Math.min(x1, y1), 1];
+        } else {
+            // [x1 ... [y1 ... (x2,y2)] / [y1 ... [x1 ... (x2,y2)]
+            a[k] = [Math.min(x1, y1), x2];
+            [k1, k2] = [1, 1];
+            k += 1;
+        }
+    }
+    if (!k1) [a[k], k] = [[x1, x2], k + 1];
+    if (!k2) [a[k], k] = [[y1, y2], k + 1];
+    for (i += k1 ^ 1; i < n1; i += 1, k += 1) a[k] = b[l + i]!;
+    for (j += k2 ^ 1; j < n2; j += 1, k += 1) a[k] = b[m + j]!;
+    return k - l;
+}
+
+/**
+ * Top-down implementation of merge sort that merges overlapping ranges
+ */
+function mergeSortRanges(array: [number, number][]) {
+    return array.slice(0, sortRangesTopDown(array.slice(), array, 0, array.length));
+}
+
+export class CodePointRange implements Iterable<number> {
     constructor(public ranges: [number, number][] = []) {}
 
-    /**
-     * Quicksort implementation to sort code point ranges
-     */
-    private static sort(array: number[], left = 0, right = array.length - 1) {
-        if (left >= right) return array;
-        // partition
-        const piv = array[Math.floor((left + right) / 2)]!;
-        // left & right pointer
-        let [i, j] = [left, right];
-        while (i <= j) {
-            for (; array[i]! < piv; i += 1);
-            for (; array[j]! > piv; j -= 1);
-            if (i <= j) {
-                // swapping two elements
-                [array[i], array[j]] = [array[j]!, array[i]!];
-                i += 1;
-                j -= 1;
-            }
-        }
-        // more elements on the left side of the pivot
-        if (left < i - 1) this.sort(array, left, i - 1);
-        // more elements on the right side of the pivot
-        if (i < right) this.sort(array, i, right);
-        return array;
-    }
-
-    /**
-     * Quicksort implementation to sort code point ranges
-     */
-    private static sortRanges(ranges: [number, number][], left = 0, right = ranges.length - 1) {
-        if (left >= right) return ranges;
-        // partition
-        const piv = ranges[Math.floor((left + right) / 2)]![0];
-        // left & right pointer
-        let [i, j] = [left, right];
-        while (i <= j) {
-            for (; ranges[i]![0] < piv; i += 1);
-            for (; ranges[j]![0] > piv; j -= 1);
-            if (i <= j) {
-                // swapping two elements
-                [ranges[i], ranges[j]] = [ranges[j]!, ranges[i]!];
-                i += 1;
-                j -= 1;
-            }
-        }
-        // more elements on the left side of the pivot
-        if (left < i - 1) this.sortRanges(ranges, left, i - 1);
-        // more elements on the right side of the pivot
-        if (i < right) this.sortRanges(ranges, i, right);
-        return ranges;
-    }
-
-    /**
-     * Create a code point range from a string or array of code points
-     */
-    static from(input: string | number[]): CodePointRange {
-        const points = this.sort((typeof input === 'string') ? [...input].map((c) => c.codePointAt(0)!) : input);
+    static from(input: number[]): CodePointRange {
+        // sort input code points
+        const points = mergeSort(input);
         if (!points.length) return new CodePointRange();
         const ranges: [number, number][] = [];
-        let [a, b = a] = [points[0]!] as [number];
-        for (let i = 1, n = points.length; i < n; i += 1) {
-            const cp = points[i]!;
-            if (cp - b > 1) {
-                ranges.push([a, b + 1]);
-                [a, b] = [cp, cp];
-            } else b = cp;
+        let [i, n] = [0, points.length];
+        for (let j = 0; j < n - 1; j += 1) {
+            if ((points[j + 1]! - points[j]!) === 1) continue;
+            ranges.push([points[i]!, points[j]! + 1]);
+            i = j + 1;
         }
-        ranges.push([a, b + 1]);
+        ranges.push([points[i]!, points[n - 1]! + 1]);
         return new CodePointRange(ranges);
     }
 
-    static fromRanges(input: [number, number][]): CodePointRange {
-        if (input.length <= 1) return new CodePointRange(input);
-        // sort the input ranges
-        const ranges = this.sortRanges(input);
-        // merge any adjacent / overlapping ranges
-        let [a1, a2] = ranges[0]!;
-        const merged: [number, number][] = [];
-        for (let i = 1, n = ranges.length; i < n; i += 1) {
-            const [b1, b2] = ranges[i]!;
-            if (b1 - a2 > 0) {
-                merged.push([a1, a2]);
-                [a1, a2] = [b1, b2];
-            } else a2 = Math.max(a2, b2);
-        }
-        merged.push([a1, a2]);
-        return new CodePointRange(merged);
+    static fromRanges(ranges: [number, number][]): CodePointRange {
+        return new CodePointRange(ranges.length <= 1 ? ranges : mergeSortRanges(ranges));
     }
 
-    static mergeRanges(...input: CodePointRange[]): CodePointRange {
+    static merge(...input: CodePointRange[]): CodePointRange {
         return input.length >= 2 ? this.fromRanges(input.flatMap((r) => r.ranges))
             : input.length === 1 ? input[0]! : new CodePointRange();
     }
@@ -101,103 +111,117 @@ export default class CodePointRange implements Iterable<number> {
         }
     }
 
-    get length(): number {
-        return this.ranges.reduce((count, [i, j]) => count + (j - i), 0);
-    }
-
     empty(): boolean {
         return this.ranges.length === 0;
     }
 
-    chars(): string {
-        let str = '';
-        for (const cp of this) str += String.fromCodePoint(cp);
-        return str;
+    /**
+     * Checks if a codepoint is in this code point range
+     */
+    contains(code: number): boolean {
+        // use binary search
+        let [i, j] = [0, this.ranges.length - 1];
+        while (i <= j) {
+            const m = Math.floor((i + j) / 2),
+                [r1, r2] = this.ranges[m]!;
+            if (code < r1) j = m - 1;
+            else if (code >= r2) i = m + 1;
+            else return true;
+        }
+        return false;
     }
 
-    intersect(r: CodePointRange): { intersection: CodePointRange, difference: CodePointRange } {
-        const [n1, n2] = [this.ranges.length, r.ranges.length];
-        // intersection is empty if either range is empty
-        if (!n1 || !n2) return { intersection: new CodePointRange(), difference: this };
-        const intersection: [number, number][] = [],
-            difference: [number, number][] = [];
-        let [a1, a2] = this.ranges[0]!,
-            [b1, b2] = r.ranges[0]!,
-            [i1, i2] = [0, 0],
-            [k1, k2] = [0, 0];
-        for (; i1 < n1 && i2 < n2; i1 += k1, i2 += k2) {
-            if (k1) [[a1, a2], k1] = [this.ranges[i1]!, 0];
-            if (k2) [[b1, b2], k2] = [r.ranges[i2]!, 0];
-            if (a1 < b1) difference.push([a1, Math.min(b1, a2)]);
-            // difference
-            if (a2 <= b1) {
-                // [a1...a2] ... [b1...b2]
-                k1 = 1;
-                continue;
-            }
-            if (b2 <= a1) {
-                // [b1...b2] ... [a1...a2]
-                k2 = 1;
-                continue;
-            }
-            intersection.push([Math.max(a1, b1), Math.min(a2, b2)]);
-            if (a2 < b2) {
-                // [a1 ... [b1 ... a2] ... b2] / [b1 ... [a1 ... a2] ... b2]
-                k1 = 1;
-            } else if (b2 < a2) {
-                // [a1 ... [b1 ... b2] ... a2] / [b1 ... [a1 ... b2] ... a2]
-                [a1, k2] = [b2, 1];
-            } else {
-                // [a1 ... [b1 ... (a2,b2)] / [b1 ... [a1 ... (a2,b2)]
-                [k1, k2] = [1, 1];
+    /**
+     * Returns true if the code point range contains each code point in the string
+     */
+    covers(string: string): boolean {
+        for (const c of string) {
+            if (!this.contains(c.codePointAt(0)!)) return false;
+        }
+        return true;
+    }
+}
+
+export class GraphemeSet implements Iterable<number> {
+    constructor(public chars: string[] = []) {}
+
+    static from(str: string | string[]): GraphemeSet {
+        return new GraphemeSet(mergeSort((typeof str === 'string') ? [...splitChars(str)] : str));
+    }
+
+    static merge(...input: GraphemeSet[]): GraphemeSet {
+        return input.length >= 2 ? new GraphemeSet(mergeSort(input.flatMap((c) => c.chars)))
+            : input.length === 1 ? input[0]! : new GraphemeSet();
+    }
+
+    empty(): boolean {
+        return this.chars.length === 0;
+    }
+
+    string(): string {
+        return this.chars.join('');
+    }
+
+    /**
+     * Iterate over the code points of each character in the set
+     */
+    * [Symbol.iterator](): IterableIterator<number> {
+        for (const char of this.chars) {
+            for (const c of char) {
+                yield c.codePointAt(0)!;
             }
         }
-        if (a1 >= b2) difference.push([a1, a2]);
-        // add any remaining spans at the end of the range
-        for (i1 += k1 ^ 1; i1 < n1; i1 += 1) difference.push(this.ranges[i1]!);
+    }
+
+    contains(char: string): boolean {
+        let [i, j] = [0, this.chars.length - 1];
+        while (i <= j) {
+            const m = Math.floor((i + j) / 2);
+            if (char < this.chars[m]!) j = m - 1;
+            else if (char > this.chars[m]!) i = m + 1;
+            else return true;
+        }
+        return false;
+    }
+
+    union(input: string | GraphemeSet): GraphemeSet {
+        const chars = this.chars.concat((typeof input === 'string') ? [...splitChars(input)] : input.chars);
+        return new GraphemeSet(mergeSort(chars));
+    }
+
+    intersect(collection: GraphemeSet | CodePointRange): { intersection: GraphemeSet, difference: GraphemeSet } {
+        // stop if either collection is empty
+        if (this.empty() || collection.empty()) {
+            return { intersection: new GraphemeSet(), difference: this };
+        }
+        // create intersection / difference arrays
+        const intersection: string[] = [],
+            difference: string[] = [];
+        if (collection instanceof GraphemeSet) {
+            // handle instersection with another char set
+            let [i, n] = [0, this.chars.length];
+            for (let j = 0, m = collection.chars.length; i < n && j < m;) {
+                const c1 = this.chars[i]!,
+                    c2 = collection.chars[j]!;
+                if (c1 === c2) {
+                    intersection.push(c1);
+                    i += 1;
+                    j += 1;
+                } else if (c1 < c2) {
+                    difference.push(c1);
+                    i += 1;
+                } else j += 1;
+            }
+            for (; i < n; i += 1) difference.push(this.chars[i]!);
+        } else {
+            // handle instersection with a set of code point ranges
+            for (const char of this.chars) {
+                (collection.covers(char) ? intersection : difference).push(char);
+            }
+        }
         return {
-            intersection: new CodePointRange(intersection),
-            difference: new CodePointRange(difference),
+            intersection: new GraphemeSet(intersection),
+            difference: new GraphemeSet(difference),
         };
-    }
-
-    union(r: CodePointRange) {
-        const [n1, n2] = [this.ranges.length, r.ranges.length];
-        // return empty range if either ranges are empty
-        if (!n1) return r;
-        if (!n2) return this;
-        const union: [number, number][] = [];
-        let [a1, a2] = this.ranges[0]!,
-            [b1, b2] = r.ranges[0]!,
-            [i1, i2] = [0, 0],
-            [k1, k2] = [0, 0];
-        for (; i1 < n1 && i2 < n2; i1 += k1, i2 += k2) {
-            if (k1) [[a1, a2], k1] = [this.ranges[i1]!, 0];
-            if (k2) [[b1, b2], k2] = [r.ranges[i2]!, 0];
-            if (a2 < b1) {
-                // [a1...a2] ... [b1...b2]
-                union.push([a1, a2]);
-                k1 = 1;
-            } else if (b2 < a1) {
-                // [b1...b2] ... [a1...a2]
-                union.push([b1, b2]);
-                k2 = 1;
-            } else if (b2 < a2) {
-                // [a1 ... [b1 ... b2] ... a2] / [b1 ... [a1 ... b2] ... a2]
-                [a1, k2] = [Math.min(a1, b1), 1];
-            } else if (a2 < b2) {
-                // [a1 ... [b1 ... a2] ... b2] / [b1 ... [a1 ... a2] ... b2]
-                [b1, k1] = [Math.min(a1, b1), 1];
-            } else {
-                // [a1 ... [b1 ... (a2,b2)] / [b1 ... [a1 ... (a2,b2)]
-                union.push([Math.min(a1, b1), a2]);
-                [k1, k2] = [1, 1];
-            }
-        }
-        if (!k1) union.push([a1, a2]);
-        if (!k2) union.push([b1, b2]);
-        for (i1 += k1 ^ 1; i1 < n1; i1 += 1) union.push(this.ranges[i1]!);
-        for (i2 += k2 ^ 1; i2 < n2; i2 += 1) union.push(r.ranges[i2]!);
-        return new CodePointRange(union);
     }
 }

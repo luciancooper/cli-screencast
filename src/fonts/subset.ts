@@ -1,7 +1,7 @@
 import path from 'path';
 import { promises as fs } from 'fs';
 import type { SystemFont, SfntHeader } from './types';
-import CodePointRange from './range';
+import type { GraphemeSet } from './range';
 
 declare global {
     const WebAssembly: {
@@ -184,7 +184,7 @@ function hb_tag(tag: string): number {
 
 export async function subsetFontFile(
     { filePath, ttcSubfont, fvarInstance }: SystemFont,
-    coverage: CodePointRange,
+    coverage: GraphemeSet,
 ): Promise<Buffer | null> {
     // read the original font file
     let originalFont: Buffer;

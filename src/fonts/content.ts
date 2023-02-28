@@ -1,5 +1,5 @@
 import type { TerminalLines, Title } from '../types';
-import CodePointRange from './range';
+import { GraphemeSet } from './range';
 
 /**
  * - `0` → Normal
@@ -10,8 +10,8 @@ import CodePointRange from './range';
 export type AnsiCode = 0 | 1 | 2 | 3;
 
 export interface ContentSubsets {
-    coverage: CodePointRange
-    subsets: [AnsiCode, CodePointRange][]
+    coverage: GraphemeSet
+    subsets: [AnsiCode, GraphemeSet][]
 }
 
 type TermScreen = TerminalLines & { title: Title };
@@ -52,9 +52,9 @@ function* extractChunks(data: FrameData) {
 export function createContentSubsets(ansi: string[]): ContentSubsets {
     const subsets: ContentSubsets['subsets'] = [];
     for (const [i, chars] of ansi.entries()) {
-        if (chars) subsets.push([i as AnsiCode, CodePointRange.from(chars)]);
+        if (chars) subsets.push([i as AnsiCode, GraphemeSet.from(chars)]);
     }
-    const coverage = CodePointRange.mergeRanges(...subsets.map(([, cp]) => cp));
+    const coverage = GraphemeSet.merge(...subsets.map(([, chars]) => chars));
     return { coverage, subsets };
 }
 
@@ -62,14 +62,14 @@ export function createContentSubsets(ansi: string[]): ContentSubsets {
  * Extract all text from the input frame data grouped by ansi style index
  */
 export default function extractContentSubsets(data: FrameData): ContentSubsets {
-    const ansiChars: [string, string, string, string] = ['', '', '', ''];
+    const chars: GraphemeSet[] = [];
     for (const { str, style } of extractChunks(data)) {
-        const text = str.replace(/\n/g, '');
-        if (text) {
-            // [strikeThrough, inverse, underline, italic, dim, bold]
-            const ansi = (style.props & 1) | ((style.props >>> 1) & 2);
-            ansiChars[ansi] += text;
-        }
+        if (!str) continue;
+        // [strikeThrough, inverse, underline, italic, dim, bold]
+        const ansi = (style.props & 1) | ((style.props >>> 1) & 2);
+        chars[ansi] = chars[ansi]?.union(str) ?? GraphemeSet.from(str);
     }
-    return createContentSubsets(ansiChars);
+    const subsets = [...chars.entries()].filter(([, c]) => c) as [AnsiCode, GraphemeSet][],
+        coverage = GraphemeSet.merge(...subsets.map(([, c]) => c));
+    return { coverage, subsets };
 }
