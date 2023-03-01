@@ -84,7 +84,7 @@ export class CodePointRange implements Iterable<number> {
     static from(input: number[]): CodePointRange {
         // sort input code points
         const points = mergeSort(input);
-        if (!points.length) return new CodePointRange();
+        if (!points.length) return new this();
         const ranges: [number, number][] = [];
         let [i, n] = [0, points.length];
         for (let j = 0; j < n - 1; j += 1) {
@@ -93,16 +93,16 @@ export class CodePointRange implements Iterable<number> {
             i = j + 1;
         }
         ranges.push([points[i]!, points[n - 1]! + 1]);
-        return new CodePointRange(ranges);
+        return new this(ranges);
     }
 
-    static fromRanges(ranges: [number, number][]): CodePointRange {
-        return new CodePointRange(ranges.length <= 1 ? ranges : mergeSortRanges(ranges));
+    static fromRanges(ranges: [number, number][]) {
+        return new this(ranges.length <= 1 ? ranges : mergeSortRanges(ranges));
     }
 
-    static merge(...input: CodePointRange[]): CodePointRange {
+    static merge(...input: CodePointRange[]) {
         return input.length >= 2 ? this.fromRanges(input.flatMap((r) => r.ranges))
-            : input.length === 1 ? input[0]! : new CodePointRange();
+            : new this(input[0]?.ranges ?? []);
     }
 
     * [Symbol.iterator](): IterableIterator<number> {

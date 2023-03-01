@@ -166,6 +166,12 @@ export default class FontReader {
         return int;
     }
 
+    protected uint24() {
+        const int = (this.buf.readUInt16BE(this.buf_pos) << 8) + this.buf.readUInt8(this.buf_pos + 2);
+        this.buf_pos += 3;
+        return int;
+    }
+
     protected uint32() {
         const int = this.buf.readUInt32BE(this.buf_pos);
         this.buf_pos += 4;

@@ -65,6 +65,17 @@ export function fetchData(req: string | https.RequestOptions): Promise<FetchResp
     });
 }
 
+/**
+ * The google fonts api does not include variation selectors within the code points provided by
+ * the 'coverage' field of a font's metadata file. Therefore we will just assume that all
+ * google fonts support the variation selectors unicode block (FE00 - FE0F).
+ */
+class GoogleFontCoverage extends CodePointRange {
+    override contains(code: number): boolean {
+        return super.contains(code) || (code >= 0xFE00 && code <= 0xFE0F); // include variation selectors
+    }
+}
+
 export interface GoogleFontMetadata {
     family: string
     styles: GoogleFontVariantID[]
@@ -91,7 +102,7 @@ export async function fetchGoogleFontMetadata(font: string): Promise<GoogleFontM
     return {
         family,
         styles: (Object.keys(fonts) as GoogleFontVariantID[]).filter((k) => StyleID.includes(k)),
-        coverage: CodePointRange.fromRanges(
+        coverage: GoogleFontCoverage.fromRanges(
             Object.values(coverage).flatMap((cov) => cov.split(',').map<[number, number]>((r) => {
                 const { 1: i1, 2: i2 = i1 } = /(\d+)(?:-(\d+))?/.exec(r)!;
                 return [parseInt(i1!, 10), parseInt(i2!, 10) + 1];

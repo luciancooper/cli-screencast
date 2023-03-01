@@ -6,7 +6,7 @@ import FontReader from './reader';
 import { getEncoding } from './encoding';
 import { localizeNames } from './names';
 import { getFontStyle, extendFontStyle } from './style';
-import { cmapCoverage, cmapEncodingPriority } from './cmap';
+import { type CmapEncodingRecord, cmapCoverage, selectCmapRecord } from './cmap';
 
 type DecodeCallback<T> = (this: FontDecoder, header: SfntHeader) => T | PromiseLike<T>;
 
@@ -194,14 +194,15 @@ export default class FontDecoder extends FontReader {
         };
     }
 
-    protected async cmapEncodingRecords() {
+    protected async cmapEncodingRecords(): Promise<CmapEncodingRecord[]> {
         const numTables = this.skip(2).uint16();
-        // decode the cmap encoding records
+        // read enough bytes to decode all encoding records
         await this.read(8 * numTables);
+        // decode the cmap encoding records
         return this.array(numTables, () => ({
-            platformID: this.uint16(),
-            encodingID: this.uint16(),
-            subtableOffset: this.uint32(),
+            platform: this.uint16(),
+            encoding: this.uint16(),
+            offset: this.uint32(),
         }));
     }
 
@@ -335,8 +336,21 @@ export default class FontDecoder extends FontReader {
                 }));
                 return { format, language, groups };
             }
-            case 14:
-                return { format, language: 0 };
+            case 14: {
+                // read next 8 bytes for subtable length + numVarSelectorRecords
+                await this.read(8);
+                // skip length & decode number of variation selector records
+                const numRecords = this.skip(4).uint32();
+                // read bytes needed to decode the varSelector array
+                await this.read(numRecords * 11);
+                // decode only the var selector code point from each record
+                const varSelectors: number[] = [];
+                for (let i = 0; i < numRecords; i += 1) {
+                    varSelectors.push(this.uint24());
+                    this.skip(8); // skip the defaultUVSOffset & nonDefaultUVSOffset fields
+                }
+                return { format, language: 0, varSelectors };
+            }
             // no default required - switch is exaustive
         }
     }
@@ -344,25 +358,19 @@ export default class FontDecoder extends FontReader {
     /**
      * https://learn.microsoft.com/en-us/typography/opentype/spec/cmap
      */
-    protected async cmapTable(): Promise<CmapTable> {
-        const encodingRecords = await this.cmapEncodingRecords();
-        // select the proper encoding record
-        let record: (typeof encodingRecords)[number] | undefined;
-        for (const [platformID, encodingID] of cmapEncodingPriority) {
-            record = encodingRecords.find((rec) => (
-                rec.platformID === platformID && rec.encodingID === encodingID
-            ));
-            if (record) break;
+    protected async cmapTable() {
+        const encodingRecords = await this.cmapEncodingRecords(),
+            // select a cmap encoding record to decode
+            record = selectCmapRecord(encodingRecords),
+            // decode cmap subtable
+            table = await this.cmapSubtable(record.offset);
+        // decode format 14 unicode variation sequences table if one is present
+        let varSelectors: number[] | null = null;
+        const uvsRecord = encodingRecords.find((rec) => (rec.platform === 0 && rec.encoding === 5));
+        if (uvsRecord) {
+            ({ varSelectors } = await this.cmapSubtable(uvsRecord.offset) as Extract<CmapTable, { format: 14 }>);
         }
-        if (!record) {
-            throw new Error(
-                'Font does not include a supported cmap subtable:'
-                + encodingRecords.map(({ platformID, encodingID, subtableOffset }) => (
-                    `\n * platform: ${platformID} encoding: ${encodingID} offset: ${subtableOffset}`
-                )).join(''),
-            );
-        }
-        return this.cmapSubtable(record.subtableOffset);
+        return { table, varSelectors };
     }
 
     protected async sfntHeader(): Promise<SfntHeader> {

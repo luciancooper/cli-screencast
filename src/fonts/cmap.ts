@@ -1,7 +1,13 @@
 import type { CmapTable } from './types';
 import { CodePointRange } from './range';
 
-export const cmapEncodingPriority = [
+export interface CmapEncodingRecord {
+    platform: number
+    encoding: number
+    offset: number
+}
+
+const cmapEncodingPriority = [
     // 32-bit subtables
     [3, 10], // Windows Platform - Unicode full repertoire
     [0, 6], // Unicode platform - Unicode full repertoire—for use with subtable format 13
@@ -14,26 +20,49 @@ export const cmapEncodingPriority = [
     [0, 0], // Unicode platform - Unicode 1.0 semantics (deprecated)
 ];
 
-export function cmapCoverage(table: CmapTable): CodePointRange {
+export function selectCmapRecord(encodingRecords: CmapEncodingRecord[]) {
+    // select the proper encoding record
+    for (const [platform, encoding] of cmapEncodingPriority) {
+        for (const rec of encodingRecords) {
+            if (rec.platform === platform && rec.encoding === encoding) {
+                return rec;
+            }
+        }
+    }
+    throw new Error(
+        'Font does not include a supported cmap subtable:'
+        + encodingRecords.map(({ platform, encoding, offset }) => (
+            `\n * platform: ${platform} encoding: ${encoding} offset: ${offset}`
+        )).join(''),
+    );
+}
+
+export function cmapCoverage({ table, varSelectors }: {
+    table: CmapTable
+    varSelectors?: number[] | null
+}): CodePointRange {
+    let range: CodePointRange;
     switch (table.format) {
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table
         case 0:
-            return CodePointRange.from(
+            range = CodePointRange.from(
                 table.glyphIdArray
                     .map<[number, number]>((gid, char) => [gid, char])
                     .filter(([gid]) => gid !== 0)
                     .map(([, char]) => char),
             );
+            break;
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-6-trimmed-table-mapping
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-10-trimmed-array
         case 6:
         case 10:
-            return CodePointRange.from(
+            range = CodePointRange.from(
                 table.glyphIdArray
                     .map<[number, number]>((gid, offset) => [gid, table.startCharCode + offset])
                     .filter(([gid]) => gid !== 0)
                     .map(([, char]) => char),
             );
+            break;
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-2-high-byte-mapping-through-table
         case 2: {
             const codePoints: number[] = [];
@@ -60,7 +89,8 @@ export function cmapCoverage(table: CmapTable): CodePointRange {
                     }
                 }
             }
-            return CodePointRange.from(codePoints);
+            range = CodePointRange.from(codePoints);
+            break;
         }
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-4-segment-mapping-to-delta-values
         case 4: {
@@ -85,7 +115,8 @@ export function cmapCoverage(table: CmapTable): CodePointRange {
                     }
                 }
             }
-            return CodePointRange.from(codePoints);
+            range = CodePointRange.from(codePoints);
+            break;
         }
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-12-segmented-coverage
         case 12: {
@@ -95,7 +126,8 @@ export function cmapCoverage(table: CmapTable): CodePointRange {
                     end = endCharCode + 1;
                 if (start < end) ranges.push([start, end]);
             }
-            return CodePointRange.fromRanges(ranges);
+            range = CodePointRange.fromRanges(ranges);
+            break;
         }
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings
         case 13: {
@@ -104,7 +136,8 @@ export function cmapCoverage(table: CmapTable): CodePointRange {
                 if (glyphID === 0) continue;
                 ranges.push([startCharCode, endCharCode + 1]);
             }
-            return CodePointRange.fromRanges(ranges);
+            range = CodePointRange.fromRanges(ranges);
+            break;
         }
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-8-mixed-16-bit-and-32-bit-coverage
         case 8:
@@ -114,4 +147,5 @@ export function cmapCoverage(table: CmapTable): CodePointRange {
             throw new Error('cannot extract code point ranges from cmap table format 14');
         // no default: switch is exaustive
     }
+    return varSelectors ? CodePointRange.merge(range, CodePointRange.from(varSelectors)) : range;
 }

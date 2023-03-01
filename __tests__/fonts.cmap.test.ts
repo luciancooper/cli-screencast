@@ -52,4 +52,11 @@ describe('code point coverage from decoded cmap table', () => {
             [233, 234], [7875, 7876], [8109, 8110], [10972, 10973], [119139, 119140],
         ]);
     });
+
+    test('cmap subtable format 14', async () => {
+        await expect(decodeCmapFixture('cmap14.otf')).resolves.toEqual([
+            [32, 33], [8809, 8810], [33446, 33447], // character code points
+            [65024, 65025], [917760, 917762], // variation selections
+        ]);
+    });
 });

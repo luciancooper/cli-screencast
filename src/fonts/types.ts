@@ -172,4 +172,7 @@ export type CmapTable = (({
         endCharCode: number
         glyphID: number
     }[]
-})) | { format: 14 }) & { language: number };
+})) | {
+    format: 14
+    varSelectors: number[]
+}) & { language: number };
