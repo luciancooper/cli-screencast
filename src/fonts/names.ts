@@ -1,4 +1,4 @@
-import type { NameTable } from './types';
+import type { NameRecord } from './types';
 
 const macLanguages = [
     'en', 'fr', 'de', 'it', 'nl', 'sv', 'es', 'da', 'pt', 'no', 'he', 'ja', 'ar', 'fi', 'el', 'is', 'mt',
@@ -71,7 +71,7 @@ export function getLanguage(
     if (!lang && langTags && languageID >= 0x8000) {
         lang = langTags[languageID - 0x8000];
     }
-    return lang ?? `${platformID}-${languageID}`;
+    return (lang ?? `${platformID}-${languageID}`).toLowerCase();
 }
 
 export function getUserLocale(): string[] {
@@ -83,21 +83,29 @@ export function getUserLocale(): string[] {
     return lang !== 'en' ? [locale, lang, 'en'] : [locale, lang];
 }
 
-function matchRecord(records: { lang: string, value: string }[], locales: string[]): string {
+const platformPreference = [1, 3, 0];
+
+function matchRecord(records: NameRecord[], locales: string[]): string {
     for (const tag of locales) {
-        const record = records.find(({ lang }) => lang === tag);
-        if (record) return record.value;
+        const matchedRecords = records.filter(({ lang }) => lang === tag);
+        if (matchedRecords.length) {
+            // if there are multiple records for this name id & lang, return the one with the most preffered platform
+            return (matchedRecords.length > 1 ? matchedRecords.sort((a, b) => (
+                platformPreference.indexOf(b.platformID)
+                - platformPreference.indexOf(a.platformID)
+            )) : matchedRecords)[0]!.string;
+        }
     }
     // else return the first record regardless of language
-    return records[0]!.value;
+    return records[0]!.string;
 }
 
-export function localizeNames({ records, langTags }: NameTable, ltag: string[] | null) {
-    const localized = new Map<number, { lang: string, value: string }[]>();
+export function localizeNames(records: NameRecord[]) {
+    // create a map that groups name table entries by name id
+    const localized = new Map<number, NameRecord[]>();
     for (const record of records) {
         if (!localized.has(record.nameID)) localized.set(record.nameID, []);
-        const lang = getLanguage(record.platformID, record.languageID, langTags, ltag).toLowerCase();
-        localized.get(record.nameID)!.push({ lang, value: record.string });
+        localized.get(record.nameID)!.push(record);
     }
     const locales = getUserLocale(),
         names: Record<number, string> = {};

@@ -1,3 +1,5 @@
+import { TextDecoder } from 'util';
+
 const unicodeEncoding = ['utf-16be', 'utf-16be', 'utf-16be', 'utf-16be', 'utf-16be', 'utf-16be', 'utf-16be'];
 
 const macLanguageEncodings = new Map<number, string>([
@@ -37,4 +39,47 @@ export function getEncoding(platformID: number, encodingID: number, languageID: 
         // no default
     }
     return enc ?? 'ascii';
+}
+
+const macEncodings: Record<string, string> = {
+    // https://encoding.spec.whatwg.org/index-macintosh.txt
+    'x-mac-roman': 'ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø'
+    + '¿¡¬√ƒ≈∆«»… ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄€‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ',
+    // https://encoding.spec.whatwg.org/index-x-mac-cyrillic.txt
+    'x-mac-cyrillic': 'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ†°Ґ£§•¶І®©™Ђђ≠Ѓѓ∞±≤≥іµґЈЄєЇїЉљЊњ'
+    + 'јЅ¬√ƒ≈∆«»… ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю€',
+};
+
+function isAscii(byte: number) {
+    return (byte >= 0x20 && byte <= 0x7E) || byte === 0x09 || byte === 0x0A || byte === 0x0D;
+}
+
+const utf16Decoder = new TextDecoder('utf-16be');
+
+export function decodeString(encoding: string, buffer: Buffer, offset: number, bytes: number) {
+    const enc = macEncodings[encoding];
+    if (enc) {
+        let [result, double] = ['', true];
+        for (let i = 0; i < bytes; i += 1) {
+            // In all eight-bit Mac encodings, the characters 0x00..0x7F are
+            // mapped to U+0000..U+007F; we only need to look up the others.
+            const byte = buffer.readUInt8(offset + i);
+            result += (byte > 0x7F) ? enc[byte - 0x80]! : String.fromCharCode(byte);
+            // sometimes strings claim to be mac encodings, but are UTF-16BE with ASCII text
+            if (!(i % 2 === 0 ? byte === 0 : isAscii(byte))) double = false;
+        }
+        // narrow down the string if it appears to be double string
+        if (double) {
+            let narrowed = '';
+            for (let i = 1; i < bytes; i += 2) narrowed += result.charAt(i);
+            result = narrowed;
+        }
+        return result;
+    }
+    const span = buffer.subarray(offset, offset + bytes);
+    try {
+        return new TextDecoder(encoding).decode(span);
+    } catch (err) {
+        return utf16Decoder.decode(span);
+    }
 }

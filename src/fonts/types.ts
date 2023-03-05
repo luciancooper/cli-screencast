@@ -72,17 +72,17 @@ export interface SystemFont {
 }
 
 /**
- * Font 'name' table data
+ * Font 'name' table record
  * @see {@link https://learn.microsoft.com/en-us/typography/opentype/spec/name}
  */
-export interface NameTable {
-    records: {
-        platformID: number
-        languageID: number
-        nameID: number
-        string: string
-    }[]
-    langTags: string[] | null
+export interface NameRecord {
+    platformID: number
+    languageID: number
+    encodingID: number
+    nameID: number
+    string: string
+    encoding: string
+    lang: string
 }
 
 /**

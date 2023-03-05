@@ -1,10 +1,10 @@
 import type { Optionalize } from '../types';
 import type {
-    NameTable, FvarTable, Os2Table, HeadTable, CmapTable, SfntHeader, SystemFont,
+    NameRecord, FvarTable, Os2Table, HeadTable, CmapTable, SfntHeader, SystemFont,
 } from './types';
 import FontReader from './reader';
 import { getEncoding } from './encoding';
-import { localizeNames } from './names';
+import { getLanguage, localizeNames } from './names';
 import { getFontStyle, extendFontStyle } from './style';
 import { type CmapEncodingRecord, cmapCoverage, selectCmapRecord } from './cmap';
 
@@ -62,20 +62,20 @@ export default class FontDecoder extends FontReader {
     }
 
     protected async decodeLocalizedNames(header: SfntHeader) {
-        // decode 'name' table for this subfont
-        const name = await this.decodeSfntTable(header, 'name', this.nameTable);
+        // decode 'ltag' table if present
+        const ltag = await this.decodeSfntTable(header, 'ltag', this.ltagTable),
+            // decode 'name' table for this subfont
+            name = await this.decodeSfntTable(header, 'name', () => this.nameTable(ltag));
         // throw error if font does not have a 'name' table
         if (!name) throw new Error("Font does not include required 'name' table");
-        // decode 'ltag' table if present
-        const ltag = await this.decodeSfntTable(header, 'ltag', this.ltagTable);
         // localize name table records
-        return localizeNames(name, ltag);
+        return localizeNames(name);
     }
 
     /**
      * https://learn.microsoft.com/en-us/typography/opentype/spec/name
      */
-    protected nameTable(): NameTable {
+    protected nameTable(ltag: string[] | null): NameRecord[] {
         // decode name table
         const [version, nameRecordCount, storageOffset] = [this.uint16(), this.uint16(), this.uint16()],
             // https://learn.microsoft.com/en-us/typography/opentype/spec/name#name-records
@@ -87,40 +87,44 @@ export default class FontDecoder extends FontReader {
                 length: this.uint16(),
                 offset: this.uint16(),
             }));
-        let langRecords: { length: number, offset: number }[] = [];
+        let langTags: string[] | null = null;
         // decode lang tags if table version is 1
         if (version === 1) {
-            const langTagCount = this.uint16();
             // https://learn.microsoft.com/en-us/typography/opentype/spec/name#naming-table-version-1
-            langRecords = this.array(langTagCount, () => ({
+            const langRecords = this.array(this.uint16(), () => ({
                 length: this.uint16(),
                 offset: this.uint16(),
             }));
+            // decode each language tag
+            langTags = langRecords.map(({ offset, length }) => {
+                this.setPointer(storageOffset + offset);
+                return this.string(length, 'utf-16be');
+            });
         }
-        return {
-            records: nameRecords.map(({
+        // decode each name record
+        return nameRecords.map(({
+            platformID,
+            languageID,
+            encodingID,
+            nameID,
+            offset,
+            length,
+        }) => {
+            const encoding = getEncoding(platformID, encodingID, languageID),
+                lang = getLanguage(platformID, languageID, langTags, ltag);
+            // set pointer and decode string
+            this.setPointer(storageOffset + offset);
+            const string = this.string(length, encoding);
+            return {
                 platformID,
                 languageID,
                 encodingID,
                 nameID,
-                offset,
-                length,
-            }) => {
-                const encoding = getEncoding(platformID, encodingID, languageID);
-                this.setPointer(storageOffset + offset);
-                const string = this.string(length, encoding);
-                return {
-                    platformID,
-                    languageID,
-                    nameID,
-                    string,
-                };
-            }),
-            langTags: version === 1 ? langRecords.map(({ offset, length }) => {
-                this.setPointer(storageOffset + offset);
-                return this.string(length, 'utf-16be');
-            }) : null,
-        };
+                string,
+                encoding,
+                lang,
+            };
+        });
     }
 
     /**
@@ -129,12 +133,12 @@ export default class FontDecoder extends FontReader {
     protected ltagTable(): string[] {
         const numTags = this.skip(8).uint32(),
             tagRanges = this.array(numTags, () => ({ offset: this.uint16(), length: this.uint16() })),
-            strings: Record<number, string> = {};
-        for (const { offset, length } of tagRanges.slice().sort(({ offset: a }, { offset: b }) => a - b)) {
+            ltags: string[] = [];
+        for (const { offset, length } of tagRanges) {
             this.setPointer(offset);
-            strings[offset] = this.utf16(length);
+            ltags.push(this.utf8(length));
         }
-        return tagRanges.map(({ offset }) => strings[offset]!);
+        return ltags;
     }
 
     /**

@@ -1,7 +1,5 @@
 import { promises as fs } from 'fs';
-import { TextDecoder } from 'util';
-
-const utf16Decoder = new TextDecoder('utf-16be');
+import { decodeString } from './encoding';
 
 export default class FontReader {
     protected filePath: string | null = null;
@@ -195,20 +193,10 @@ export default class FontReader {
         return str;
     }
 
-    protected utf16(bytes: number) {
-        const str = utf16Decoder.decode(this.buf.subarray(this.buf_pos, this.buf_pos + bytes));
+    protected string(bytes: number, encoding: string) {
+        const str = decodeString(encoding, this.buf, this.buf_pos, bytes);
         this.buf_pos += bytes;
         return str;
-    }
-
-    protected string(bytes: number, encoding: string) {
-        const span = this.buf.subarray(this.buf_pos, this.buf_pos + bytes);
-        this.buf_pos += bytes;
-        try {
-            return new TextDecoder(encoding).decode(span);
-        } catch (err) {
-            return utf16Decoder.decode(span);
-        }
     }
 
     /**
