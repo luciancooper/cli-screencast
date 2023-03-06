@@ -47,6 +47,7 @@ export interface WindowOptions {
 interface WindowProps extends Required<WindowOptions>, SVGProps<SVGSVGElement> {
     title?: Title | TitleKeyFrame[] | null
     forceTitleInset?: boolean
+    fontFamily?: string
     css?: string | null
 }
 
@@ -54,6 +55,7 @@ const Window = forwardRef<Size, WindowProps>(({
     children,
     title = null,
     forceTitleInset = false,
+    fontFamily,
     css,
     borderRadius,
     decorations,
@@ -85,7 +87,7 @@ const Window = forwardRef<Size, WindowProps>(({
         <svg
             xmlns='http://www.w3.org/2000/svg'
             xmlnsXlink='http://www.w3.org/1999/xlink'
-            fontFamily={theme.fontFamily}
+            fontFamily={fontFamily ?? theme.fontFamily}
             fontSize={fontSize}
             {...size}
         >

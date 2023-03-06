@@ -938,6 +938,13 @@
   resolved "https://registry.npmjs.org/@types/stack-utils/-/stack-utils-2.0.1.tgz#20f18294f797f2209b5f65c8e3b5c8e8261d127c"
   integrity sha512-Hl219/BT5fLAaz6NDkSuhzasy49dwQS/DSdu4MdggFB8zcXv7vflBI3xp7FEmkmdDkBUI2bPUNeMttp2knYdxw==
 
+"@types/wawoff2@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@types/wawoff2/-/wawoff2-1.0.0.tgz#e9ba508a6477a5faf87268b2db24f66b3062e198"
+  integrity sha512-UvCfTrfjYZUw2OokkEmy0tB8dZeoWc1hSSZfHa9L5uHTsd6e3KwCNDJq1yHdcOhCLT+Zmvwgds1Lr/gQzJwDAw==
+  dependencies:
+    "@types/node" "*"
+
 "@types/which@^2.0.1":
   version "2.0.1"
   resolved "https://registry.npmjs.org/@types/which/-/which-2.0.1.tgz#27ecd67f915b7c3d6ba552135bb1eecd66e63501"
@@ -2501,6 +2508,13 @@ flatted@^3.1.0:
   version "3.2.2"
   resolved "https://registry.npmjs.org/flatted/-/flatted-3.2.2.tgz#64bfed5cb68fe3ca78b3eb214ad97b63bedce561"
   integrity sha512-JaTY/wtrcSyvXJl4IMFHPKyFur1sE9AUqc0QnhOaJ0CxHtAoIV8pYDzeEfAaNEtGkOfq4gr3LBFmdXW5mOQFnA==
+
+fontmanager-redux@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/fontmanager-redux/-/fontmanager-redux-1.1.0.tgz#b1e97bc5c982df81749596fd48348f8318595bb3"
+  integrity sha512-cQtSfi7ZCW831XuGwoKIrO/cCBLhOvWK56adSr/Yl/fzB5omunW+XQmXlYHNKS7qWzOZe2Z6xQ8ZFt120Uj2lA==
+  dependencies:
+    node-addon-api "^3.0.2"
 
 for-each@^0.3.3:
   version "0.3.3"
@@ -4189,6 +4203,11 @@ negotiator@^0.6.3:
   resolved "https://registry.yarnpkg.com/negotiator/-/negotiator-0.6.3.tgz#58e323a72fedc0d6f9cd4d31fe49f51479590ccd"
   integrity sha512-+EUsqGPLsM+j/zdChZjsnX51g4XrHFOIXwfnCVPGlQk/k5giakcKsuxCObBRu6DSm9opw/O6slWbJdghQM4bBg==
 
+node-addon-api@^3.0.2:
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-3.2.1.tgz#81325e0a2117789c0128dab65e7e38f07ceba161"
+  integrity sha512-mmcei9JghVNDYydghQmeDX8KoAm0FAiYyIcUt/N4nhyAipB17pllZQDOJD2fotxABnt4Mdz+dKTO7eftLg4d0A==
+
 node-fetch@2.6.1:
   version "2.6.1"
   resolved "https://registry.npmjs.org/node-fetch/-/node-fetch-2.6.1.tgz#045bd323631f76ed2e2b55573394416b639a0052"
@@ -5625,6 +5644,13 @@ walker@^1.0.7:
   integrity sha1-L3+bj9ENZ3JisYqITijRlhjgKPs=
   dependencies:
     makeerror "1.0.x"
+
+wawoff2@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/wawoff2/-/wawoff2-2.0.1.tgz#474d8ccae33da3863abad0ee64b70b6db51acac2"
+  integrity sha512-r0CEmvpH63r4T15ebFqeOjGqU4+EgTx4I510NtK35EMciSdcTxCw3Byy3JnBonz7iyIFZ0AbVo0bbFpEVuhCYA==
+  dependencies:
+    argparse "^2.0.1"
 
 webidl-conversions@^5.0.0:
   version "5.0.0"

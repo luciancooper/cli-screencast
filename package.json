@@ -27,6 +27,7 @@
   "types": "lib/index.d.ts",
   "files": [
     "lib",
+    "wasm",
     "src"
   ],
   "scripts": {
@@ -62,6 +63,7 @@
   "dependencies": {
     "@types/node": "*",
     "ansi-regex": "^5.0.0",
+    "fontmanager-redux": "^1.1.0",
     "node-gyp": "^9.3.0",
     "node-pty": "^0.10.1",
     "puppeteer": "^10.4.0",
@@ -69,6 +71,7 @@
     "react-dom": "^17.0.2",
     "signal-exit": "^3.0.3",
     "tty-strings": "^1.1.0",
+    "wawoff2": "^2.0.1",
     "which": "^2.0.2"
   },
   "devDependencies": {
@@ -81,6 +84,7 @@
     "@types/react-dom": "^17.0.9",
     "@types/react-test-renderer": "^17.0.1",
     "@types/signal-exit": "^3.0.1",
+    "@types/wawoff2": "^1.0.0",
     "@types/which": "^2.0.1",
     "@typescript-eslint/eslint-plugin": "^5.49.0",
     "@typescript-eslint/parser": "^5.49.0",

@@ -1,6 +1,10 @@
 import { applyDefaults } from '@src/options';
 import { resolveTitle } from '@src/title';
-import fetchFontCss, { fetchFontMetadata, determineFontSubsets } from '@src/fonts';
+import { GraphemeSet } from '@src/fonts/range';
+import extractContentSubsets, { createContentSubsets, type ContentSubsets } from '@src/fonts/content';
+import { getSystemFonts } from '@src/fonts/system';
+import { fetchGoogleFontMetadata } from '@src/fonts/google';
+import createFontCss from '@src/fonts';
 import { makeLine } from './helpers/objects';
 
 const { palette } = applyDefaults({});
@@ -33,98 +37,127 @@ const fixtures = {
     }],
 };
 
-describe('fetchFontMetadata', () => {
+describe('extractContentSubsets', () => {
+    type ReplaceType<T, A, B> = T extends A ? B : T extends object ? { [K in keyof T]: ReplaceType<T[K], A, B> } : T;
+
+    const makeExpected = (cp: ReplaceType<ContentSubsets, GraphemeSet, string>): ContentSubsets => ({
+        coverage: GraphemeSet.from(cp.coverage),
+        subsets: cp.subsets.map(([ansi, chars]) => [ansi, GraphemeSet.from(chars)]),
+    });
+
+    test('extracts codepoint subsets from terminal frame data', () => {
+        expect(extractContentSubsets(fixtures.frame)).toEqual<ContentSubsets>(makeExpected({
+            coverage: 'abcdefghijklmno',
+            subsets: [[0, 'abcdef'], [1, 'ghi'], [2, 'mno'], [3, 'jkl']],
+        }));
+    });
+
+    test('extracts char subsets terminal capture data', () => {
+        expect(extractContentSubsets(fixtures.capture)).toEqual<ContentSubsets>(makeExpected({
+            coverage: 'abcdefghijklmno',
+            subsets: [[0, 'abcdef'], [1, 'ghi'], [2, 'mno'], [3, 'jkl']],
+        }));
+    });
+
+    test('extracts char subsets terminal frames data', () => {
+        expect(extractContentSubsets(fixtures.frames)).toEqual<ContentSubsets>(makeExpected({
+            coverage: 'abcdefghijklmno',
+            subsets: [[0, 'abcdef'], [1, 'ghi'], [2, 'mno'], [3, 'jkl']],
+        }));
+    });
+});
+
+describe('fetchGoogleFontMetadata', () => {
     test('fetches metadata for a given Google font', async () => {
-        await expect(fetchFontMetadata('Fira Code')).resolves
+        await expect(fetchGoogleFontMetadata('Fira Code')).resolves
             .toMatchObject<{ family: string }>({ family: 'Fira Code' });
     });
 
     test('handles css style font family properties', async () => {
-        await expect(fetchFontMetadata('"Fira Code", monospace')).resolves
+        await expect(fetchGoogleFontMetadata('"Fira Code", monospace')).resolves
             .toMatchObject<{ family: string }>({ family: 'Fira Code' });
-        await expect(fetchFontMetadata("'Fira Code', monospace")).resolves
+        await expect(fetchGoogleFontMetadata("'Fira Code', monospace")).resolves
             .toMatchObject<{ family: string }>({ family: 'Fira Code' });
     });
 
     test('returns null if font-family is not on google fonts', async () => {
-        await expect(fetchFontMetadata('monospace')).resolves.toBeNull();
+        await expect(fetchGoogleFontMetadata('monospace')).resolves.toBeNull();
     });
 });
 
-describe('determineFontSubsets', () => {
-    describe('terminal frame data', () => {
-        test('extracts font subsets', () => {
-            expect(
-                determineFontSubsets(fixtures.frame, ['400', '700', '400i', '700i']),
-            ).toEqual<{ styleParam: string, chars: string }[]>([
-                { styleParam: ':ital,wght@0,400', chars: 'abcdef' },
-                { styleParam: ':ital,wght@0,700', chars: 'ghi' },
-                { styleParam: ':ital,wght@1,400', chars: 'mno' },
-                { styleParam: ':ital,wght@1,700', chars: 'jkl' },
-            ]);
-        });
-
-        test('extracts font subsets with limited font styles', () => {
-            expect(
-                determineFontSubsets(fixtures.frame, ['400', '700']),
-            ).toEqual<{ styleParam: string, chars: string }[]>([
-                { styleParam: ':ital,wght@0,400', chars: 'abcdefmno' },
-                { styleParam: ':ital,wght@0,700', chars: 'ghijkl' },
-            ]);
-        });
-    });
-
-    describe('terminal capture data', () => {
-        test('extracts font subsets', () => {
-            expect(
-                determineFontSubsets(fixtures.capture, ['400', '700', '400i', '700i']),
-            ).toEqual<{ styleParam: string, chars: string }[]>([
-                { styleParam: ':ital,wght@0,400', chars: 'abcdef' },
-                { styleParam: ':ital,wght@0,700', chars: 'ghi' },
-                { styleParam: ':ital,wght@1,400', chars: 'mno' },
-                { styleParam: ':ital,wght@1,700', chars: 'jkl' },
-            ]);
-        });
-
-        test('extracts font subsets with limited font styles', () => {
-            expect(
-                determineFontSubsets(fixtures.capture, ['400', '400i']),
-            ).toEqual<{ styleParam: string, chars: string }[]>([
-                { styleParam: ':ital,wght@0,400', chars: 'abcdefghi' },
-                { styleParam: ':ital,wght@1,400', chars: 'jklmno' },
-            ]);
+describe('getSystemFonts', () => {
+    test('finds local system font styles grouped by font-family', async () => {
+        await expect(getSystemFonts()).resolves.toMatchObject({
+            'Cascadia Code': [
+                { style: { weight: 200, width: 5, slant: 0 } },
+                { style: { weight: 300, width: 5, slant: 0 } },
+                { style: { weight: 350, width: 5, slant: 0 } },
+                { style: { weight: 400, width: 5, slant: 0 } },
+                { style: { weight: 600, width: 5, slant: 0 } },
+                { style: { weight: 700, width: 5, slant: 0 } },
+                { style: { weight: 200, width: 5, slant: 2 } },
+                { style: { weight: 300, width: 5, slant: 2 } },
+                { style: { weight: 350, width: 5, slant: 2 } },
+                { style: { weight: 400, width: 5, slant: 2 } },
+                { style: { weight: 600, width: 5, slant: 2 } },
+                { style: { weight: 700, width: 5, slant: 2 } },
+            ],
+            Menlo: [
+                { style: { weight: 400, width: 5, slant: 0 } },
+                { style: { weight: 700, width: 5, slant: 0 } },
+                { style: { weight: 400, width: 5, slant: 2 } },
+                { style: { weight: 700, width: 5, slant: 2 } },
+            ],
+            Monaco: [
+                { style: { weight: 400, width: 5, slant: 0 } },
+            ],
         });
     });
 
-    describe('terminal frames data', () => {
-        test('extracts font subsets', () => {
-            expect(
-                determineFontSubsets(fixtures.frames, ['400', '700', '400i', '700i']),
-            ).toEqual<{ styleParam: string, chars: string }[]>([
-                { styleParam: ':ital,wght@0,400', chars: 'abcdef' },
-                { styleParam: ':ital,wght@0,700', chars: 'ghi' },
-                { styleParam: ':ital,wght@1,400', chars: 'mno' },
-                { styleParam: ':ital,wght@1,700', chars: 'jkl' },
-            ]);
-        });
-
-        test('extracts font subsets with limited font styles', () => {
-            expect(
-                determineFontSubsets(fixtures.frames, ['400', '700i']),
-            ).toEqual<{ styleParam: string, chars: string }[]>([
-                { styleParam: ':ital,wght@0,400', chars: 'abcdefghimno' },
-                { styleParam: ':ital,wght@1,700', chars: 'jkl' },
-            ]);
-        });
+    test('filters results to match an array of font-family names', async () => {
+        const fonts = await getSystemFonts(['Monaco']);
+        expect(Object.keys(fonts)).toEqual(['Monaco']);
     });
 });
 
-describe('fetchFontCss', () => {
-    test('fetches font css', async () => {
-        await expect(fetchFontCss(fixtures.frame, 'Fira Code').then((css) => typeof css)).resolves.toBe('string');
+describe('createFontCss', () => {
+    type FontCSS = Awaited<ReturnType<typeof createFontCss>>;
+
+    const expectedFontCSS = (fontFaceCount: number) => ({
+        css: expect.toContainOccurrences('@font-face', fontFaceCount),
+        fontFamily: expect.stringMatching(/^sc-[a-z]{12}-1,monospace$/) as string,
     });
 
-    test('returns null if font-family is not a google font', async () => {
-        await expect(fetchFontCss(fixtures.frame, 'monospace')).resolves.toBeNull();
+    describe('google fonts', () => {
+        test('fetches @font-face css blocks', async () => {
+            const subset = createContentSubsets(['abc', 'def', '', '']);
+            await expect(createFontCss(subset, 'Fira Code')).resolves.toEqual<FontCSS>(expectedFontCSS(2));
+        });
+
+        test('uses fallbacks when a font family does not support a style', async () => {
+            const subset = createContentSubsets(['abc', '', 'def', '']);
+            await expect(createFontCss(subset, 'Fira Code')).resolves.toEqual<FontCSS>(expectedFontCSS(1));
+        });
+    });
+
+    describe('system fonts', () => {
+        test('creates @font-face css blocks', async () => {
+            const subset = createContentSubsets(['abc', 'def', 'ghi', 'jkl']);
+            await expect(createFontCss(subset, 'Cascadia Code')).resolves.toEqual<FontCSS>(expectedFontCSS(4));
+        });
+
+        test('uses fallbacks when a font family does not support a style', async () => {
+            const subset = createContentSubsets(['abc', 'def', 'ghi', '']);
+            await expect(createFontCss(subset, 'Monaco')).resolves.toEqual<FontCSS>(expectedFontCSS(1));
+        });
+
+        test('creates @font-face css blocks from ttc font collections', async () => {
+            const subset = createContentSubsets(['abc', 'def', '', '']);
+            await expect(createFontCss(subset, 'Menlo')).resolves.toEqual<FontCSS>(expectedFontCSS(2));
+        });
+    });
+
+    test('returns null if font-family is not installed or a google font', async () => {
+        await expect(createFontCss(fixtures.frame, 'monospace')).resolves.toStrictEqual<FontCSS>({ css: null });
     });
 });
