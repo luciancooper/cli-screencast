@@ -30,7 +30,8 @@ export async function renderScreen(
             title: resolveTitle(props.palette, props.windowTitle, props.windowIcon),
         }, content),
         screenData = { ...state, cursor: !cursorHidden ? cursor : null },
-        font = await createFontCss(screenData, props.theme.fontFamily),
+        font = (output === 'png' || props.embedFonts)
+            ? await createFontCss(screenData, props.theme.fontFamily) : null,
         rendered = renderScreenSvg(screenData, { ...props, ...font });
     return output === 'png' ? createPng(rendered, scaleFactor) : rendered.svg;
 }
@@ -46,7 +47,7 @@ async function renderSource(
             svgFrames = renderCaptureFrames(frames, { ...props, ...font });
         return createAnimatedPng(svgFrames, scaleFactor);
     }
-    const font = await createFontCss(data, props.theme.fontFamily);
+    const font = props.embedFonts ? await createFontCss(data, props.theme.fontFamily) : null;
     return renderCaptureSvg(data, { ...props, ...font });
 }
 

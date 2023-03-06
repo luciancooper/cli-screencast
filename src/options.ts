@@ -23,6 +23,7 @@ export const defaults: Required<CoreOptions> = {
     // OutputOptions
     output: 'svg',
     scaleFactor: 4,
+    embedFonts: true,
     // CaptureOptions
     writeMergeThreshold: 80,
     endTimePadding: 500,

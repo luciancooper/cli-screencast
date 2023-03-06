@@ -80,6 +80,12 @@ export interface OutputOptions {
      * @defaultValue `4`
      */
     scaleFactor?: number
+
+    /**
+     * Embed required fonts when rendering to svg, only applicable when `output` is `'svg'`.
+     * @defaultValue `true`
+     */
+    embedFonts?: boolean
 }
 
 export type RGB = readonly [number, number, number];
