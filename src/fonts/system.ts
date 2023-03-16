@@ -1,4 +1,4 @@
-import { getAvailableFonts } from 'fontmanager-redux';
+import systemFontPaths from 'system-font-paths';
 import { compress as woff2Compress } from 'wawoff2';
 import type { ContentSubsets } from './content';
 import type { SystemFont } from './types';
@@ -6,14 +6,6 @@ import FontDecoder from './decoder';
 import { CodePointRange, type GraphemeSet } from './range';
 import { styleAnsiMatchPriority } from './style';
 import { subsetFontFile } from './subset';
-
-export function systemFontPaths(): Promise<string[]> {
-    return new Promise<string[]>((resolve, reject) => {
-        getAvailableFonts((fonts) => {
-            resolve([...new Set(fonts.map(({ path }) => path))]);
-        });
-    });
-}
 
 export async function getSystemFonts(match?: string[]) {
     // create a map of system font families
