@@ -1,3 +1,4 @@
+import type { LogLevel } from './logger';
 import icons from './render/icons.json';
 
 /**
@@ -37,6 +38,15 @@ export type Entry<T> = readonly [keyof T, T[keyof T]];
  * Create a type that represents an array of an objects `[key, value]` entry pairs.
  */
 export type Entries<T> = Entry<T>[];
+
+export interface BaseOptions {
+    /**
+     * Control how much info is logged to the console during the render process
+     * Options are (in order of decending verbosity): 'debug', 'info', 'warn', 'error', and 'silent'
+     * @defaultValue 'info'
+     */
+    logLevel?: LogLevel
+}
 
 export interface TerminalOptions {
     /**

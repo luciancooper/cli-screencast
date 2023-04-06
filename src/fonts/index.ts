@@ -1,3 +1,4 @@
+import log from '../logger';
 import extractContentSubsets, { type FrameData, type ContentSubsets } from './content';
 import { getSystemFonts, cssFromSystemFont } from './system';
 import { fetchGoogleFontMetadata, cssFromGoogleFont } from './google';
@@ -48,11 +49,15 @@ export default async function createFontCss(
         const embeddedFamily = `sc-${id}-${embedded.family.length + 1}`;
         // check if specified font is installed locally
         if (systemFonts[family]) {
+            log.debug('extracting font subset from locally installed font %s', family);
             subsets = await cssFromSystemFont(embeddedFamily, embedded, subsets, systemFonts[family]!);
         } else {
             // check if specified font can be fetched from the google fonts api
             const meta = await fetchGoogleFontMetadata(family);
-            if (meta) subsets = await cssFromGoogleFont(embeddedFamily, embedded, subsets, meta);
+            if (meta) {
+                log.debug('downloading font subset from google font family %s', family);
+                subsets = await cssFromGoogleFont(embeddedFamily, embedded, subsets, meta);
+            }
         }
         if (subsets.coverage.empty()) break;
     }

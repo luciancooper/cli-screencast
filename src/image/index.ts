@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer';
 import { Size, SVGData, SVGCaptureData } from '../types';
 import PNG from './png';
+import log from '../logger';
 
 function createBrowser(): Promise<puppeteer.Browser> {
     return puppeteer.launch({
@@ -50,11 +51,13 @@ export async function createPng({ svg, ...size }: SVGData, scale: number): Promi
 }
 
 export async function createAnimatedPng({ frames, ...size }: SVGCaptureData, scale: number): Promise<Buffer> {
+    log.info('rendering animated png (%s total frames)', frames.length);
     const png = new PNG(),
         // create renderer
         renderer = await createImageRenderer(size, scale);
     // render png buffer for each frame
-    for (const { svg, time, endTime } of frames) {
+    for (const [idx, { svg, time, endTime }] of frames.entries()) {
+        log.info('adding frame %s of %s', idx + 1, frames.length);
         png.addFrame(await renderer(svg), endTime - time);
     }
     // close renderer
@@ -63,5 +66,6 @@ export async function createAnimatedPng({ frames, ...size }: SVGCaptureData, sca
     png.setPixelDensity(scale * 72);
     png.setText('Software', 'cli-screencast');
     // return encoded png buffer
+    log.info('packing animated png');
     return png.pack();
 }

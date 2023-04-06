@@ -1,11 +1,12 @@
-import type { Dimensions, Palette, TerminalOptions, OutputOptions } from './types';
+import type { Dimensions, Palette, BaseOptions, TerminalOptions, OutputOptions } from './types';
 import type { CaptureOptions } from './capture';
 import type { RenderOptions } from './render';
 import { resolveTheme, Theme } from './theme';
+import { setLogLevel } from './logger';
 
 type CoreOptions = TerminalOptions & OutputOptions & RenderOptions & CaptureOptions;
 
-export interface Options extends CoreOptions {
+export interface Options extends BaseOptions, CoreOptions {
     theme?: Partial<Theme>
 }
 
@@ -14,7 +15,9 @@ export interface Config extends Dimensions, Required<CoreOptions> {
     palette: Palette
 }
 
-export const defaults: Required<CoreOptions> = {
+export const defaults: Required<BaseOptions & CoreOptions> = {
+    // BaseOptions
+    logLevel: 'info',
     // TerminalOptions
     tabSize: 8,
     cursorHidden: false,
@@ -47,6 +50,8 @@ export const defaults: Required<CoreOptions> = {
 export function applyDefaults<T extends Options, D>(options: T, extraDefaults?: D) {
     const { theme: themeOption, ...other } = options,
         { palette, theme } = resolveTheme(themeOption),
-        spec = { ...defaults, ...(extraDefaults ?? {}), ...other };
+        { logLevel, ...spec } = { ...defaults, ...(extraDefaults ?? {}), ...other };
+    // set package wide log level
+    setLogLevel(logLevel);
     return { ...spec, theme, palette };
 }

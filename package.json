@@ -72,7 +72,8 @@
     "system-font-paths": "^1.1.0",
     "tty-strings": "^1.1.0",
     "wawoff2": "^2.0.1",
-    "which": "^2.0.2"
+    "which": "^2.0.2",
+    "winston": "^3.8.2"
   },
   "devDependencies": {
     "@commitlint/cli": "^13.1.0",
