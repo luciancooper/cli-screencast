@@ -146,6 +146,11 @@ The column width of the captured terminal window.
 
 The row height of the captured terminal window.
 
+<a name='options.logLevel'></a>
+› &nbsp; **logLevel** &nbsp;•&nbsp; `string`
+
+Controls how much info is logged to the console during the render process. Options are (in order of decending verbosity): `'debug'`, `'info'`, `'warn'`, `'error'`, and `'silent'`. Defaults to `'info'`.
+
 <a name='options.tabSize'></a>
 › &nbsp; **tabSize** &nbsp;•&nbsp; `number`
 
@@ -182,6 +187,13 @@ The desired output format. Must be either `'svg'` or `'png'`. The default is `'s
 The device scale factor used when rendering to png. Default is `4`.
 
 > **Note:** This option is only applicable when `output` is `'png'`.
+
+<a name='options.embedFonts'></a>
+› &nbsp; **embedFonts** &nbsp;•&nbsp; `boolean`
+
+Embed required fonts when rendering to svg, Defaults to `true`.
+
+> **Note:** This option is only applicable when `output` is `'svg'`.
 
 <a name='options.fontSize'></a>
 › &nbsp; **fontSize** &nbsp;•&nbsp; `number`
