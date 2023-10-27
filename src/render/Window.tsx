@@ -74,7 +74,7 @@ const Window = forwardRef<Size, WindowProps>(({
         icons = Array.isArray(title)
             ? [...new Set(title.map(({ icon }) => icon).filter(Boolean) as IconID[])]
             : title?.icon ? [title.icon] : [],
-        top = decorations ? insetMajor : (title || forceTitleInset) ? dy + paddingY * 2 : 0,
+        top = decorations ? insetMajor : (title || forceTitleInset) ? dy * 1.5 : 0,
         side = decorations ? insetMinor : 0,
         titleInset = decorations ? Math.ceil((50 - paddingX) / dx) : 0,
         size = {
@@ -113,7 +113,7 @@ const Window = forwardRef<Size, WindowProps>(({
                 <svg
                     className='window-title'
                     x={paddingX + side}
-                    y={paddingY + (top - paddingY * 2 - dy) / 2}
+                    y={paddingY + (top - dy) / 2}
                     width={columns * dx}
                     height={dy}
                 >
@@ -125,10 +125,10 @@ const Window = forwardRef<Size, WindowProps>(({
                 </svg>
             )}
             {decorations && (
-                <g className='window-decorations'>
-                    <circle cx={insetMinor} cy={insetMajor / 2} r={6} fill='#ff5f58'/>
-                    <circle cx={insetMinor + 20} cy={insetMajor / 2} r={6} fill='#ffbd2e'/>
-                    <circle cx={insetMinor + 40} cy={insetMajor / 2} r={6} fill='#18c132'/>
+                <g transform={`translate(${paddingX + side * 0.4},${paddingY + top * 0.2})`}>
+                    <circle cx={6} cy={6} r={6} fill='#ff5f58'/>
+                    <circle cx={26} cy={6} r={6} fill='#ffbd2e'/>
+                    <circle cx={46} cy={6} r={6} fill='#18c132'/>
                 </g>
             )}
             <svg
