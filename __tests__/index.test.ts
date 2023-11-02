@@ -43,6 +43,7 @@ describe('renderSpawn', () => {
     test('promises a buffer when output type is `png`', async () => {
         await expect(renderSpawn('node', ['-e', "process.stdout.write('Hello World!');"], {
             ...dimensions,
+            logLevel: 'silent',
             output: 'png',
             scaleFactor: 1,
             useConpty: false,
@@ -60,10 +61,13 @@ describe('renderCapture', () => {
     });
 
     test('promises a buffer when output type is `png`', async () => {
-        await expect(
-            renderCapture((source) => {
-                source.write('captured write');
-            }, { ...dimensions, output: 'png', scaleFactor: 1 }).then((value) => Buffer.isBuffer(value)),
-        ).resolves.toBe(true);
+        await expect(renderCapture((source) => {
+            source.write('captured write');
+        }, {
+            ...dimensions,
+            logLevel: 'silent',
+            output: 'png',
+            scaleFactor: 1,
+        }).then((value) => Buffer.isBuffer(value))).resolves.toBe(true);
     });
 });
