@@ -53,7 +53,7 @@ describe('<Window/>', () => {
             children: [
                 { type: 'style' },
                 { type: 'rect', props: { className: 'window-background' } },
-                { type: 'g', props: { className: 'window-decorations' } },
+                { type: 'g', children: [{ type: 'circle' }, { type: 'circle' }, { type: 'circle' }] },
                 { type: 'svg', props: { className: 'terminal-content' } },
             ],
         });
