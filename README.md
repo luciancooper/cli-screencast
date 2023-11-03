@@ -32,7 +32,7 @@ All methods are asynchronous and return a `string` or `Buffer` depending on the 
 
 Render a single terminal frame to svg or png.
 
-**Arguments:**
+> #### *Arguments:*
 
 › &nbsp; **content** &nbsp;•&nbsp; `string`
 
@@ -46,7 +46,7 @@ Options config object to specify [configuration options](#options).
 
 Render an animated terminal screen capture from an array of content frames.
 
-**Arguments:**
+> #### *Arguments:*
 
 › &nbsp; **frames** &nbsp;•&nbsp; `Object[]`
 
@@ -60,7 +60,7 @@ Options config object to specify [configuration options](#options).
 
 Record and render the terminal output of a spawned sub process. Signature mimics that of [`child_process.spawn`](https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options).
 
-**Arguments:**
+> #### *Arguments:*
 
 › &nbsp; **command** &nbsp;•&nbsp; `string`
 
@@ -74,7 +74,7 @@ List of string arguments.
 
 Options config object to specify [configuration options](#options) as well as the additional options listed below.
 
-**Additional Options:**
+> #### *Additional Options:*
 
 <a name='options.term'></a>
 › &nbsp; **term** &nbsp;•&nbsp; `string`
@@ -110,19 +110,19 @@ The signal to be used when the spawned process is killed by `timeout`. Default i
 
 Capture and render all terminal output that occurs within a callback function.
 
-**Arguments:**
+> #### *Arguments:*
 
 › &nbsp; **fn** &nbsp;•&nbsp; `(source) => void`
 
 Callback function within which terminal output is captured. Can be synchronous or asynchronous. The callback function will be passed a `TerminalRecordingStream` instance.
 
-> **Note:** Within the scope of this function, all writes to `process.stdout` and `process.stderr`, (and by extension calls to `console.log` and `console.error`) will be captured.
+**Note:** Within the scope of this function, all writes to `process.stdout` and `process.stderr`, (and by extension calls to `console.log` and `console.error`) will be captured.
 
 › &nbsp; **options** &nbsp;•&nbsp; `Object`
 
 Options config object to specify [configuration options](#options) as well as the additional options listed below.
 
-**Additional Options:**
+> #### *Additional Options:*
 
 <a name='options.connectStdin'></a>
 › &nbsp; **connectStdin** &nbsp;•&nbsp; `boolean`
@@ -136,45 +136,12 @@ Silently capture output to `process.stdout` and `process.stderr`. Defaults to `t
 
 ## Options
 
-<a name='options.columns'></a>
-› &nbsp; **columns** &nbsp;•&nbsp; `number` &nbsp;•&nbsp; **Required**
-
-The column width of the captured terminal window.
-
-<a name='options.rows'></a>
-› &nbsp; **rows** &nbsp;•&nbsp; `number` &nbsp;•&nbsp; **Required**
-
-The row height of the captured terminal window.
-
 <a name='options.logLevel'></a>
 › &nbsp; **logLevel** &nbsp;•&nbsp; `string`
 
-Controls how much info is logged to the console during the render process. Options are (in order of decending verbosity): `'debug'`, `'info'`, `'warn'`, `'error'`, and `'silent'`. Defaults to `'info'`.
+Controls how much info is logged to the console during the render process. Options are (in order of descending verbosity): `'debug'`, `'info'`, `'warn'`, `'error'`, and `'silent'`. Defaults to `'info'`.
 
-<a name='options.tabSize'></a>
-› &nbsp; **tabSize** &nbsp;•&nbsp; `number`
-
-Tab column width. Defaults to `8`.
-
-<a name='options.theme'></a>
-› &nbsp; **theme** &nbsp;•&nbsp; `Object`
-
-Terminal theme specification object. See the [themes](#theme) section below.
-
-<a name='options.cursorHidden'></a>
-› &nbsp; **cursorHidden** &nbsp;•&nbsp; `boolean`
-
-Cursor is hidden in the captured terminal recording or frame. Defaults to `false`.
-
-<a name='options.windowTitle'></a>
-› &nbsp; **windowTitle** &nbsp;•&nbsp; `string`
-
-Terminal window title. Default is `undefined`.
-
-<a name='options.windowIcon'></a>
-› &nbsp; **windowIcon** &nbsp;•&nbsp; `string | boolean`
-
-Terminal window icon. If set to `true`, the value of `windowTitle` is used. Default is `undefined`.
+> ### *Output Related Options*
 
 <a name='options.output'></a>
 › &nbsp; **output** &nbsp;•&nbsp; `string`
@@ -186,63 +153,16 @@ The desired output format. Must be either `'svg'` or `'png'`. The default is `'s
 
 The device scale factor used when rendering to png. Default is `4`.
 
-> **Note:** This option is only applicable when `output` is `'png'`.
+**Note:** This option is only applicable when `output` is `'png'`.
 
 <a name='options.embedFonts'></a>
 › &nbsp; **embedFonts** &nbsp;•&nbsp; `boolean`
 
 Embed required fonts when rendering to svg, Defaults to `true`.
 
-> **Note:** This option is only applicable when `output` is `'svg'`.
+**Note:** This option is only applicable when `output` is `'svg'`.
 
-<a name='options.fontSize'></a>
-› &nbsp; **fontSize** &nbsp;•&nbsp; `number`
-
-The font size of the rendered terminal output. Default is `16`.
-
-<a name='options.lineHeight'></a>
-› &nbsp; **lineHeight** &nbsp;•&nbsp; `number`
-
-The line height of the rendered terminal output. Default is `1.25`.
-
-<a name='options.iconColumnWidth'></a>
-› &nbsp; **iconColumnWidth** &nbsp;•&nbsp; `number`
-
-The column span of title icons in the rendered terminal output. Default is `1.6`.
-
-<a name='options.borderRadius'></a>
-› &nbsp; **borderRadius** &nbsp;•&nbsp; `number`
-
-Border radius of the rendered terminal window frame. Default is `5`.
-
-<a name='options.decorations'></a>
-› &nbsp; **decorations** &nbsp;•&nbsp; `boolean`
-
-Render the terminal window with stoplight buttons in the top left corner. Defaults to `true`.
-
-<a name='options.insetMajor'></a>
-› &nbsp; **insetMajor** &nbsp;•&nbsp; `number`
-
-Amount of inset space in pixels added to the top of the window frame when rendering it with decorations. Default is `40`.
-
-> **Note:** This option is ignored if `decorations` is `false`.
-
-<a name='options.insetMinor'></a>
-› &nbsp; **insetMinor** &nbsp;•&nbsp; `number`
-
-Amount of inset space in pixels added to the left, right, and bottom of the window frame when rendering it with decorations. Default is `20`.
-
-> **Note:** This option is ignored if `decorations` is `false`.
-
-<a name='options.paddingX'></a>
-› &nbsp; **paddingX** &nbsp;•&nbsp; `number`
-
-Amount of padding in pixels to be added to the left and right of the rendered window content box. Default is `5`.
-
-<a name='options.paddingY'></a>
-› &nbsp; **paddingY** &nbsp;•&nbsp; `number`
-
-Amount of padding in pixels to be added to the top and bottom of the rendered window content box. Default is `5`.
+> ### *Capture Related Options*
 
 <a name='options.writeMergeThreshold'></a>
 › &nbsp; **writeMergeThreshold** &nbsp;•&nbsp; `number`
@@ -269,21 +189,107 @@ Include a prompt and command string at the beginning of a captured recording, if
 
 The prompt prefix string to use when a command is captured. Default is `'> '`.
 
-> **Note:** This option is only applicable when `captureCommand` is `true`.
+**Note:** This option is only applicable when `captureCommand` is `true`.
 
 <a name='options.keystrokeAnimation'></a>
 › &nbsp; **keystrokeAnimation** &nbsp;•&nbsp; `boolean`
 
 Include a command input keystroke animation at the start of the recording if command prompt line is captured. Defaults to `true`.
 
-> **Note:** This option is only applicable when `captureCommand` is `true`.
+**Note:** This option is only applicable when `captureCommand` is `true`.
 
 <a name='options.keystrokeAnimationInterval'></a>
 › &nbsp; **keystrokeAnimationInterval** &nbsp;•&nbsp; `number`
 
 The delay in milliseconds between keystrokes to use when creating a command input animation. Default is `140`.
 
-> **Note:** This option is only applicable when `keystrokeAnimation` is `true`.
+**Note:** This option is only applicable when `keystrokeAnimation` is `true`.
+
+> ### *Rendering Related Options*
+
+<a name='options.columns'></a>
+› &nbsp; **columns** &nbsp;•&nbsp; `number` &nbsp;•&nbsp; **Required**
+
+The column width of the captured terminal window.
+
+<a name='options.rows'></a>
+› &nbsp; **rows** &nbsp;•&nbsp; `number` &nbsp;•&nbsp; **Required**
+
+The row height of the captured terminal window.
+
+<a name='options.tabSize'></a>
+› &nbsp; **tabSize** &nbsp;•&nbsp; `number`
+
+Tab column width. Defaults to `8`.
+
+<a name='options.cursorHidden'></a>
+› &nbsp; **cursorHidden** &nbsp;•&nbsp; `boolean`
+
+Cursor is hidden in the captured terminal recording or frame. Defaults to `false`.
+
+<a name='options.fontSize'></a>
+› &nbsp; **fontSize** &nbsp;•&nbsp; `number`
+
+The font size of the rendered terminal output. Default is `16`.
+
+<a name='options.lineHeight'></a>
+› &nbsp; **lineHeight** &nbsp;•&nbsp; `number`
+
+The line height of the rendered terminal output. Default is `1.25`.
+
+<a name='options.theme'></a>
+› &nbsp; **theme** &nbsp;•&nbsp; `Object`
+
+Terminal theme specification object. See the [themes](#theme) section below.
+
+<a name='options.windowTitle'></a>
+› &nbsp; **windowTitle** &nbsp;•&nbsp; `string`
+
+Terminal window title. Default is `undefined`.
+
+<a name='options.windowIcon'></a>
+› &nbsp; **windowIcon** &nbsp;•&nbsp; `string | boolean`
+
+Terminal window icon. If set to `true`, the value of `windowTitle` is used. Default is `undefined`.
+
+<a name='options.iconColumnWidth'></a>
+› &nbsp; **iconColumnWidth** &nbsp;•&nbsp; `number`
+
+The column span of title icons in the rendered terminal output. Default is `1.6`.
+
+<a name='options.borderRadius'></a>
+› &nbsp; **borderRadius** &nbsp;•&nbsp; `number`
+
+Border radius of the rendered terminal window frame. Default is `5`.
+
+<a name='options.paddingX'></a>
+› &nbsp; **paddingX** &nbsp;•&nbsp; `number`
+
+Amount of padding in pixels to be added to the left and right of the rendered window content box. Default is `5`.
+
+<a name='options.paddingY'></a>
+› &nbsp; **paddingY** &nbsp;•&nbsp; `number`
+
+Amount of padding in pixels to be added to the top and bottom of the rendered window content box. Default is `5`.
+
+<a name='options.decorations'></a>
+› &nbsp; **decorations** &nbsp;•&nbsp; `boolean`
+
+Render the terminal window with stoplight buttons in the top left corner. Defaults to `true`.
+
+<a name='options.insetMajor'></a>
+› &nbsp; **insetMajor** &nbsp;•&nbsp; `number`
+
+Amount of inset space in pixels added to the top of the window frame when rendering it with decorations. Default is `40`.
+
+**Note:** This option is ignored if `decorations` is `false`.
+
+<a name='options.insetMinor'></a>
+› &nbsp; **insetMinor** &nbsp;•&nbsp; `number`
+
+Amount of inset space in pixels added to the left, right, and bottom of the window frame when rendering it with decorations. Default is `20`.
+
+**Note:** This option is ignored if `decorations` is `false`.
 
 ## Theme
 
