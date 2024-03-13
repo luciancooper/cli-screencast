@@ -1,5 +1,5 @@
 import log from '../logger';
-import extractContentSubsets, { type FrameData, type ContentSubsets } from './content';
+import extractContentSubsets, { createContentSubsets, type FrameData, type ContentSubsets } from './content';
 import { getSystemFonts, cssFromSystemFont } from './system';
 import { fetchGoogleFontMetadata, cssFromGoogleFont } from './google';
 
@@ -18,16 +18,17 @@ const genericFamilies = [
 /**
  * Create css code with the embedded font subset required
  * for the text content of a screenshot or screencast.
- * @param data - screenshot or screencast data
+ * @param data - screenshot or screencast data or a string
  * @param fontFamily - the css font family spec
  * @returns css code
  */
 export default async function createFontCss(
-    data: FrameData | ContentSubsets,
+    data: FrameData | ContentSubsets | string,
     fontSpec: string,
 ): Promise<{ css: string, fontFamily: string } | { css: null }> {
     // create code point subset object from font data
-    let subsets = ('coverage' in data) ? data : extractContentSubsets(data);
+    let subsets = (typeof data === 'string') ? createContentSubsets([data])
+        : ('coverage' in data) ? data : extractContentSubsets(data);
     // stop if frame data has no text
     if (subsets.coverage.empty()) return { css: null };
     // create array of specified font families

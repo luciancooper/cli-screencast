@@ -250,7 +250,7 @@ Terminal window title. Default is `undefined`.
 <a name='options.windowIcon'></a>
 › &nbsp; **windowIcon** &nbsp;•&nbsp; `string | boolean`
 
-Terminal window icon. If set to `true`, the value of `windowTitle` is used. Default is `undefined`.
+Terminal window icon. Can be set to a keyword string to specify a specific icon (see the [window icons section](#window-icons) below for a list of keywords). If set to `true`, the value of `windowTitle` is used. Default is `undefined`.
 
 <a name='options.iconColumnWidth'></a>
 › &nbsp; **iconColumnWidth** &nbsp;•&nbsp; `number`
@@ -291,6 +291,17 @@ Amount of inset space in pixels added to the left, right, and bottom of the wind
 
 **Note:** This option is ignored if `decorations` is `false`.
 
+---
+
+<a name='diagram.windowOptions'></a>
+The following diagram shows how various window rendering related options function:
+
+<p align="left">
+  <a name="window-options-diagram" href="#diagram.windowOptions">
+    <img src="media/window-options.svg" alt="window-options"/>
+  </a>
+</p>
+
 ## Theme
 
 The terminal theme can be specified by passing a theme configuration object to the [`theme`](#options.theme) option. One or more of the properties in the table below can be specified, and any unspecified properties will be inherited from the default theme.
@@ -323,6 +334,16 @@ The terminal theme can be specified by passing a theme configuration object to t
 | cursorBlink | Enable cursor blinking | `false` |
 | dim | Opacity of dim text (styled with SGR code `2`)  | `0.5` |
 | fontFamily | Font family name | `'Monoco'` |
+
+## Window Icons
+
+The [`windowIcon`](#options.windowIcon) option can be used to specify an icon to display next to the rendered terminal window title. The following diagram shows the keywords that can be specified to for particular window icons:
+
+<p align="left">
+  <a name="diagram.windowIcons" href="#window-icons">
+    <img src="media/window-icons.svg" alt="window-icons"/>
+  </a>
+</p>
 
 ## License
 

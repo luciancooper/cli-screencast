@@ -35,6 +35,8 @@
     "clean": "rm -rf lib && rm -rf coverage",
     "test": "tsc --noEmit && jest",
     "lint": "eslint .",
+    "window-icons": "ts-node tasks/window-icons",
+    "window-options": "ts-node tasks/window-options",
     "prepublishOnly": "yarn test && yarn build"
   },
   "engines": {
@@ -101,6 +103,7 @@
     "lint-staged": "^11.1.2",
     "react-test-renderer": "^17.0.2",
     "ts-jest": "^27.0.5",
+    "ts-node": "^10.9.2",
     "typescript": "^4.9.4"
   }
 }

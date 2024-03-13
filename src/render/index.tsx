@@ -37,7 +37,7 @@ export interface RenderProps extends Dimensions, Required<RenderOptions> {
     css?: string | null
 }
 
-function resolveContext({
+export function resolveContext({
     columns,
     rows,
     theme,
