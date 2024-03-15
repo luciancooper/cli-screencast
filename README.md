@@ -333,7 +333,7 @@ The terminal theme can be specified by passing a theme configuration object to t
 | cursorType | Cursor style, either `'beam'`,  `'block'`, or `'underline'` | `'beam'` |
 | cursorBlink | Enable cursor blinking | `false` |
 | dim | Opacity of dim text (styled with SGR code `2`)  | `0.5` |
-| fontFamily | Font family name | `'Monoco'` |
+| fontFamily | Font family name | `"'Monaco', 'Cascadia Code', 'Courier New'"` |
 
 ## Window Icons
 

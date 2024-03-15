@@ -66,7 +66,7 @@ export const defaultTheme: Theme = {
     // ansi style
     dim: 0.5,
     // font
-    fontFamily: 'Monaco',
+    fontFamily: "'Monaco', 'Cascadia Code', 'Courier New'",
 };
 
 const color4BitKeys = [
