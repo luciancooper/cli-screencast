@@ -4,13 +4,15 @@ import type { SourceEvent } from '@src/source';
 import readableSpawn, { colorEnv, SpawnResult } from '@src/spawn';
 import { consume } from './helpers/streams';
 
+type SignalExitHandler = (code: number | null, signal: NodeJS.Signals | null) => void;
+
 interface MockSignalExit extends jest.Mocked<typeof signalExit> {
-    flush: () => number
+    flush: (...args: Parameters<SignalExitHandler>) => number
     reset: () => void
 }
 
 jest.mock('signal-exit', () => {
-    let queued: (() => void)[] = [];
+    let queued: SignalExitHandler[] = [];
     const mocked = Object.assign(jest.fn((callback: () => void) => {
         queued.push(callback);
         return () => {
@@ -18,9 +20,9 @@ jest.mock('signal-exit', () => {
             if (idx >= 0) queued.splice(idx, 1);
         };
     }), {
-        flush() {
+        flush(...args: Parameters<SignalExitHandler>) {
             let n = 0;
-            for (; queued.length > 0; n += 1) (queued.pop()!)();
+            for (; queued.length > 0; n += 1) (queued.pop()!)(...args);
             return n;
         },
         reset() {
@@ -36,10 +38,10 @@ afterEach(() => {
 });
 
 describe('readableSpawn', () => {
-    const baseOptions = { columns: 20, rows: 5, useConpty: false };
+    const dimensions = { columns: 20, rows: 5 };
 
     test('creates readable source events from subprocess writes to stdout', async () => {
-        const source = readableSpawn('node', ['-e', "process.stdout.write('echo to source stream');"], baseOptions),
+        const source = readableSpawn('node', ['-e', "process.stdout.write('echo to source stream');"], dimensions),
             events = await consume<SourceEvent>(source);
         expect(events[0]).toEqual<SourceEvent>({
             type: 'start',
@@ -56,13 +58,14 @@ describe('readableSpawn', () => {
         const source = readableSpawn(
             'node',
             ['-e', 'new Promise((resolve) => setTimeout(resolve, 5000));'],
-            baseOptions,
+            dimensions,
         );
         // mock the process exiting
-        (signalExit as MockSignalExit).flush();
+        (signalExit as MockSignalExit).flush(1, 'SIGINT');
         await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({
+            exitCode: 1,
+            signal: 'SIGINT',
             timedOut: false,
-            killed: true,
         });
     });
 
@@ -70,7 +73,7 @@ describe('readableSpawn', () => {
         const source = readableSpawn(
             'node',
             ['-e', 'new Promise((resolve) => setTimeout(resolve, 0));'],
-            { ...baseOptions, env: {}, extendEnv: false },
+            { ...dimensions, env: {}, extendEnv: false },
         );
         await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({ exitCode: 0, failed: false });
         expect(source.env).toEqual(colorEnv);
@@ -79,19 +82,19 @@ describe('readableSpawn', () => {
     describe('validation', () => {
         test('throws an error if `command` arg is an empty string', async () => {
             expect(() => {
-                readableSpawn('', [], baseOptions);
+                readableSpawn('', [], dimensions);
             }).toThrow("'command' cannot be empty");
         });
 
         test('throws type error if `command` arg is not a string', async () => {
             expect(() => {
-                readableSpawn({} as unknown as string, [], baseOptions);
+                readableSpawn({} as unknown as string, [], dimensions);
             }).toThrow("'command' must be a string. Received [object Object]");
         });
 
         test('throws error if timeout option is invalid', () => {
             expect(() => {
-                readableSpawn('ls', [], { ...baseOptions, timeout: -500 });
+                readableSpawn('ls', [], { ...dimensions, timeout: -500 });
             }).toThrow('`timeout` must be a non-negative integer');
         });
     });
@@ -101,11 +104,11 @@ describe('readableSpawn', () => {
             await expect(readableSpawn(
                 'node',
                 ['-e', 'new Promise((resolve) => setTimeout(resolve, 1000));'],
-                { ...baseOptions, timeout: 500, killSignal: 'SIGKILL' },
+                { ...dimensions, timeout: 500, killSignal: 'SIGKILL' },
             )).resolves.toMatchObject<Partial<SpawnResult>>({
-                ...process.platform !== 'win32' ? { signal: 'SIGKILL' } : {},
+                exitCode: 1,
+                signal: 'SIGKILL',
                 timedOut: true,
-                killed: true,
             });
         });
 
@@ -113,12 +116,11 @@ describe('readableSpawn', () => {
             const source = readableSpawn(
                 'node',
                 ['-e', 'new Promise((resolve) => setTimeout(resolve, 1000));'],
-                { ...baseOptions, timeout: 2000 },
+                { ...dimensions, timeout: 2000 },
             );
             await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({
                 timedOut: false,
                 failed: false,
-                killed: false,
             });
         });
     });

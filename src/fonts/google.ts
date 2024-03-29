@@ -40,19 +40,21 @@ interface FetchResponse {
 export function fetchData(req: string | https.RequestOptions): Promise<FetchResponse> {
     return new Promise((resolve, reject) => {
         https.get(typeof req === 'string' ? encodeURI(req) : req, (res) => {
+            res.on('error', (err) => {
+                reject(err);
+            });
             const status = res.statusCode!;
             if (status >= 400) {
-                resolve({ status });
+                res.on('end', () => {
+                    resolve({ status });
+                });
+                res.resume();
                 return;
             }
             const chunks: Uint8Array[] = [];
             // handle response chunks
             res.on('data', (chunk: Buffer) => {
                 chunks.push(chunk);
-            });
-
-            res.on('error', (err) => {
-                reject(err);
             });
             // response complete
             res.on('end', () => {

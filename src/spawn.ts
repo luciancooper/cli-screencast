@@ -14,7 +14,6 @@ type Env = Record<string, string>;
 export interface SpawnResult {
     exitCode: number
     timedOut: boolean
-    killed: boolean
     failed: boolean
     signal?: NodeJS.Signals | number | undefined
     error?: Error | undefined
@@ -61,6 +60,7 @@ export interface SpawnOptions {
     /**
      * Windows only passed to `node-pty` concerning whether to use ConPTY over WinPTY.
      * Added as a workaround until {@link https://github.com/microsoft/node-pty/issues/437} is resolved
+     * @defaultValue `false`
      */
     useConpty?: boolean
 }
@@ -133,7 +133,7 @@ export default function readableSpawn(command: string, args: string[], {
     extendEnv = true,
     timeout = 0,
     killSignal = 'SIGTERM',
-    useConpty,
+    useConpty = false,
 }: Dimensions & SpawnOptions) {
     // validate args
     if (typeof command !== 'string') {
@@ -170,16 +170,29 @@ export default function readableSpawn(command: string, args: string[], {
         stream.write(chunk.replace(/\r\n/g, '\n'));
     });
     // track if child process has been killed
-    let killed = false;
+    let killed = false,
+        // exit code for spawn result
+        exitCode: number | undefined,
+        // signal for spawn result
+        signal: NodeJS.Signals | number | undefined;
     // create spawn promise
     const spawnPromise = new Promise<SpawnResult>((resolve) => {
-        const exitHook = spawned.onExit(({ exitCode, signal }) => {
+        const exitHook = spawned.onExit((event) => {
+            // dispose of hooks
             dataHook.dispose();
             exitHook.dispose();
+            // kill spawned process to prevent hanging on windows
+            if (!killed) {
+                killed = true;
+                spawned.kill();
+            }
+            // update exit code & signal
+            exitCode ??= event.exitCode;
+            signal ??= ((event.signal && signals.find(([, n]) => n === event.signal)) || [])[0] ?? event.signal;
+            // resolve spawn result
             resolve({
                 exitCode,
-                signal: ((signal && signals.find(([, n]) => n === signal)) || [])[0] ?? signal,
-                killed,
+                signal,
                 timedOut: false,
                 failed: exitCode !== 0 || !!signal,
             });
@@ -195,8 +208,14 @@ export default function readableSpawn(command: string, args: string[], {
             new Promise<never>((resolve, reject) => {
                 timeoutId = setTimeout(() => {
                     // kill the spawned process
-                    killed = true;
-                    spawned.kill(process.platform !== 'win32' ? killSignal : undefined);
+                    if (!killed) {
+                        killed = true;
+                        // set exit code & signal
+                        exitCode = 1;
+                        signal = killSignal;
+                        // kill spawned process
+                        spawned.kill(process.platform !== 'win32' ? killSignal : undefined);
+                    }
                     // reject to end the race
                     reject(new Error('Timed out'));
                 }, timeout);
@@ -211,9 +230,15 @@ export default function readableSpawn(command: string, args: string[], {
         })));
     }
     // add signal-exit handler
-    const cleanupExitHandler = onExit(() => {
-        spawned.kill();
-        killed = true;
+    const cleanupExitHandler = onExit((code, sig) => {
+        if (!killed) {
+            killed = true;
+            // set exit code & signal
+            exitCode ??= code ?? 1;
+            if (sig) signal ??= sig as NodeJS.Signals;
+            // kill spawned process
+            spawned.kill(process.platform !== 'win32' ? (sig ?? undefined) : undefined);
+        }
     });
     // cleanup exit handler
     promise = promise.finally(() => {
