@@ -286,7 +286,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: Partial<Dim
                     <rect x={paddingX} y={paddingY} width={cw + side * 2} height={ch + side + top}/>
                 </g>
                 <g fontSize={labelFontProps.fontSize} fontFamily={labelFontFamily}>
-                    {css && <style dangerouslySetInnerHTML={{ __html: css }}/>}
+                    {css ? <style dangerouslySetInnerHTML={{ __html: css }}/> : null}
                     {labels.map((labelProps, i) => (
                         <DiagramLabel key={`label-${i}`} {...labelProps}/>
                     ))}

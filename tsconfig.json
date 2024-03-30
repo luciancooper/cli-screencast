@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2021",
     "module": "CommonJS",
-    "lib": ["ES2020"],
+    "lib": ["ESNext"],
     "jsx": "react-jsxdev",
     "baseUrl": ".",
     "paths": {

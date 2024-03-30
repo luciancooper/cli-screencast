@@ -189,7 +189,7 @@ export function extendFontStyle(
     // update weight
     const [,, namedWeight] = extractKeywordValue('', subfamily, fontWeightKeywords);
     if ('wght' in instance && axes['wght']!.min >= 50 && axes['wght']!.max <= 1000) {
-        weight = fontWeights[findClosestNormalizedValue(fontWeights, instance['wght']!, 400)]!;
+        weight = fontWeights[findClosestNormalizedValue(fontWeights, instance['wght'], 400)]!;
     } else if (namedWeight) {
         weight = namedWeight;
     }
@@ -198,7 +198,7 @@ export function extendFontStyle(
     if ('wdth' in instance) {
         // https://learn.microsoft.com/en-us/typography/opentype/spec/os2#uswidthclass
         // https://learn.microsoft.com/en-us/typography/opentype/spec/dvaraxistag_wdth#additional-information
-        const pctOfNormal = (instance['wdth']! / axes['wdth']!.def) * 100;
+        const pctOfNormal = (instance['wdth'] / axes['wdth']!.def) * 100;
         width = fontWidths[findClosestNormalizedValue(wdthPctOfNormal, pctOfNormal, 100)]!;
     } else if (namedWidth) {
         width = namedWidth;

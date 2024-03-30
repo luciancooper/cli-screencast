@@ -1,5 +1,4 @@
-import { useContext } from 'react';
-import type { FunctionComponent, SVGProps } from 'react';
+import { useContext, type FunctionComponent, type SVGProps } from 'react';
 import type { CursorLocation, CursorKeyFrame } from '../types';
 import Context from './Context';
 import { Animation, TransformAnimation, KeyTime } from './Animation';
@@ -19,13 +18,13 @@ export const Cursor: FunctionComponent<CursorProps> = ({
         y = line * dy + (dy - lh) / 2 + cy;
     return (
         <rect x={column * dx} y={y} width={w} height={h} fill={cursorColor} {...props}>
-            {cursorBlink && (
+            {cursorBlink ? (
                 <Animation
                     attribute='opacity'
                     duration={1000}
                     keyFrames={[{ value: 1, time: 0 }, { value: 0, time: 0.5 }]}
                 />
-            )}
+            ) : null}
             {children}
         </rect>
     );

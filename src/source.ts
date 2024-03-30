@@ -1,5 +1,4 @@
-import { Duplex } from 'stream';
-import type { DuplexOptions } from 'stream';
+import { Duplex, type DuplexOptions } from 'stream';
 import type { Frame } from './types';
 
 export interface StartEvent {

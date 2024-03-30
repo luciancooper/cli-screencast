@@ -15,9 +15,9 @@ export function* regexChunks(regex: RegExp, string: string): Generator<readonly 
         // yield the chunk preceding this match if its length > 0
         if (m.index > i) yield [string.slice(i, m.index), false];
         // yield the match
-        yield [m[0]!, true];
+        yield [m[0], true];
         // set lower string index of the next chunk to be processed
-        i = m.index + m[0]!.length;
+        i = m.index + m[0].length;
     }
     // yield the final chunk of string if its length > 0
     if (i < string.length) yield [string.slice(i), false];
@@ -50,10 +50,10 @@ export function mergePromise<T extends object, P>(obj: T, promise: Promise<P>): 
  * @param key - the property key
  * @param descriptor - optional property descriptor, if not provided, property will be deleted
  */
-export function restoreProperty<T, K extends keyof T>(obj: T, key: K, descriptor?: PropertyDescriptor) {
+export function restoreProperty<T extends object, K extends keyof T>(obj: T, key: K, descriptor?: PropertyDescriptor) {
     if (descriptor) {
         Object.defineProperty(obj, key, descriptor);
-    } else if (Object.hasOwnProperty.call(obj, key)) {
+    } else if (Object.hasOwn(obj, key)) {
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete obj[key];
     }

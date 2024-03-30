@@ -1,5 +1,4 @@
-import { useContext } from 'react';
-import type { FunctionComponent, SVGProps } from 'react';
+import { useContext, type FunctionComponent, type SVGProps } from 'react';
 import type { TerminalLine, KeyFrame } from '../types';
 import { expandProps } from '../ansi';
 import Context from './Context';
@@ -20,7 +19,7 @@ const Frame: FunctionComponent<FrameProps> = ({ lines, keyFrame, ...svgProps }) 
                     <Text key={`${i}:${j}`} x={x} y={i} span={span} {...style} {...expandProps(props)}>{str}</Text>
                 ))
             ))}
-            {keyFrame && (
+            {keyFrame ? (
                 <Animation
                     attribute='opacity'
                     duration={duration}
@@ -30,7 +29,7 @@ const Frame: FunctionComponent<FrameProps> = ({ lines, keyFrame, ...svgProps }) 
                         { value: 0, time: keyFrame.endTime / duration },
                     ]}
                 />
-            )}
+            ) : null}
         </g>
     );
 };

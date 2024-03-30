@@ -1,5 +1,4 @@
-import { useContext } from 'react';
-import type { FunctionComponent, SVGProps } from 'react';
+import { useContext, type FunctionComponent, type SVGProps } from 'react';
 import type { OmitStrict, AnsiStyle, AnsiStyleProps } from '../types';
 import Context from './Context';
 
@@ -42,7 +41,7 @@ const Text: FunctionComponent<TextProps> = ({
         element = <text {...props}>{children}</text>;
     return (
         <>
-            {bgColor && <rect fill={bgColor} x={x * dx} y={y * dy} width={span * dx} height={dy}/>}
+            {bgColor ? <rect fill={bgColor} x={x * dx} y={y * dy} width={span * dx} height={dy}/> : null}
             {link ? <a href={link}>{element}</a> : element}
         </>
     );

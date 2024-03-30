@@ -1,5 +1,4 @@
-import { Writable } from 'stream';
-import type { Readable } from 'stream';
+import { Writable, type Readable } from 'stream';
 import { splitChars } from 'tty-strings';
 import type { TerminalOptions, TerminalState, TerminalLine, CursorLocation, Title, CaptureData } from './types';
 import type { WriteEvent, FinishEvent, SourceEvent } from './source';

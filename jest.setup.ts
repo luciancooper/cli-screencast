@@ -59,7 +59,7 @@ expect.extend({
         let n = 0;
         if (typeof match !== 'string') {
             for (let str = act, m = match.exec(str); m != null; n += 1, n += 1, m = match.exec(str)) {
-                str = str.slice(m.index + m[0]!.length);
+                str = str.slice(m.index + m[0].length);
             }
         } else {
             for (let i = act.indexOf(match); i >= 0; n += 1, i = act.indexOf(match, i + match.length));

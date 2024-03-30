@@ -17,9 +17,7 @@ export async function getSystemFonts(match?: string[]) {
         try {
             // decode the font file
             for (const font of (await decoder.decodeFileFonts(filePath))) {
-                if (!families[font.family]) {
-                    families[font.family] = [];
-                }
+                families[font.family] ||= [];
                 families[font.family]!.push(font);
             }
         } catch (e) {

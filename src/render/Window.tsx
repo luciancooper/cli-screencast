@@ -1,4 +1,4 @@
-import { useContext, forwardRef, SVGProps } from 'react';
+import { useContext, forwardRef, type SVGProps } from 'react';
 import type { IconID, Size, Title, TitleKeyFrame } from '../types';
 import iconPaths from './icons.json';
 import Context from './Context';
@@ -109,7 +109,7 @@ const Window = forwardRef<Size, WindowProps>(({
                 ry={borderRadius}
                 fill={theme.background}
             />
-            {title && (
+            {title ? (
                 <svg
                     className='window-title'
                     x={paddingX + side}
@@ -123,14 +123,14 @@ const Window = forwardRef<Size, WindowProps>(({
                         <WindowTitle title={title} columnInset={titleInset}/>
                     )}
                 </svg>
-            )}
-            {decorations && (
+            ) : null}
+            {decorations ? (
                 <g transform={`translate(${paddingX + side * 0.4},${paddingY + top * 0.2})`}>
                     <circle cx={6} cy={6} r={6} fill='#ff5f58'/>
                     <circle cx={26} cy={6} r={6} fill='#ffbd2e'/>
                     <circle cx={46} cy={6} r={6} fill='#18c132'/>
                 </g>
-            )}
+            ) : null}
             <svg
                 className='terminal-content'
                 x={paddingX + side}

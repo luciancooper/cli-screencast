@@ -1,5 +1,4 @@
-import { useContext } from 'react';
-import type { FunctionComponent } from 'react';
+import { useContext, type FunctionComponent } from 'react';
 import { stringWidth, sliceColumns } from 'tty-strings';
 import type { Title, KeyFrame, TextChunk } from '../types';
 import { expandProps } from '../ansi';
@@ -56,7 +55,7 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
     const iconSize = Math.min(dx * iconColumnWidth, dy);
     return (
         <g className='title-frame' dominantBaseline='central'>
-            {title.icon && (
+            {title.icon ? (
                 <use
                     xlinkHref={`#${title.icon}`}
                     x={dx * (iconX + Math.ceil(iconColumnWidth) / 2) - iconSize / 2}
@@ -65,9 +64,9 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
                     height={iconSize}
                     fill={theme.iconColor}
                 />
-            )}
+            ) : null}
             {textElement}
-            {keyFrame && (
+            {keyFrame ? (
                 <Animation
                     attribute='opacity'
                     duration={duration}
@@ -77,7 +76,7 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
                         { value: 0, time: keyFrame.endTime / duration },
                     ]}
                 />
-            )}
+            ) : null}
         </g>
     );
 };

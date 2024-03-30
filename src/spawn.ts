@@ -120,7 +120,7 @@ function resolveCommand(command: string, cwd: string) {
         } catch {}
     }
     // ensure that an absolute path is returned
-    if (resolved) resolved = path.resolve((thisCwd !== cwd) ? cwd : '', resolved);
+    resolved &&= path.resolve((thisCwd !== cwd) ? cwd : '', resolved);
     return resolved ?? command;
 }
 

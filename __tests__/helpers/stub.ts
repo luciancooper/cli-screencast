@@ -2,7 +2,7 @@ import { restoreProperty } from '@src/utils';
 
 type RestoreCallback = () => void;
 
-export default function stub<T, K extends keyof T>(obj: T, props: Record<K, T[K]>): RestoreCallback {
+export default function stub<T extends object, K extends keyof T>(obj: T, props: Record<K, T[K]>): RestoreCallback {
     // store original descriptors for stubbed props
     const descriptors = Object.keys(props).map((key) => [key as K, Object.getOwnPropertyDescriptor(obj, key)] as const);
     // set stubbed property values

@@ -80,7 +80,7 @@ export function renderScreenSvg(data: ScreenData, options: RenderProps): SVGData
         <Context.Provider value={context}>
             <Window ref={(s) => { size = s!; }} {...windowOptions} title={(title.icon || title.text) ? title : null}>
                 <Frame lines={lines}/>
-                {cursor && <Cursor {...cursor}/>}
+                {cursor ? <Cursor {...cursor}/> : null}
             </Window>
         </Context.Provider>,
     );
@@ -109,7 +109,7 @@ export function renderCaptureFrames(captureFrames: CaptureKeyFrame[], options: R
                     {...windowOptions}
                 >
                     <Frame lines={frame.lines}/>
-                    {frame.cursor && <Cursor {...frame.cursor}/>}
+                    {frame.cursor ? <Cursor {...frame.cursor}/> : null}
                 </Window>
             </Context.Provider>,
         );
