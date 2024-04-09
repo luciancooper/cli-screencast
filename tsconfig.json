@@ -1,10 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2021",
-    "module": "CommonJS",
+    "module": "nodenext",
     "lib": ["ESNext"],
     "jsx": "react-jsxdev",
-    "baseUrl": ".",
     "paths": {
       "@src/*": ["./src/*"],
     },
@@ -21,7 +19,6 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
-    "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
