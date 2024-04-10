@@ -132,6 +132,36 @@ describe('parse', () => {
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 3 });
     });
 
+    test('handle carriage returns', () => {
+        const parser = makeParser({ columns: 20, rows: 10 });
+        parser('aaaaaaaa\rbbbb');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('bbbbaaaa') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 4 });
+        // add a new line from the middle of the first line
+        parser('\r\ncccc');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('bbbbaaaa') },
+            { index: 0, ...makeLine('cccc') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 1, column: 4 });
+    });
+
+    test('write multi-line styled chunks', () => {
+        const parser = makeParser({ columns: 20, rows: 10 });
+        parser('aaaaaaaa\r', ansi.fg(32, 'bbbb'));
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine(['bbbb', { fg: theme.green }], 'aaaa') },
+        ]);
+        // add a new line from the middle of the first line
+        parser(ansi.fg(31, '\r\ncccc'));
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine(['bbbb', { fg: theme.green }], 'aaaa') },
+            { index: 0, ...makeLine(['cccc', { fg: theme.red }]) },
+        ]);
+    });
+
     test('overwrite middle lines and handle line wrap continuity', () => {
         const parser = makeParser({ columns: 10, rows: 10 });
         parser('aaaaaaaaaaaaaaaaaaaa\n', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');

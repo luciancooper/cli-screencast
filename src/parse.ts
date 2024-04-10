@@ -9,11 +9,17 @@ export interface ParseContext extends Dimensions {
     palette: Palette
 }
 
-const ctrlRegex = '[\\x1b\\x9b]'
+const ctrlRegex = '(?:'
+    // cursor escape
+    + '[\\x1b\\x9b]'
     + '(?:'
     + '\\[(?:(?:(?:\\d+)?;(?:\\d+)?)?[Hf]|\\d*[A-G]|6n|[0-2]?[JK]|[SsTu]|(?:\\?(?:25|47|1049)|=[0-7][3-9]?)[hl])'
     + '|'
     + '\\][012];.*?\\x07'
+    + ')'
+    + '|'
+    // or carriage return not followed by newline
+    + '\\r(?!\\n)'
     + ')';
 
 function prune(lines: TerminalLine[]) {
@@ -221,6 +227,11 @@ function updateSubsequentLineContinuity(lines: TerminalLine[], i: number, insert
 
 function parseEscape({ columns, rows, palette }: ParseContext, state: TerminalState, esc: string) {
     const { lines, cursor, title } = state;
+    // carriage return
+    if (esc === '\r') {
+        state.cursor = { ...cursor, column: 0 };
+        return;
+    }
     // move cursor with `ESC[#;#H`
     let m = /^\x1b\[(?:(\d+)?;(\d+)?)?[Hf]$/.exec(esc);
     if (m) {
@@ -350,10 +361,10 @@ function parseEscape({ columns, rows, palette }: ParseContext, state: TerminalSt
 }
 
 export default function parse(context: ParseContext, state: TerminalState, content: string): TerminalState {
-    const re = new RegExp(`(?:${ctrlRegex})+`, 'g');
+    const re = new RegExp(`${ctrlRegex}+`, 'g');
     for (const [chunk, ctrl] of regexChunks(re, content)) {
         if (ctrl) {
-            const escapes = chunk.match(new RegExp(`(?:${ctrlRegex})`, 'g'))!;
+            const escapes = chunk.match(new RegExp(ctrlRegex, 'g'))!;
             for (const esc of escapes) parseEscape(context, state, esc);
         } else parseContent(context, state, chunk);
     }
