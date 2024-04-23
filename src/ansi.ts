@@ -18,43 +18,48 @@ export function stylesEqual(a: AnsiStyle, b: AnsiStyle): boolean {
     return a.props === b.props && a.fg === b.fg && a.bg === b.bg && a.link === b.link;
 }
 
-function parseEscape(palette: Palette, style: AnsiStyle, sequence: string): AnsiStyle {
-    const [, sgr, link] = /[\u001B\u009B](?:\[(\d+(?:;[\d;]+)?)m|\]8;;(.*)\u0007)/.exec(sequence) ?? [];
+const sgrRegExp = /(?:[345]8;(?:2(?:;\d*){0,3}|5(?:;\d*)?|\d*)|\d*)[;m]/g;
+
+function parseEscape(palette: Palette, style: AnsiStyle, sequence: string) {
+    const [, sgr, link] = /[\u001B\u009B](?:\[(\d*(?:;[\d;]+)?m)|\]8;;(.*)\u0007)/.exec(sequence) ?? [];
     // check if this is a hyperlink escape sequence
     if (typeof link === 'string') {
         // if link is an empty string, then this is a closing hyperlink sequence
-        return { ...style, link: link || undefined };
+        style.link = link || undefined;
+        return;
     }
     // stop if this is not an sgr code
-    if (!sgr) return style;
-    // test for 38 (foreground) / 48 (background) set code
-    if (/^[34]8;/.test(sgr)) {
-        const [id, ...codes] = sgr.split(';').slice(1).map((x) => Number(x || '0')),
-            attr = sgr.startsWith('38;') ? 'fg' : 'bg';
-        // true color (24 bit color)
-        if (id === 2) {
-            const [r = 0, g = 0, b = 0] = codes;
-            return { ...style, [attr]: toHex([r, g, b]) };
+    if (!sgr) return;
+    // split sgr codes
+    for (const seq of [...sgr.matchAll(sgrRegExp)].map(([c]) => c.slice(0, -1) || '0')) {
+        // test for 38 (foreground) / 48 (background) / 58 (underline) color set code
+        if (/^[345]8;/.test(seq)) {
+            // underline color is not supported
+            if (seq.startsWith('58;')) continue;
+            // split seq arguments [34]8;bit;...args
+            const [bit, ...args] = seq.split(';').slice(1).map((x) => Number(x || '0')),
+                attr = seq.startsWith('38;') ? 'fg' : 'bg';
+            if (bit === 2) {
+                // true color (24 bit color)
+                const [r = 0, g = 0, b = 0] = args;
+                style[attr] = toHex([r, g, b]);
+            } else if (bit === 5) {
+                // xterm 256 color (8 bit color)
+                style[attr] = color8Bit(Math.min(args[0] ?? 0, 0xFF), palette);
+            }
+            continue;
         }
-        // xterm 256 color (8 bit color)
-        if (id === 5) {
-            const code = Math.min(codes[0] ?? 0, 0xFF);
-            return { ...style, [attr]: color8Bit(code, palette) };
-        }
-        return style;
-    }
-    let { props, fg, bg } = style;
-    for (const code of sgr.split(';').filter(Boolean).map(Number)) {
+        const code = Number(seq);
         if (code === 0) {
             // reset code
-            [props, fg, bg] = [0,,,];
+            [style.props, style.fg, style.bg] = [0,,,];
         } else if ([1, 2, 3, 4, 7, 9].includes(code)) {
             // props code (bold, dim, italic, underline, inverse, strikeThrough)
             const i = [1, 2, 3, 4, 7, 9].indexOf(code);
-            props |= (1 << i);
+            style.props |= (1 << i);
         } else if ([22, 23, 24, 27, 29].includes(code)) {
             // reset props code
-            props &= {
+            style.props &= {
                 22: 0b111100, // bold & dim off
                 23: 0b111011, // italic off
                 24: 0b110111, // underline off
@@ -63,31 +68,25 @@ function parseEscape(palette: Palette, style: AnsiStyle, sequence: string): Ansi
             }[code]!;
         } else if (code >= 30 && code <= 37) {
             // foreground color
-            fg = color4Bit(code % 10, palette);
+            style.fg = color4Bit(code % 10, palette);
         } else if (code >= 40 && code <= 47) {
             // background color
-            bg = color4Bit(code % 10, palette);
+            style.bg = color4Bit(code % 10, palette);
         } else if (code >= 90 && code <= 97) {
             // foreground bright color
-            fg = color4Bit(8 + (code % 10), palette);
+            style.fg = color4Bit(8 + (code % 10), palette);
         } else if (code >= 100 && code <= 107) {
             // background bright color
-            bg = color4Bit(8 + (code % 10), palette);
+            style.bg = color4Bit(8 + (code % 10), palette);
         } else if (code === 39) {
             // foreground reset
-            fg = undefined;
+            style.fg = undefined;
         } else if (code === 49) {
             // background reset
-            bg = undefined;
+            style.bg = undefined;
         }
         // otherwise, ignore code
     }
-    return {
-        ...style,
-        props,
-        fg,
-        bg,
-    };
 }
 
 export interface AnsiChunk {
@@ -105,8 +104,8 @@ export default function* parseAnsi(palette: Palette, string: string): Generator<
             queue.push(str);
             continue;
         }
-        let next = style;
-        for (const esc of queue) next = parseEscape(palette, next, esc);
+        const next: AnsiStyle = { ...style };
+        for (const esc of queue) parseEscape(palette, next, esc);
         queue = [];
         if (!stylesEqual(style, next)) {
             if (chunk) yield { chunk, style };

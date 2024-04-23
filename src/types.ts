@@ -110,19 +110,19 @@ export interface AnsiStyle {
     /**
      * 6 bit props mask - [strikeThrough, inverse, underline, italic, dim, bold]
      */
-    readonly props: number
+    props: number
     /**
      * Foreground color
      */
-    readonly fg?: string | undefined
+    fg?: string | undefined
     /**
      * Background color
      */
-    readonly bg?: string | undefined
+    bg?: string | undefined
     /**
      * Hyperlink
      */
-    readonly link?: string | undefined
+    link?: string | undefined
 }
 
 export interface AnsiStyleProps {
