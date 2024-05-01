@@ -14,6 +14,7 @@ interface IconsPreviewProps extends SVGProps<SVGElement> {
     colspan: number
     fontFamily?: string
     css?: string | null
+    fontColumnWidth?: number | undefined
     spacing: number
     indent?: number
     padding: readonly [number, number]
@@ -28,13 +29,14 @@ const IconsPreview: FunctionComponent<IconsPreviewProps> = ({
     colspan,
     fontFamily,
     css,
+    fontColumnWidth,
     spacing,
     indent = spacing,
     padding: [px, py],
     insets: [ix, iy],
     ...props
 }) => {
-    const [gx, gy] = [fontSize * 0.6, fontSize * lineHeight],
+    const [gx, gy] = [fontSize * (fontColumnWidth ?? 0.6), fontSize * lineHeight],
         size = Math.min(gx * iconColumnWidth, gy),
         insy = (gy - size) / 2,
         rows = Math.ceil(Object.keys(icons).length / cols),

@@ -8,14 +8,19 @@ declare global {
         interface Matchers<R> {
             toBeApprox: (expected: number | bigint, threshold?: number) => R
             toContainOccurrences: (match: string | RegExp, count: number) => R
+            toBeNumber: () => R
         }
         interface Expect {
             toBeApprox: (expected: number | bigint, threshold?: number) => number
             toContainOccurrences: (match: string | RegExp, count: number) => string
+            toBeNumber: () => number
+            toBeUndefined: () => undefined
         }
         interface InverseAsymmetricMatchers {
             toBeApprox: (expected: number | bigint, threshold?: number) => number
             toContainOccurrences: (match: string | RegExp, count: number) => string
+            toBeNumber: () => number
+            toBeUndefined: () => undefined
         }
     }
 }
@@ -74,6 +79,36 @@ expect.extend({
                 })}\n\nExpected ${
                     this.utils.printReceived(n)
                 } ${pass ? 'not ' : ''}to be ${this.utils.printExpected(count)}`
+            ),
+        };
+    },
+
+    toBeNumber(actual: any) {
+        const opts = this.isNot != null ? { isNot: this.isNot } : {},
+            pass = typeof actual === 'number';
+        return {
+            pass,
+            message: pass ? () => (
+                this.utils.matcherHint('toBeNumber', 'received', '', opts)
+                + '\n\n'
+                + `Expected value to not be a number received: ${this.utils.printReceived(actual)}`
+            ) : () => (
+                this.utils.matcherHint('toBeNumber', 'received', '', opts)
+                + '\n\n'
+                + `Expected value to be a number received:  ${this.utils.printReceived(actual)}`
+            ),
+        };
+    },
+
+    toBeUndefined(actual: unknown) {
+        const pass = actual === undefined;
+        return {
+            pass,
+            message: () => (
+                this.utils.matcherHint('toBeUndefined', undefined, '', this.isNot != null ? { isNot: this.isNot } : {})
+                + '\n\n'
+                + (pass ? 'Expected value to not be undefined'
+                    : `Expected value to be undefined, received:  ${this.utils.printReceived(actual)}`)
             ),
         };
     },

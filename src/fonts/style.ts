@@ -110,7 +110,7 @@ function extractKeywordValue<T>(
 export function getFontStyle(
     names: Record<number, string>,
     os2: Os2Table | null,
-    head: HeadTable | null,
+    head: Pick<HeadTable, 'macStyle'> | null,
 ): { family: string, style: FontStyle } {
     let family = names[16] ?? names[1]!,
         subfamily = names[17] ?? names[2]!;

@@ -37,10 +37,12 @@ export function selectCmapRecord(encodingRecords: CmapEncodingRecord[]) {
     );
 }
 
-export function cmapCoverage({ table, varSelectors }: {
-    table: CmapTable
-    varSelectors?: number[] | null
-}): CodePointRange {
+export function cmapCoverage(
+    { table, varSelectors }: { table: CmapTable, varSelectors?: number[] | null },
+    numGlyphs: number,
+    advanceWidth: number[],
+): CodePointRange {
+    const awl = advanceWidth.length;
     let range: CodePointRange;
     switch (table.format) {
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table
@@ -48,8 +50,8 @@ export function cmapCoverage({ table, varSelectors }: {
             range = CodePointRange.from(
                 table.glyphIdArray
                     .map<[number, number]>((gid, char) => [gid, char])
-                    .filter(([gid]) => gid !== 0)
-                    .map(([, char]) => char),
+                    .filter(([gid]) => gid !== 0 && gid < numGlyphs)
+                    .map(([gid, char]) => [char, advanceWidth[Math.min(gid, awl - 1)]]),
             );
             break;
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-6-trimmed-table-mapping
@@ -59,33 +61,43 @@ export function cmapCoverage({ table, varSelectors }: {
             range = CodePointRange.from(
                 table.glyphIdArray
                     .map<[number, number]>((gid, offset) => [gid, table.startCharCode + offset])
-                    .filter(([gid]) => gid !== 0)
-                    .map(([, char]) => char),
+                    .filter(([gid]) => gid !== 0 && gid < numGlyphs)
+                    .map(([gid, char]) => [char, advanceWidth[Math.min(gid, awl - 1)]]),
             );
             break;
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-2-high-byte-mapping-through-table
+        // adapted from https://github.com/fonttools/fonttools/blob/main/Lib/fontTools/ttLib/tables/_c_m_a_p.py#L460
         case 2: {
-            const codePoints: number[] = [];
+            const codePoints: [number, number | undefined][] = [];
             for (let firstByte = 0; firstByte < 256; firstByte += 1) {
+                // get subheader index for this first byte
                 const shIndex = table.subHeaderKeys[firstByte]! >> 3,
+                    // get subheader for this byte
                     sh = table.subHeaders[shIndex]!,
+                    // offset to the glyph id array
                     glyphIdOffset = (((shIndex + 1) * 8 + sh.idRangeOffset - 2) - (table.subHeaderCount * 8)) >> 1;
                 if (shIndex === 0) {
                     if (firstByte < sh.firstCode || firstByte >= sh.firstCode + sh.entryCount) {
                         continue; // glyph is not defined
                     }
                     const charCode = firstByte,
-                        offsetIndex = firstByte - sh.firstCode,
-                        glyph = table.glyphIdArray[glyphIdOffset + offsetIndex]!;
+                        offsetIndex = firstByte - sh.firstCode;
+                    let glyph = table.glyphIdArray[glyphIdOffset + offsetIndex]!;
                     if (glyph === 0) continue;
-                    codePoints.push(charCode);
+                    glyph = (glyph + sh.idDelta) & 0xFFFF;
+                    if (glyph !== 0 && glyph < numGlyphs) {
+                        codePoints.push([charCode, advanceWidth[Math.min(glyph, awl - 1)]]);
+                    }
                 } else {
                     const charCodeOffset = firstByte * 256 + sh.firstCode;
                     for (let offsetIndex = 0; offsetIndex < sh.entryCount; offsetIndex += 1) {
-                        const charCode = charCodeOffset + offsetIndex,
-                            glyph = table.glyphIdArray[glyphIdOffset + offsetIndex]!;
+                        const charCode = charCodeOffset + offsetIndex;
+                        let glyph = table.glyphIdArray[glyphIdOffset + offsetIndex]!;
                         if (glyph === 0) continue;
-                        codePoints.push(charCode);
+                        glyph = (glyph + sh.idDelta) & 0xFFFF;
+                        if (glyph !== 0 && glyph < numGlyphs) {
+                            codePoints.push([charCode, advanceWidth[Math.min(glyph, awl - 1)]]);
+                        }
                     }
                 }
             }
@@ -94,7 +106,7 @@ export function cmapCoverage({ table, varSelectors }: {
         }
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-4-segment-mapping-to-delta-values
         case 4: {
-            const codePoints: number[] = [];
+            const codePoints: [number, number | undefined][] = [];
             for (let i = 0, n = table.segCount; i < n - 1; i += 1) {
                 const start = table.startCodes[i]!,
                     end = table.endCodes[i]! + 1,
@@ -102,16 +114,20 @@ export function cmapCoverage({ table, varSelectors }: {
                     rangeOffset = table.idRangeOffsets[i]!;
                 if (rangeOffset === 0) {
                     for (let char = start; char < end; char += 1) {
-                        const glyph = (char + delta);
-                        if (glyph !== 0) codePoints.push(char);
+                        const glyph = (char + delta) & 0xFFFF;
+                        if (glyph !== 0 && glyph < numGlyphs) {
+                            codePoints.push([char, advanceWidth[Math.min(glyph, awl - 1)]]);
+                        }
                     }
                 } else {
                     const partial = (rangeOffset >> 1) - start + i - n;
                     for (let char = start; char < end; char += 1) {
                         const index = char + partial;
                         if (table.glyphIdArray[index] === 0) continue;
-                        const glyph = (table.glyphIdArray[index]! + delta);
-                        if (glyph !== 0) codePoints.push(char);
+                        const glyph = (table.glyphIdArray[index]! + delta) & 0xFFFF;
+                        if (glyph !== 0 && glyph < numGlyphs) {
+                            codePoints.push([char, advanceWidth[Math.min(glyph, awl - 1)]]);
+                        }
                     }
                 }
             }
@@ -120,21 +136,23 @@ export function cmapCoverage({ table, varSelectors }: {
         }
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-12-segmented-coverage
         case 12: {
-            const ranges: [number, number][] = [];
+            const codePoints: [number, number | undefined][] = [];
             for (const { startCharCode, endCharCode, glyphID } of table.groups) {
-                const start = glyphID === 0 ? startCharCode + 1 : startCharCode,
-                    end = endCharCode + 1;
-                if (start < end) ranges.push([start, end]);
+                for (let c = startCharCode, gid = glyphID; c <= endCharCode; c += 1, gid += 1) {
+                    if (gid !== 0 && gid < numGlyphs) {
+                        codePoints.push([c, advanceWidth[Math.min(gid, awl - 1)]]);
+                    }
+                }
             }
-            range = CodePointRange.fromRanges(ranges);
+            range = CodePointRange.from(codePoints);
             break;
         }
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings
         case 13: {
-            const ranges: [number, number][] = [];
+            const ranges: [number, number, number | undefined][] = [];
             for (const { startCharCode, endCharCode, glyphID } of table.groups) {
-                if (glyphID === 0) continue;
-                ranges.push([startCharCode, endCharCode + 1]);
+                if (glyphID === 0 || glyphID >= numGlyphs) continue;
+                ranges.push([startCharCode, endCharCode + 1, advanceWidth[Math.min(glyphID, awl - 1)]]);
             }
             range = CodePointRange.fromRanges(ranges);
             break;
@@ -147,5 +165,6 @@ export function cmapCoverage({ table, varSelectors }: {
             throw new Error('cannot extract code point ranges from cmap table format 14');
         // no default: switch is exaustive
     }
-    return varSelectors ? CodePointRange.merge(range, CodePointRange.from(varSelectors)) : range;
+    // do not add width values to var selectors
+    return varSelectors ? CodePointRange.merge(range, CodePointRange.from(varSelectors.map((c) => [c]))) : range;
 }

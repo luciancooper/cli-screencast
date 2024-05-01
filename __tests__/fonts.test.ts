@@ -123,37 +123,39 @@ describe('getSystemFonts', () => {
 describe('createFontCss', () => {
     type FontCSS = Awaited<ReturnType<typeof createFontCss>>;
 
-    const expectedFontCSS = (fontFaceCount: number) => ({
+    const expectedFontCSS = (fontFaceCount: number, columnWidth: boolean) => ({
         css: expect.toContainOccurrences('@font-face', fontFaceCount),
         fontFamily: expect.stringMatching(/^sc-[a-z]{12}-1,monospace$/) as string,
+        // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
+        fontColumnWidth: columnWidth ? expect.toBeNumber() : expect.toBeUndefined(),
     });
 
     describe('google fonts', () => {
         test('fetches @font-face css blocks', async () => {
             const subset = createContentSubsets(['abc', 'def', '', '']);
-            await expect(createFontCss(subset, 'Fira Code')).resolves.toEqual<FontCSS>(expectedFontCSS(2));
+            await expect(createFontCss(subset, 'Fira Code')).resolves.toEqual<FontCSS>(expectedFontCSS(2, false));
         });
 
         test('uses fallbacks when a font family does not support a style', async () => {
             const subset = createContentSubsets(['abc', '', 'def', '']);
-            await expect(createFontCss(subset, 'Fira Code')).resolves.toEqual<FontCSS>(expectedFontCSS(1));
+            await expect(createFontCss(subset, 'Fira Code')).resolves.toEqual<FontCSS>(expectedFontCSS(1, false));
         });
     });
 
     describe('system fonts', () => {
         test('creates @font-face css blocks', async () => {
             const subset = createContentSubsets(['abc', 'def', 'ghi', 'jkl']);
-            await expect(createFontCss(subset, 'Cascadia Code')).resolves.toEqual<FontCSS>(expectedFontCSS(4));
+            await expect(createFontCss(subset, 'Cascadia Code')).resolves.toEqual<FontCSS>(expectedFontCSS(4, true));
         });
 
         test('uses fallbacks when a font family does not support a style', async () => {
             const subset = createContentSubsets(['abc', 'def', 'ghi', '']);
-            await expect(createFontCss(subset, 'Monaco')).resolves.toEqual<FontCSS>(expectedFontCSS(1));
+            await expect(createFontCss(subset, 'Monaco')).resolves.toEqual<FontCSS>(expectedFontCSS(1, true));
         });
 
         test('creates @font-face css blocks from ttc font collections', async () => {
             const subset = createContentSubsets(['abc', 'def', '', '']);
-            await expect(createFontCss(subset, 'Menlo')).resolves.toEqual<FontCSS>(expectedFontCSS(2));
+            await expect(createFontCss(subset, 'Menlo')).resolves.toEqual<FontCSS>(expectedFontCSS(2, true));
         });
     });
 

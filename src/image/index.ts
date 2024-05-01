@@ -15,7 +15,7 @@ async function createImageRenderer({ width, height }: Size, deviceScaleFactor: n
     // prevent HTTP requests over the network
     await page.setOfflineMode(true);
     // set viewport
-    await page.setViewport({ width, height, deviceScaleFactor });
+    await page.setViewport({ width: Math.ceil(width), height: Math.ceil(height), deviceScaleFactor });
     // create render function
     const render = async (svg: string) => {
         const cssReset = 'body,html{margin:0;}',

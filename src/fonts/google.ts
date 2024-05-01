@@ -73,8 +73,10 @@ export function fetchData(req: string | https.RequestOptions): Promise<FetchResp
  * google fonts support the variation selectors unicode block (FE00 - FE0F).
  */
 class GoogleFontCoverage extends CodePointRange {
-    override contains(code: number): boolean {
-        return super.contains(code) || (code >= 0xFE00 && code <= 0xFE0F); // include variation selectors
+    override contains(code: number) {
+        const k = super.contains(code);
+        // include variation selectors
+        return k !== false ? k : (code >= 0xFE00 && code <= 0xFE0F) ? undefined : false;
     }
 }
 
@@ -152,7 +154,7 @@ async function fetchFontSubset(embeddedFamily: string, urlParams: string) {
 
 export async function cssFromGoogleFont(
     embeddedFamily: string,
-    embedded: { css: string[], family: string[] },
+    embedded: { css: string[], family: string[], columnWidth: [number, number | undefined][] },
     content: ContentSubsets,
     meta: GoogleFontMetadata,
 ): Promise<ContentSubsets> {
@@ -190,6 +192,8 @@ export async function cssFromGoogleFont(
         if (!block) continue;
         // add css block to embedded font data
         embedded.css.push(block);
+        // add to columnWidth array
+        embedded.columnWidth.push([chars.length, undefined]);
         // add embedded family id to the font-family list if this is the first css block
         if (!fontEmbedded) embedded.family.push(embeddedFamily);
         // update font embedded status

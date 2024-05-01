@@ -39,7 +39,7 @@ type DiagramLabelProps = {
     tick?: number
 });
 
-const DiagramLabel: FunctionComponent<DiagramLabelProps> = ({
+const DiagramLabel: FunctionComponent<DiagramLabelProps & { labelColumnWidth: number | undefined }> = ({
     text,
     coords: [x, y],
     size: [w, h],
@@ -47,6 +47,7 @@ const DiagramLabel: FunctionComponent<DiagramLabelProps> = ({
     line: { angle, distance, curvature },
     textPosition = 0,
     color = '#eb3459',
+    labelColumnWidth,
     ...props
 }) => {
     let shape: JSX.Element | null = null,
@@ -83,8 +84,10 @@ const DiagramLabel: FunctionComponent<DiagramLabelProps> = ({
         [b2x, b2y] = [ex + (cx2 - ex) * Math.abs(c2), ey + (cy2 - ey) * Math.abs(c2)],
         // create arrow path
         d = `M${px},${py}C${b1x},${b1y} ${b2x},${b2y} ${ex},${ey}`,
+        // text box horizontal padding
+        pad_x = 3,
         // text box
-        tw = labelFontProps.fontSize * 0.6 * text.length,
+        tw = labelFontProps.fontSize * (labelColumnWidth ?? 0.6) * text.length + 2 * pad_x,
         th = labelFontProps.fontSize * labelFontProps.lineHeight,
         // text position
         tx = ex - (cos < 0 ? tw : 0) + (textPosition < 0 ? textPosition * tw * Math.sign(cos) : 0),
@@ -262,8 +265,9 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: Partial<Dim
         }
     }
     // create embedded label font css
-    const { css, fontFamily: labelFontFamily } = {
+    const { css, fontFamily: labelFontFamily, fontColumnWidth: labelColumnWidth } = {
         fontFamily: labelFontProps.fontFamily,
+        fontColumnWidth: undefined,
         ...await createFontCss(
             labels.map(({ text }) => text).join(''),
             labelFontProps.fontFamily,
@@ -288,7 +292,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: Partial<Dim
                 <g fontSize={labelFontProps.fontSize} fontFamily={labelFontFamily}>
                     {css ? <style dangerouslySetInnerHTML={{ __html: css }}/> : null}
                     {labels.map((labelProps, i) => (
-                        <DiagramLabel key={`label-${i}`} {...labelProps}/>
+                        <DiagramLabel key={`label-${i}`} labelColumnWidth={labelColumnWidth} {...labelProps}/>
                     ))}
                 </g>
             </g>

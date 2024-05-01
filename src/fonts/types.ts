@@ -101,7 +101,16 @@ export interface Os2Table {
  * @see {@link https://learn.microsoft.com/en-us/typography/opentype/spec/head}
  */
 export interface HeadTable {
+    unitsPerEm: number
     macStyle: number
+}
+
+/**
+ * Font 'maxp' table data
+ * @see {@link https://learn.microsoft.com/en-us/typography/opentype/spec/maxp}
+ */
+export interface MaxpTable {
+    numGlyphs: number
 }
 
 /**

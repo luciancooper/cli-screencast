@@ -3,7 +3,7 @@ import { compress as woff2Compress } from 'wawoff2';
 import type { ContentSubsets } from './content';
 import type { SystemFont } from './types';
 import FontDecoder from './decoder';
-import { CodePointRange, type GraphemeSet } from './range';
+import { CodePointRange, type MeasuredGraphemeSet } from './range';
 import { styleAnsiMatchPriority } from './style';
 import { subsetFontFile } from './subset';
 
@@ -29,24 +29,29 @@ export async function getSystemFonts(match?: string[]) {
 
 export async function cssFromSystemFont(
     embeddedFamily: string,
-    embedded: { css: string[], family: string[] },
+    embedded: { css: string[], family: string[], columnWidth: [number, number | undefined][] },
     content: ContentSubsets,
     fonts: SystemFont[],
 ): Promise<ContentSubsets> {
+    // accumulated code point coverage for this font family
     const fontCoverage = CodePointRange.merge(...fonts.map(({ coverage }) => coverage)),
+        // total subset of chars covered by this font
         coverage = content.coverage.intersect(fontCoverage);
+    // stop if no chars are covered by this font
     if (coverage.intersection.empty()) return content;
     const contentDifference: ContentSubsets = { coverage: coverage.difference, subsets: [] },
-        fontMap = new Map<number, GraphemeSet>();
+        fontMap = new Map<number, MeasuredGraphemeSet>();
+    // break down covereage by ansi style
     for (const [ansi, chars] of content.subsets) {
+        // subset of these ansi styled chars covered by this font
         let { intersection, difference } = chars.intersect(fontCoverage);
         if (!difference.empty()) contentDifference.subsets.push([ansi, difference]);
         if (intersection.empty()) continue;
         // prioritize font styles according to how well they match the ansi code for this char subset
-        for (const index of styleAnsiMatchPriority(fonts, ansi)) {
-            const fontset = intersection.intersect(fonts[index]!.coverage);
+        for (const i of styleAnsiMatchPriority(fonts, ansi)) {
+            const fontset = intersection.measuredIntersection(fonts[i]!.coverage);
             if (fontset.intersection.empty()) continue;
-            fontMap.set(index, fontMap.has(index) ? fontMap.get(index)!.union(intersection) : intersection);
+            fontMap.set(i, fontMap.has(i) ? fontMap.get(i)!.union(fontset.intersection) : fontset.intersection);
             intersection = fontset.difference;
             if (intersection.empty()) break;
         }
@@ -58,6 +63,8 @@ export async function cssFromSystemFont(
         const font = fonts[index]!,
             fontSubsetBuffer = await subsetFontFile(font, chars);
         if (!fontSubsetBuffer) continue;
+        // add to columnWidth array
+        embedded.columnWidth.push(...chars.widthDistribution());
         // apply woff2 compression to font subset buffer
         let src: string;
         try {

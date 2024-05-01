@@ -237,6 +237,11 @@ The font size of the rendered terminal output. Default is `16`.
 
 The line height of the rendered terminal output. Default is `1.25`.
 
+<a name='options.columnWidth'></a>
+› &nbsp; **columnWidth** &nbsp;•&nbsp; `number`
+
+The aspect ratio used to determine the width of each terminal column, which will be calculated as this value times the `fontSize`. If unspecified, the renderer will attempt to determine the aspect ratio of the embedded font family, but if that fails will fall back to the standard value `0.6`.
+
 <a name='options.theme'></a>
 › &nbsp; **theme** &nbsp;•&nbsp; `Object`
 

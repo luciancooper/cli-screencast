@@ -1,6 +1,6 @@
 import type { Optionalize } from '../types';
 import type {
-    NameRecord, FvarTable, Os2Table, HeadTable, CmapTable, SfntHeader, SystemFont,
+    NameRecord, FvarTable, Os2Table, HeadTable, MaxpTable, CmapTable, SfntHeader, SystemFont,
 } from './types';
 import FontReader from './reader';
 import { getEncoding } from './encoding';
@@ -193,8 +193,21 @@ export default class FontDecoder extends FontReader {
      */
     protected headTable(): HeadTable {
         return {
-            // ...44 bytes...
-            macStyle: this.skip(44).uint16(),
+            // ...18 bytes...
+            unitsPerEm: this.skip(18).uint16(),
+            // ...24 bytes...
+            macStyle: this.skip(24).uint16(),
+        };
+    }
+
+    /**
+     * Need first 6 bytes
+     * https://learn.microsoft.com/en-us/typography/opentype/spec/maxp
+     */
+    protected maxpTable(): MaxpTable {
+        return {
+            // ... 4 bytes ...
+            numGlyphs: this.skip(4).uint16(),
         };
     }
 
@@ -377,6 +390,23 @@ export default class FontDecoder extends FontReader {
         return { table, varSelectors };
     }
 
+    /**
+     * Decode advance width array from 'hhea' & 'hmtx' tables
+     * @see {@link https://learn.microsoft.com/en-us/typography/opentype/spec/hhea}
+     * @see {@link https://learn.microsoft.com/en-us/typography/opentype/spec/hmtx}
+     */
+    async decodeHmtx(header: SfntHeader) {
+        // decode `numberOfHMetrics` key from the 'hhea' table
+        const hmetrics = await this.decodeSfntTable(header, 'hhea', () => this.skip(34).uint16());
+        if (!hmetrics) return null;
+        // decode 'hmtx' table, need the first (numberOfHMetrics * 4) bytes
+        return this.decodeSfntTable(header, 'hmtx', () => this.array(hmetrics, () => {
+            const advanceWidth = this.uint16();
+            this.skip(2);
+            return advanceWidth;
+        }), hmetrics * 4);
+    }
+
     protected async sfntHeader(): Promise<SfntHeader> {
         // decode the sfnt signature
         const signature = this.uint32();
@@ -439,8 +469,20 @@ export default class FontDecoder extends FontReader {
         const cmap = await this.decodeSfntTable(header, 'cmap', this.cmapTable, 4);
         // code point coverage cannot be determined if font does not contain a 'cmap' table
         if (!cmap) return;
+        // decode 'maxp' table
+        const maxp = await this.decodeSfntTable(header, 'maxp', this.maxpTable, 6);
+        // font is invalid if it does not contain a 'maxp' table
+        if (!maxp) return;
+        // get advance width array
+        let advanceWidth: number[] = [];
+        if (head) {
+            // decode 'htmx' table
+            const hmtx = await this.decodeHmtx(header);
+            // only use advance widths if number of unique widths <= 10, otherwise this is not a monospaced font
+            if (hmtx && new Set(hmtx).size <= 10) advanceWidth = hmtx.map((v) => v / head.unitsPerEm);
+        }
         // determine code point coverage
-        const coverage = cmapCoverage(cmap),
+        const coverage = cmapCoverage(cmap, maxp.numGlyphs, advanceWidth),
             // decode 'fvar' table if present
             fvar = await this.decodeSfntTable(header, 'fvar', this.fvarTable);
         // check for fvar variants
@@ -529,7 +571,7 @@ export default class FontDecoder extends FontReader {
     /**
      * Calls the provided decoder callback function on each font in the file
      */
-    async* decodeAll<T>(decoder: DecodeCallback<T>): AsyncGenerator<T> {
+    private async* decodeAll<T>(decoder: DecodeCallback<T>): AsyncGenerator<T> {
         try {
             // read first 4 bytes of the font file
             await this.read(4);
@@ -563,7 +605,8 @@ export default class FontDecoder extends FontReader {
     }
 
     /**
-     * Calls the provided decoder callback function on the first font in the file
+     * Calls the provided decoder callback function on the first font in the file. Only used testing
+     * @internal
      */
     async decodeFirst<T>(decoder: DecodeCallback<T>): Promise<T> {
         const each = this.decodeAll(decoder),

@@ -9,8 +9,8 @@ import type {
     SVGCaptureData,
 } from '../types';
 import type { Theme } from '../theme';
-import Context, { RenderContext } from './Context';
-import Window, { WindowOptions } from './Window';
+import Context, { type RenderContext } from './Context';
+import Window, { type WindowOptions } from './Window';
 import Frame from './Frame';
 import { Cursor, CursorFrames } from './Cursor';
 
@@ -26,6 +26,11 @@ export interface RenderOptions extends WindowOptions {
     lineHeight?: number
 
     /**
+     * @defaultValue `undefined`
+     */
+    columnWidth?: number | undefined
+
+    /**
      * @defaultValue `1.6`
      */
     iconColumnWidth?: number
@@ -34,6 +39,7 @@ export interface RenderOptions extends WindowOptions {
 export interface RenderProps extends Dimensions, Required<RenderOptions> {
     theme: Theme<string>
     fontFamily?: string
+    fontColumnWidth?: number | undefined
     css?: string | null
 }
 
@@ -42,6 +48,8 @@ export function resolveContext({
     rows,
     theme,
     fontSize,
+    columnWidth,
+    fontColumnWidth,
     lineHeight,
     iconColumnWidth,
     ...windowOptions
@@ -51,7 +59,7 @@ export function resolveContext({
         rows,
         theme,
         fontSize,
-        grid: [fontSize * 0.6, fontSize * lineHeight],
+        grid: [fontSize * (columnWidth ?? fontColumnWidth ?? 0.6), fontSize * lineHeight],
         iconColumnWidth,
         duration,
     };
