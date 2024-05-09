@@ -56,6 +56,16 @@ describe('code point coverage from decoded cmap table', () => {
         ]);
     });
 
+    test('cmap subtable format 13', async () => {
+        // cmap13.ttf file is from opentype.js test files (TestCMAP13.ttf)
+        await expect(decodeCmapFixture('cmap13.ttf')).resolves.toEqual([
+            [0x0, 0x80, 2350], // glyph 1
+            [0x13A0, 0x13F6, 2350], [0x13F8, 0x13FE, 2350], // glyph 2
+            [0x12000, 0x1239A, 2350], // glyph 3
+            [0x1FA00, 0x1FA54, 2350], [0x1FA60, 0x1FA6E, 2350], // glyph 4
+        ]);
+    });
+
     test('cmap subtable format 14', async () => {
         await expect(decodeCmapFixture('cmap14.otf')).resolves.toEqual([
             [32, 33, 600], [8809, 8810, 723], [33446, 33447, 1000], // character code points
