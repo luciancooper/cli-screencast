@@ -31,8 +31,8 @@ export function selectCmapRecord(encodingRecords: CmapEncodingRecord[]) {
     }
     throw new Error(
         'Font does not include a supported cmap subtable:'
-        + encodingRecords.map(({ platform, encoding, offset }) => (
-            `\n * platform: ${platform} encoding: ${encoding} offset: ${offset}`
+        + encodingRecords.map(({ platform, encoding }) => (
+            `\n * platform: ${platform} encoding: ${encoding}`
         )).join(''),
     );
 }
