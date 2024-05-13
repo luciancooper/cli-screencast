@@ -1,8 +1,14 @@
 import signalExit from 'signal-exit';
+import { stdin as mockStdin } from 'mock-stdin';
+import { stripAnsi } from 'tty-strings';
 import type { DeepPartial } from '@src/types';
 import type { SourceEvent } from '@src/source';
 import readableSpawn, { colorEnv, SpawnResult } from '@src/spawn';
+import mockStdout from './helpers/mockStdout';
 import { consume } from './helpers/streams';
+
+const stdout = mockStdout(),
+    stdin = mockStdin();
 
 type SignalExitHandler = (code: number | null, signal: NodeJS.Signals | null) => void;
 
@@ -34,7 +40,13 @@ jest.mock('signal-exit', () => {
 });
 
 afterEach(() => {
+    stdout.reset();
     (signalExit as MockSignalExit).reset();
+});
+
+afterAll(() => {
+    stdout.restore();
+    stdin.restore();
 });
 
 describe('readableSpawn', () => {
@@ -69,6 +81,33 @@ describe('readableSpawn', () => {
         });
     });
 
+    test('accepts user input from stdin', async () => {
+        const source = readableSpawn('node', [
+            '-e',
+            "const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });"
+            + "rl.question('Prompt: ', (a) => { console.log(a); rl.close(); });",
+        ], { ...dimensions, connectStdin: true });
+        // send mocks stdin after first write to stdout
+        await stdout.nextWrite().then(() => {
+            stdin.send('Response\n');
+        });
+        // consume events
+        const events = await consume<SourceEvent>(source);
+        // check events
+        expect(events.length).toBeGreaterThan(2);
+        expect(events[events.length - 1]).toMatchObject<DeepPartial<SourceEvent>>({
+            type: 'finish',
+            result: { exitCode: 0, failed: false },
+        });
+        // check stdout
+        expect(stripAnsi(stdout.output).trimEnd().split(/\r*\n/g).map((l) => l.replace(/^.+\r/, ''))).toEqual([
+            '>>> ● Capture Start >>>',
+            'Prompt: Response',
+            'Response',
+            '<<< ■ Capture End <<<',
+        ]);
+    });
+
     test('subprocess env will not extend process.env if `extendEnv` is false', async () => {
         const source = readableSpawn(
             'node',
@@ -96,6 +135,12 @@ describe('readableSpawn', () => {
             expect(() => {
                 readableSpawn('ls', [], { ...dimensions, timeout: -500 });
             }).toThrow('`timeout` must be a non-negative integer');
+        });
+
+        test('throws error if both connectStdin and silent options are enabled', () => {
+            expect(() => {
+                readableSpawn('ls', [], { ...dimensions, silent: true, connectStdin: true });
+            }).toThrow("'silent' option must be false if 'connectStdin' is true");
         });
     });
 

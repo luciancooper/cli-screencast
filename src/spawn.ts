@@ -45,6 +45,21 @@ export interface SpawnOptions {
     extendEnv?: boolean
 
     /**
+     * Silently capture the spawned process' stdout and stderr output. If set to `false`, the output of
+     * the spawned process will be piped to `process.stdout`.
+     * @defaultValue `true`
+     */
+    silent?: boolean
+
+    /**
+     * Connect spawn to process.stdin to capture any input from the user. If the spawned process requires
+     * user input to complete, this option must be enabled, or the process will hang. If enabled,
+     * the `silent` option must be set to `false`, or omitted.
+     * @defaultValue `false`
+     */
+    connectStdin?: boolean
+
+    /**
      * The maximum amount of time the process is allowed to run in milliseconds. If greater than `0`, the signal
      * specified by `killSignal` will be sent if the child process runs longer than the timeout milliseconds.
      * @defaultValue `0`
@@ -131,6 +146,8 @@ export default function readableSpawn(command: string, args: string[], {
     cwd = process.cwd(),
     env: envOption,
     extendEnv = true,
+    connectStdin = false,
+    silent = !connectStdin,
     timeout = 0,
     killSignal = 'SIGTERM',
     useConpty = false,
@@ -146,6 +163,12 @@ export default function readableSpawn(command: string, args: string[], {
     if (!(typeof timeout === 'number' && Number.isFinite(timeout) && timeout >= 0)) {
         throw new TypeError('`timeout` must be a non-negative integer');
     }
+    // validate silent / connectStdin
+    if (connectStdin && silent) {
+        throw new Error("'silent' option must be false if 'connectStdin' is true");
+    }
+    // indicate start of the capture
+    if (!silent) process.stdout.write(SpawnStream.kCaptureStartLine);
     // resolve env
     const env = { ...(extendEnv ? { ...process.env, ...envOption } : { ...envOption }), ...colorEnv },
         // create recording source stream
@@ -167,14 +190,45 @@ export default function readableSpawn(command: string, args: string[], {
     ))].join(' '));
     // attach data listener
     const dataHook = spawned.onData((chunk: string) => {
+        if (!silent) process.stdout.write(chunk);
         stream.write(chunk.replace(/\r\n/g, '\n'));
     });
     // track if child process has been killed
     let killed = false,
+        // kill spawn handler
+        kill = (sig?: string) => {
+            killed = true;
+            spawned.kill(sig);
+        },
         // exit code for spawn result
         exitCode: number | undefined,
         // signal for spawn result
         signal: NodeJS.Signals | number | undefined;
+    // connect stdin
+    if (connectStdin) {
+        // enable raw mode
+        if (process.stdin.isTTY) process.stdin.setRawMode(true);
+        // stdin data handler
+        const handler = (chunk: Buffer) => {
+            spawned.write(chunk.toString());
+        };
+        // add data event handler
+        process.stdin.on('data', handler);
+        // wrap kill method with cleanup handler
+        const wrapped = kill;
+        kill = (sig?: string) => {
+            // pause stdin
+            process.stdin.pause();
+            // disable raw mode
+            if (process.stdin.isTTY) process.stdin.setRawMode(false);
+            // remove data event handler
+            process.stdin.off('data', handler);
+            // call wrapped kill method
+            wrapped(sig);
+        };
+        // resume stdin
+        process.stdin.resume();
+    }
     // create spawn promise
     const spawnPromise = new Promise<SpawnResult>((resolve) => {
         const exitHook = spawned.onExit((event) => {
@@ -182,10 +236,7 @@ export default function readableSpawn(command: string, args: string[], {
             dataHook.dispose();
             exitHook.dispose();
             // kill spawned process to prevent hanging on windows
-            if (!killed) {
-                killed = true;
-                spawned.kill();
-            }
+            if (!killed) kill();
             // update exit code & signal
             exitCode ??= event.exitCode;
             signal ??= ((event.signal && signals.find(([, n]) => n === event.signal)) || [])[0] ?? event.signal;
@@ -209,12 +260,11 @@ export default function readableSpawn(command: string, args: string[], {
                 timeoutId = setTimeout(() => {
                     // kill the spawned process
                     if (!killed) {
-                        killed = true;
                         // set exit code & signal
                         exitCode = 1;
                         signal = killSignal;
                         // kill spawned process
-                        spawned.kill(process.platform !== 'win32' ? killSignal : undefined);
+                        kill(process.platform !== 'win32' ? killSignal : undefined);
                     }
                     // reject to end the race
                     reject(new Error('Timed out'));
@@ -232,12 +282,11 @@ export default function readableSpawn(command: string, args: string[], {
     // add signal-exit handler
     const cleanupExitHandler = onExit((code, sig) => {
         if (!killed) {
-            killed = true;
             // set exit code & signal
             exitCode ??= code ?? 1;
             if (sig) signal ??= sig as NodeJS.Signals;
             // kill spawned process
-            spawned.kill(process.platform !== 'win32' ? (sig ?? undefined) : undefined);
+            kill(process.platform !== 'win32' ? (sig ?? undefined) : undefined);
         }
     });
     // cleanup exit handler
@@ -246,6 +295,8 @@ export default function readableSpawn(command: string, args: string[], {
     });
     // finally, invoke stream.finish
     promise = promise.then((result) => {
+        // indicate end of the capture
+        if (!silent) process.stdout.write(SpawnStream.kCaptureEndLine);
         stream.finish({ result });
         return result;
     });

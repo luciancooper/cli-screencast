@@ -76,32 +76,42 @@ Options config object to specify [configuration options](#options) as well as th
 
 > #### *Additional Options:*
 
-<a name='options.term'></a>
+<a name='options.spawn.term'></a>
 › &nbsp; **term** &nbsp;•&nbsp; `string`
 
 Name of the terminal to be set in environment (`$TERM` variable). Default is `'xterm'`.
 
-<a name='options.cwd'></a>
+<a name='options.spawn.cwd'></a>
 › &nbsp; **cwd** &nbsp;•&nbsp; `string`
 
 Working directory to be set for the child process. Default is `process.cwd()`.
 
-<a name='options.env'></a>
+<a name='options.spawn.env'></a>
 › &nbsp; **env** &nbsp;•&nbsp; `Object`
 
 Environment key-value pairs to be set for the child process. Automatically extends from `process.env`, which can be changed by setting `extendEnv` to `false`. Default is `undefined`.
 
-<a name='options.extendEnv'></a>
+<a name='options.spawn.extendEnv'></a>
 › &nbsp; **extendEnv** &nbsp;•&nbsp; `boolean`
 
 The child process environment extends from `process.env`. Defaults to `true`.
 
-<a name='options.timeout'></a>
+<a name='options.spawn.silent'></a>
+› &nbsp; **silent** &nbsp;•&nbsp; `boolean`
+
+Silently capture the spawned process' stdout and stderr output. If set to `false`, the output of the spawned process will be piped to `process.stdout`. Defaults to `true`.
+
+<a name='options.spawn.connectStdin'></a>
+› &nbsp; **connectStdin** &nbsp;•&nbsp; `boolean`
+
+Connect spawn to `process.stdin` to capture any input from the user. If the spawned process requires user input to complete, this option must be enabled, or the process will hang. Defaults to `false`. If enabled, the [`silent`](#options.spawn.silent) option must be set to `false`, or omitted.
+
+<a name='options.spawn.timeout'></a>
 › &nbsp; **timeout** &nbsp;•&nbsp; `number`
 
 The maximum amount of time the process is allowed to run in milliseconds. If greater than `0`, the spawned process will be killed if it runs longer than the timeout milliseconds. Default is `0`.
 
-<a name='options.killSignal'></a>
+<a name='options.spawn.killSignal'></a>
 › &nbsp; **killSignal** &nbsp;•&nbsp; `string`
 
 The signal to be used when the spawned process is killed by `timeout`. Default is `'SIGTERM'`.
@@ -124,12 +134,12 @@ Options config object to specify [configuration options](#options) as well as th
 
 > #### *Additional Options:*
 
-<a name='options.connectStdin'></a>
+<a name='options.capture.connectStdin'></a>
 › &nbsp; **connectStdin** &nbsp;•&nbsp; `boolean`
 
 Connect capture session to `process.stdin` to capture any input from the user. Defaults to `false`.
 
-<a name='options.silent'></a>
+<a name='options.capture.silent'></a>
 › &nbsp; **silent** &nbsp;•&nbsp; `boolean`
 
 Silently capture output to `process.stdout` and `process.stderr`. Defaults to `true`.

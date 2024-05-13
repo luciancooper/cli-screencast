@@ -34,10 +34,6 @@ interface SocketHandle {
 }
 
 export default class TerminalRecordingStream extends RecordingStream {
-    static kCaptureStartLine = '\x1b[36;1m>>>\x1b[39m \x1b[31m●\x1b[39m Capture Start \x1b[36m>>>\x1b[39;22m\n';
-
-    static kCaptureEndLine = '\x1b[36;1m<<<\x1b[39m \x1b[31m■\x1b[39m Capture End \x1b[36m<<<\x1b[39;22m\n';
-
     isTTY = true;
 
     private targetDescriptors: TargetDescriptors | null = null;
