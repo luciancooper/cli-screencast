@@ -1,9 +1,10 @@
+import path from 'path';
 import signalExit from 'signal-exit';
 import { stdin as mockStdin } from 'mock-stdin';
 import { stripAnsi } from 'tty-strings';
 import type { DeepPartial } from '@src/types';
 import type { SourceEvent } from '@src/source';
-import readableSpawn, { colorEnv, SpawnResult } from '@src/spawn';
+import readableSpawn, { resolveCommand, colorEnv, type SpawnResult } from '@src/spawn';
 import mockStdout from './helpers/mockStdout';
 import { consume } from './helpers/streams';
 
@@ -47,6 +48,35 @@ afterEach(() => {
 afterAll(() => {
     stdout.restore();
     stdin.restore();
+});
+
+describe('resolveCommand', () => {
+    test('returns absolute path to command', () => {
+        expect(path.isAbsolute(resolveCommand('node', process.cwd()))).toBe(true);
+    });
+
+    test('does not resolve nonexistant commands', () => {
+        expect(resolveCommand('abcd', process.cwd())).toBe('abcd');
+    });
+
+    test('relative paths are resolved if file is found', () => {
+        const cmd = resolveCommand('node_modules/.bin/jest', process.cwd());
+        expect(cmd.replace(/\b(\w+)\.\w+$/, '$1')).toBe(path.join(process.cwd(), 'node_modules', '.bin', 'jest'));
+    });
+
+    test('relative paths are not resolved if file is not found', () => {
+        expect(resolveCommand('.bin/jest', process.cwd())).toBe('.bin/jest');
+    });
+
+    test('relative paths can be resolved from alternate cwd paths', () => {
+        const cmd = resolveCommand('.bin/jest', path.join(process.cwd(), 'node_modules'));
+        expect(cmd.replace(/\b(\w+)\.\w+$/, '$1')).toBe(path.join(process.cwd(), 'node_modules', '.bin', 'jest'));
+    });
+
+    test('commands can be resolved from specified env PATH', () => {
+        const cmd = resolveCommand('jest', process.cwd(), { PATH: path.join(process.cwd(), 'node_modules', '.bin') });
+        expect(cmd.replace(/\b(\w+)\.\w+$/, '$1')).toBe(path.join(process.cwd(), 'node_modules', '.bin', 'jest'));
+    });
 });
 
 describe('readableSpawn', () => {

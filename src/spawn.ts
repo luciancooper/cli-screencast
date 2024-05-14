@@ -102,9 +102,10 @@ export class SpawnStream extends RecordingStream {
  * {@link https://github.com/moxystudio/node-cross-spawn/blob/master/lib/util/resolveCommand.js}
  * @param command - command to run
  * @param cwd - directory to run command in
+ * @param extendedEnv - optional env configuration
  * @returns resolved command file path
  */
-function resolveCommand(command: string, cwd: string) {
+export function resolveCommand(command: string, cwd: string, extendedEnv?: Env) {
     // get the current working directory
     const thisCwd = process.cwd();
     // change to specified cwd if necessary
@@ -114,10 +115,10 @@ function resolveCommand(command: string, cwd: string) {
         } catch {}
     }
     // extract PATH from env
-    const PATH = process.env[
-        process.platform !== 'win32' ? 'PATH'
-            : Object.keys(process.env).reverse().find((key) => key.toUpperCase() === 'PATH') ?? 'Path'
-    ];
+    const env = { ...process.env, ...extendedEnv },
+        pathKey = process.platform !== 'win32' ? 'PATH'
+            : Object.keys(env).reverse().find((key) => key.toUpperCase() === 'PATH') ?? 'Path',
+        PATH = env[pathKey];
     // resolve command file path with `which`
     let resolved;
     try {
@@ -174,7 +175,7 @@ export default function readableSpawn(command: string, args: string[], {
         // create recording source stream
         stream = new SpawnStream(cwd, env),
         // resolve command
-        file = resolveCommand(command, cwd),
+        file = resolveCommand(command, cwd, envOption),
         // create pty child process
         spawned = pty.spawn(file, args, {
             cols: columns,
