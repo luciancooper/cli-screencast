@@ -77,12 +77,12 @@ export function cursorLinePartial(state: Omit<TerminalState, 'title' | 'cursorHi
     const line = lines[cursor.line]!,
         idx = line.chunks.findIndex(({ x: [x, span] }) => cursor.column < x + span);
     if (idx < 0) {
-        return { index: 0, columns: cursor.column, chunks: [...line.chunks] };
+        return { index: line.index, columns: cursor.column, chunks: [...line.chunks] };
     }
     const chunks = line.chunks.slice(0, idx),
         chunk = sliceChunkBefore(line.chunks[idx]!, cursor.column);
     if (chunk) chunks.push(chunk);
-    return { index: 0, columns: cursor.column, chunks };
+    return { index: line.index, columns: cursor.column, chunks };
 }
 
 /**
@@ -113,6 +113,16 @@ export function overwriteLine<T extends TextLine>(prev: T, next: T): T {
     }
     chunks.push(...append);
     return { ...next, columns: totalColumns(chunks), chunks };
+}
+
+function updateSubsequentLineContinuity(lines: TerminalLine[], i: number, insertBreak: boolean) {
+    let idx = insertBreak ? 0 : lines[i]!.index + 1;
+    // reset indexes of subsequent lines
+    for (let j = i + 1; j < lines.length; j += 1, idx += 1) {
+        const line = lines[j]!;
+        if (line.index === 0) break;
+        line.index = idx;
+    }
 }
 
 function parseContent({
@@ -161,16 +171,25 @@ function parseContent({
         state.lines.push({ index: 0, columns: 0, chunks: [] });
     }
     // apply new lines
-    state.lines = [
+    const merged = [
         ...state.lines.slice(0, cursor.line),
-        ...state.lines.slice(cursor.line, cursor.line + lines.length)
-            .map((ln, j) => overwriteLine(ln, lines[j]!)),
-        ...state.lines.length - cursor.line > lines.length
-            ? state.lines.slice(cursor.line + lines.length)
-                // update subsequent line continuity indexes
-                .map(({ index, ...ln }, i) => ({ index: Math.min(index, i), ...ln }))
-            : lines.slice(state.lines.length - cursor.line),
-    ].slice(-rows);
+        ...state.lines.slice(cursor.line, cursor.line + lines.length).map((ln, j) => overwriteLine(ln, lines[j]!)),
+    ];
+    if (state.lines.length - cursor.line > lines.length) {
+        merged.push(...state.lines.slice(cursor.line + lines.length));
+        // update subsequent line continuity indexes
+        updateSubsequentLineContinuity(merged, cursor.line + lines.length - 1, false);
+    } else merged.push(...lines.slice(state.lines.length - cursor.line));
+    // truncate merged lines and set state
+    state.lines = merged.slice(-rows);
+    // update line continuity indexes for any truncated lines
+    if (state.lines[0]?.index) {
+        const delta = state.lines[0].index;
+        for (const ln of state.lines) {
+            if (ln.index === 0) break;
+            ln.index -= delta;
+        }
+    }
     // set updated cursor location
     state.cursor = {
         line: Math.min(cursor.line + lines.length - 1, rows - 1),
@@ -213,16 +232,6 @@ export function clearLineAfter<T extends TextLine>(line: T, column: number): T {
     if (chunk) chunks.push(chunk);
     // return updated terminal line
     return { ...line, columns: totalColumns(chunks), chunks };
-}
-
-function updateSubsequentLineContinuity(lines: TerminalLine[], i: number, insertBreak: boolean) {
-    let idx = insertBreak ? 0 : lines[i]!.index + 1;
-    // reset indexes of subsequent lines
-    for (let j = i + 1; j < lines.length; j += 1, idx += 1) {
-        const line = lines[j]!;
-        if (line.index === 0) break;
-        line.index = idx;
-    }
 }
 
 function parseEscape({ columns, rows, palette }: ParseContext, state: TerminalState, esc: string) {

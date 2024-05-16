@@ -15,7 +15,7 @@ describe('cursorLinePartial', () => {
 
     test('only adjusts cursor line column value if cursor column exceeds its width', () => {
         expect(cursorLinePartial({ lines, cursor: makeCursor(1, 14) }))
-            .toEqual<TerminalLine>({ index: 0, ...makeLine(['dddddddddd', { dim: true }], 'ee', 2) });
+            .toEqual<TerminalLine>({ index: 1, ...makeLine(['dddddddddd', { dim: true }], 'ee', 2) });
     });
 
     test('slices line content up to the cursor column index', () => {

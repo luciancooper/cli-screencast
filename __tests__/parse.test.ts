@@ -141,6 +141,35 @@ describe('writing lines', () => {
         ]);
     });
 
+    test('maintains line wrap continuity', () => {
+        const parser = makeParser({ columns: 10, rows: 10 });
+        // write wrapped line
+        parser('aaaaaaaaaaaaaaa');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 1, ...makeLine('aaaaa') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 1, column: 5 });
+        // add to the last line
+        parser('bbbbbbbbbbbbbbbbbbbb');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 1, ...makeLine('aaaaabbbbb') },
+            { index: 2, ...makeLine('bbbbbbbbbb') },
+            { index: 3, ...makeLine('bbbbb') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 3, column: 5 });
+        // end line
+        parser('\n');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 1, ...makeLine('aaaaabbbbb') },
+            { index: 2, ...makeLine('bbbbbbbbbb') },
+            { index: 3, ...makeLine('bbbbb') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 0 });
+    });
+
     test('truncate lines to the window row height', () => {
         const parser = makeParser({ columns: 10, rows: 5 });
         parser('aaaaa\n', 'bbbbb\n', 'ccccc\n', 'ddddd\n');
@@ -161,6 +190,37 @@ describe('writing lines', () => {
             { index: 0, ...makeLine('ggggg') },
         ]);
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 5 });
+    });
+
+    test('update line wrap continuity when truncating lines to the window row height', () => {
+        const parser = makeParser({ columns: 10, rows: 5 });
+        parser('aaaaaaaaaaaaaaaaaaaaaaaaa\n', 'bbbbbbbb\n');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 1, ...makeLine('aaaaaaaaaa') },
+            { index: 2, ...makeLine('aaaaa') },
+            { index: 0, ...makeLine('bbbbbbbb') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 0 });
+        // add another line so the first one will be truncated
+        parser('ccccccccccccccc');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 1, ...makeLine('aaaaa') },
+            { index: 0, ...makeLine('bbbbbbbb') },
+            { index: 0, ...makeLine('cccccccccc') },
+            { index: 1, ...makeLine('ccccc') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 5 });
+        // add a newline to truncate one more line
+        parser('\n');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaa') },
+            { index: 0, ...makeLine('bbbbbbbb') },
+            { index: 0, ...makeLine('cccccccccc') },
+            { index: 1, ...makeLine('ccccc') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 0 });
     });
 });
 
@@ -209,7 +269,7 @@ describe('overwriting lines', () => {
         ]);
     });
 
-    test('overwrite middle lines and handle line wrap continuity', () => {
+    test('overwrite line wrap continuity breaks between lines', () => {
         const parser = makeParser({ columns: 10, rows: 10 });
         parser('aaaaaaaaaaaaaaaaaaaa\n', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
         expect(parser.state.lines).toEqual<TerminalLine[]>([
@@ -219,16 +279,49 @@ describe('overwriting lines', () => {
             { index: 1, ...makeLine('bbbbbbbbbb') },
             { index: 2, ...makeLine('bbbbbbbbbb') },
         ]);
-        // overwrite middle 2 lines
+        // overwrite the continuity break between lines, linking them together
         parser(ansi.cursorTo(1, 5), 'xxxxxxxxxxxxxxx');
         expect(parser.state.lines).toEqual<TerminalLine[]>([
             { index: 0, ...makeLine('aaaaaaaaaa') },
-            { index: 0, ...makeLine('aaaaaxxxxx') },
-            { index: 1, ...makeLine('xxxxxxxxxx') },
-            { index: 0, ...makeLine('bbbbbbbbbb') },
-            { index: 1, ...makeLine('bbbbbbbbbb') },
+            { index: 1, ...makeLine('aaaaaxxxxx') },
+            { index: 2, ...makeLine('xxxxxxxxxx') },
+            { index: 3, ...makeLine('bbbbbbbbbb') },
+            { index: 4, ...makeLine('bbbbbbbbbb') },
         ]);
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 10 });
+    });
+
+    test('overwrite lines within line wrap continuity segments', () => {
+        const parser = makeParser({ columns: 10, rows: 10 });
+        parser('aaaaaaaaaaaaaaaaaaaaaaaaa\n', 'bbbbbbbbbbbbbbb');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 1, ...makeLine('aaaaaaaaaa') },
+            { index: 2, ...makeLine('aaaaa') },
+            { index: 0, ...makeLine('bbbbbbbbbb') },
+            { index: 1, ...makeLine('bbbbb') },
+        ]);
+        // overwrite a portion of the first line without breaking line wrap continuity
+        parser(ansi.cursorTo(1, 5), 'xxxxxxxxxxxxxxx');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 1, ...makeLine('aaaaaxxxxx') },
+            { index: 2, ...makeLine('xxxxxxxxxx') },
+            { index: 0, ...makeLine('bbbbbbbbbb') },
+            { index: 1, ...makeLine('bbbbb') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 10 });
+        // extend the second line while preserving line wrap continuity
+        parser(ansi.cursorTo(4, 3), 'yyyyyyyyyy');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 1, ...makeLine('aaaaaxxxxx') },
+            { index: 2, ...makeLine('xxxxxxxxxx') },
+            { index: 0, ...makeLine('bbbbbbbbbb') },
+            { index: 1, ...makeLine('bbbyyyyyyy') },
+            { index: 2, ...makeLine('yyy') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 5, column: 3 });
     });
 });
 
