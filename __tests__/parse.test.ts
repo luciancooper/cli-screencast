@@ -34,7 +34,7 @@ const makeParser = (dim: Dimensions, cursorHidden = false, title: Partial<Title>
     return parser;
 };
 
-describe('parse', () => {
+describe('escape sequences', () => {
     test('show / hide cursor', () => {
         const parser = makeParser({ columns: 40, rows: 10 }, false);
         expect(parser.state.cursorHidden).toBe(false);
@@ -73,13 +73,36 @@ describe('parse', () => {
         expect(parser.state).toEqual(parser.prev);
     });
 
-    test('write styled chunks', () => {
+    test('set window title and icon', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: undefined, text: undefined });
+        // set both title & icon
+        parser('\x1b]0;title\x07');
+        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: 'shell', text: 'title' });
+        // set only icon
+        parser('\x1b]1;node\x07');
+        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: 'node', text: 'title' });
+        // set only title
+        parser('\x1b]2;new title\x07');
+        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: 'node', text: 'new title' });
+        // nullify icon
+        parser('\x1b]1;\x07');
+        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: undefined, text: 'new title' });
+        // nullify title
+        parser('\x1b]2;\x07');
+        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: undefined, text: undefined });
+    });
+});
+
+describe('writing lines', () => {
+    test('write sgr styled chunks', () => {
         const parser = makeParser({ columns: 20, rows: 10 });
-        // write line of half width characters
+        // foreground green styled chunk
         parser(ansi.fg(32, 'ab'));
         expect(parser.state.lines).toEqual<TerminalLine[]>([
             { index: 0, ...makeLine(['ab', { fg: theme.green }]) },
         ]);
+        // foreground red styled chunk
         parser(ansi.fg(31, 'cdef'));
         expect(parser.state.lines).toEqual<TerminalLine[]>([
             { index: 0, ...makeLine(['ab', { fg: theme.green }], ['cdef', { fg: theme.red }]) },
@@ -118,7 +141,31 @@ describe('parse', () => {
         ]);
     });
 
-    test('track cursor position when lines are partially overwritten', () => {
+    test('truncate lines to the window row height', () => {
+        const parser = makeParser({ columns: 10, rows: 5 });
+        parser('aaaaa\n', 'bbbbb\n', 'ccccc\n', 'ddddd\n');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaa') },
+            { index: 0, ...makeLine('bbbbb') },
+            { index: 0, ...makeLine('ccccc') },
+            { index: 0, ...makeLine('ddddd') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 0 });
+        // add 3 more lines, so that the first two will be truncated
+        parser('eeeee\n', 'fffff\n', 'ggggg');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('ccccc') },
+            { index: 0, ...makeLine('ddddd') },
+            { index: 0, ...makeLine('eeeee') },
+            { index: 0, ...makeLine('fffff') },
+            { index: 0, ...makeLine('ggggg') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 5 });
+    });
+});
+
+describe('overwriting lines', () => {
+    test('partially overwrite lines with cursor escapes', () => {
         const parser = makeParser({ columns: 20, rows: 10 });
         parser('xxxxxxxxxx');
         expect(parser.state.lines).toEqual<TerminalLine[]>([
@@ -132,7 +179,7 @@ describe('parse', () => {
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 3 });
     });
 
-    test('handle carriage returns', () => {
+    test('partially overwrite lines with carriage returns', () => {
         const parser = makeParser({ columns: 20, rows: 10 });
         parser('aaaaaaaa\rbbbb');
         expect(parser.state.lines).toEqual<TerminalLine[]>([
@@ -148,7 +195,7 @@ describe('parse', () => {
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 1, column: 4 });
     });
 
-    test('write multi-line styled chunks', () => {
+    test('partially overwrite styled chunks with carriage returns', () => {
         const parser = makeParser({ columns: 20, rows: 10 });
         parser('aaaaaaaa\r', ansi.fg(32, 'bbbb'));
         expect(parser.state.lines).toEqual<TerminalLine[]>([
@@ -183,29 +230,9 @@ describe('parse', () => {
         ]);
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 10 });
     });
+});
 
-    test('truncate lines to the specified row height of the terminal window', () => {
-        const parser = makeParser({ columns: 10, rows: 5 });
-        parser('aaaaa\n', 'bbbbb\n', 'ccccc\n', 'ddddd\n');
-        expect(parser.state.lines).toEqual<TerminalLine[]>([
-            { index: 0, ...makeLine('aaaaa') },
-            { index: 0, ...makeLine('bbbbb') },
-            { index: 0, ...makeLine('ccccc') },
-            { index: 0, ...makeLine('ddddd') },
-        ]);
-        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 0 });
-        // overwrite middle 2 lines
-        parser('eeeee\n', 'fffff\n', 'ggggg');
-        expect(parser.state.lines).toEqual<TerminalLine[]>([
-            { index: 0, ...makeLine('ccccc') },
-            { index: 0, ...makeLine('ddddd') },
-            { index: 0, ...makeLine('eeeee') },
-            { index: 0, ...makeLine('fffff') },
-            { index: 0, ...makeLine('ggggg') },
-        ]);
-        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 5 });
-    });
-
+describe('erase escape sequences', () => {
     test('clear from cursor to end of screen (0J)', () => {
         const parser = makeParser({ columns: 20, rows: 10 });
         parser('aaaaaaaaaaaaaaa\n', 'bbbbbbbbbbbbbbb\n');
@@ -304,7 +331,9 @@ describe('parse', () => {
         expect(parser.state.lines).toEqual<TerminalLine[]>([]);
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 0 });
     });
+});
 
+describe('cursor line wrapping', () => {
     test('cursor backwards line wrapping dependent on line wrap continuity', () => {
         const parser = makeParser({ columns: 10, rows: 5 });
         parser('aaaaaaaaaabbbbbbbbbb\n', 'cccccccccc');
@@ -326,25 +355,5 @@ describe('parse', () => {
         // cursor will not wrap to first line
         parser(ansi.cursorTo(1, 5), ansi.cursorBackward(10));
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 1, column: 0 });
-    });
-
-    test('set window title and icon', () => {
-        const parser = makeParser({ columns: 40, rows: 10 });
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: undefined, text: undefined });
-        // set both title & icon
-        parser('\x1b]0;title\x07');
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: 'shell', text: 'title' });
-        // set only icon
-        parser('\x1b]1;node\x07');
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: 'node', text: 'title' });
-        // set only title
-        parser('\x1b]2;new title\x07');
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: 'node', text: 'new title' });
-        // nullify icon
-        parser('\x1b]1;\x07');
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: undefined, text: 'new title' });
-        // nullify title
-        parser('\x1b]2;\x07');
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: undefined, text: undefined });
     });
 });
