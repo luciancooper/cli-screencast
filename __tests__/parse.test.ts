@@ -269,6 +269,20 @@ describe('overwriting lines', () => {
         ]);
     });
 
+    test('partially overwrite lines with backspace escapes', () => {
+        const parser = makeParser({ columns: 10, rows: 10 });
+        parser('xxxxxxxxx');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxxxxxx') },
+        ]);
+        // overwrite with backspace escape
+        parser('\byyyy\bzzz');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxxxxxyy') },
+            { index: 1, ...makeLine('yzzz') },
+        ]);
+    });
+
     test('overwrite line wrap continuity breaks between lines', () => {
         const parser = makeParser({ columns: 10, rows: 10 });
         parser('aaaaaaaaaaaaaaaaaaaa\n', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
@@ -322,6 +336,70 @@ describe('overwriting lines', () => {
             { index: 2, ...makeLine('yyy') },
         ]);
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 5, column: 3 });
+    });
+});
+
+describe('form feed & vertical tab escapes', () => {
+    test('moves cursor down one row on form feed & vertical tab escapes', () => {
+        const parser = makeParser({ columns: 10, rows: 10 });
+        parser('xxxxxxxxxxxxxxx');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxxxxxxx') },
+            { index: 1, ...makeLine('xxxxx') },
+        ]);
+        // write form feed to move down to next line
+        parser('\f', 'yyyyyyyyyy');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxxxxxxx') },
+            { index: 1, ...makeLine('xxxxx') },
+            { index: 0, ...makeLine(5, 'yyyyy') },
+            { index: 1, ...makeLine('yyyyy') },
+        ]);
+        // move backward to the end of the third line and write vertical tab down
+        parser(ansi.cursorBackward(7), '\v', 'zzzzzzzzzz');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxxxxxxx') },
+            { index: 1, ...makeLine('xxxxx') },
+            { index: 0, ...makeLine(5, 'yyyyy') },
+            { index: 1, ...makeLine('yyyyy', 3, 'zz') },
+            { index: 2, ...makeLine('zzzzzzzz') },
+        ]);
+    });
+
+    test('lines will scroll on form feed or vertical tab escape if buffer is full', () => {
+        const parser = makeParser({ columns: 10, rows: 4 });
+        parser('xxxxxxxxxxxxxxxxxxxxxxxxx');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxxxxxxx') },
+            { index: 1, ...makeLine('xxxxxxxxxx') },
+            { index: 2, ...makeLine('xxxxx') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 5 });
+        // form feed move down to the last row
+        parser('\f');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxxxxxxx') },
+            { index: 1, ...makeLine('xxxxxxxxxx') },
+            { index: 2, ...makeLine('xxxxx') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 3, column: 5 });
+        // vertical tab to ellicit scroll
+        parser('\v');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxxxxxxx') },
+            { index: 1, ...makeLine('xxxxx') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 3, column: 5 });
+        // form feed to ellicit scroll
+        parser('\f');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxx') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 3, column: 5 });
+        // vertical tab to ellicit scroll
+        parser('\v');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 3, column: 5 });
     });
 });
 
@@ -448,5 +526,25 @@ describe('cursor line wrapping', () => {
         // cursor will not wrap to first line
         parser(ansi.cursorTo(1, 5), ansi.cursorBackward(10));
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 1, column: 0 });
+    });
+
+    test('cursor backwards line wrapping with backspace escapes', () => {
+        const parser = makeParser({ columns: 10, rows: 5 });
+        parser('xxxxxxxxxxyyyyy\n', 'zzzzzz');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('xxxxxxxxxx') },
+            { index: 1, ...makeLine('yyyyy') },
+            { index: 0, ...makeLine('zzzzzz') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 6 });
+        // move cursor backward to beginning of the third line
+        parser('\b'.repeat(10));
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 0 });
+        // move cursor to middle of the second line
+        parser(ansi.cursorTo(1, 5));
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 1, column: 5 });
+        // move cursor backward to line 0 col 0 position
+        parser('\b'.repeat(20));
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 0 });
     });
 });

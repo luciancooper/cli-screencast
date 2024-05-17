@@ -17,9 +17,10 @@ const ctrlRegex = '(?:'
     + '|'
     + '\\][012];.*?\\x07'
     + ')'
-    + '|'
     // or carriage return not followed by newline
-    + '\\r(?!\\n)'
+    + '|\\r(?!\\n)'
+    // or a backspace, form feed, or vertical tab escape
+    + '|[\\b\\f\\v]'
     + ')';
 
 function prune(lines: TerminalLine[]) {
@@ -115,6 +116,16 @@ export function overwriteLine<T extends TextLine>(prev: T, next: T): T {
     return { ...next, columns: totalColumns(chunks), chunks };
 }
 
+function updateTruncatedLineContinuity(lines: TerminalLine[]) {
+    if (!lines[0]?.index) return;
+    // a wrapped line was truncated, update line wrap continuity indexes
+    const delta = lines[0].index;
+    for (const line of lines) {
+        if (line.index === 0) break;
+        line.index -= delta;
+    }
+}
+
 function updateSubsequentLineContinuity(lines: TerminalLine[], i: number, insertBreak: boolean) {
     let idx = insertBreak ? 0 : lines[i]!.index + 1;
     // reset indexes of subsequent lines
@@ -183,13 +194,7 @@ function parseContent({
     // truncate merged lines and set state
     state.lines = merged.slice(-rows);
     // update line continuity indexes for any truncated lines
-    if (state.lines[0]?.index) {
-        const delta = state.lines[0].index;
-        for (const ln of state.lines) {
-            if (ln.index === 0) break;
-            ln.index -= delta;
-        }
-    }
+    updateTruncatedLineContinuity(state.lines);
     // set updated cursor location
     state.cursor = {
         line: Math.min(cursor.line + lines.length - 1, rows - 1),
@@ -241,6 +246,28 @@ function parseEscape({ columns, rows, palette }: ParseContext, state: TerminalSt
         state.cursor = { ...cursor, column: 0 };
         return;
     }
+    // backspace
+    if (esc === '\b') {
+        // moves cursor left 1 column
+        const [col, idx] = [cursor.column - 1, cursor.line];
+        state.cursor = (col < 0 && idx && lines[idx] && lines[idx]!.index > 0)
+            ? { line: idx - 1, column: col + columns }
+            : { line: idx, column: Math.max(col, 0) };
+        return;
+    }
+    // form feed / vertical tab
+    if (esc === '\f' || esc === '\v') {
+        // If cursor is currently on the last line, lines will scroll
+        if (cursor.line === rows - 1) {
+            state.lines = state.lines.slice(1);
+            // update line continuity indexes for truncated lines
+            updateTruncatedLineContinuity(state.lines);
+        } else {
+            // moves cursor down 1 line
+            state.cursor = { ...cursor, line: cursor.line + 1 };
+        }
+        return;
+    }
     // move cursor with `ESC[#;#H`
     let m = /^\x1b\[(?:(\d+)?;(\d+)?)?[Hf]$/.exec(esc);
     if (m) {
@@ -271,7 +298,7 @@ function parseEscape({ columns, rows, palette }: ParseContext, state: TerminalSt
                 // moves cursor left # columns
                 let col = cursor.column - delta,
                     idx = cursor.line;
-                while (col < 0 && lines[idx] && lines[idx]!.index > 0) {
+                while (col < 0 && idx && lines[idx] && lines[idx]!.index > 0) {
                     idx -= 1;
                     col += columns;
                 }
