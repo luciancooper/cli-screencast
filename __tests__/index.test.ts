@@ -46,6 +46,7 @@ describe('renderSpawn', () => {
             logLevel: 'silent',
             output: 'png',
             scaleFactor: 1,
+            captureCommand: false,
         }).then((value) => Buffer.isBuffer(value))).resolves.toBe(true);
     });
 });

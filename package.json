@@ -72,6 +72,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "^19.2.1",
+    "@jest/expect-utils": "^29.7.0",
     "@lcooper/commitlint-config": "^2.0.0",
     "@lcooper/eslint-config-jest": "^2.0.0",
     "@lcooper/eslint-config-typescript": "^2.0.0",

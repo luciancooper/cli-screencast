@@ -2,9 +2,8 @@ import path from 'path';
 import signalExit from 'signal-exit';
 import { stdin as mockStdin } from 'mock-stdin';
 import { stripAnsi } from 'tty-strings';
-import type { DeepPartial } from '@src/types';
 import type { SourceEvent } from '@src/source';
-import readableSpawn, { resolveCommand, colorEnv, type SpawnResult } from '@src/spawn';
+import readableSpawn, { resolveEnv, resolveCommand, colorEnv, type SpawnResult } from '@src/spawn';
 import mockStdout from './helpers/mockStdout';
 import { consume } from './helpers/streams';
 
@@ -15,6 +14,7 @@ type SignalExitHandler = (code: number | null, signal: NodeJS.Signals | null) =>
 
 interface MockSignalExit extends jest.Mocked<typeof signalExit> {
     flush: (...args: Parameters<SignalExitHandler>) => number
+    flushAfter: (ms: number, ...args: Parameters<SignalExitHandler>) => Promise<number>
     reset: () => void
 }
 
@@ -31,6 +31,11 @@ jest.mock('signal-exit', () => {
             let n = 0;
             for (; queued.length > 0; n += 1) (queued.pop()!)(...args);
             return n;
+        },
+        flushAfter(ms: number, ...args: Parameters<SignalExitHandler>) {
+            return new Promise((resolve) => {
+                setTimeout(resolve, ms);
+            }).then(() => this.flush(...args));
         },
         reset() {
             queued = [];
@@ -50,32 +55,61 @@ afterAll(() => {
     stdin.restore();
 });
 
+describe('resolveEnv', () => {
+    const originalEnv = process.env;
+
+    afterEach(() => {
+        process.env = originalEnv;
+    });
+
+    test('matches env option PATH key case to process.env PATH key case', () => {
+        process.env = { PATH: '.' };
+        expect(resolveEnv({ path: process.cwd(), attr: 'value' }, true)).toEqual({
+            attr: 'value',
+            PATH: process.cwd(),
+            TERM: 'xterm-256color',
+            ...colorEnv,
+        });
+    });
+
+    test('the TERM key can be set from from env option but not from process.env', () => {
+        process.env = { TERM: 'xcode' };
+        // no TERM spec provided
+        expect(resolveEnv({}, true)).toEqual({ TERM: 'xterm-256color', ...colorEnv });
+        // TERM spec provided
+        expect(resolveEnv({ TERM: 'xterm-spec' }, true)).toEqual({ TERM: 'xterm-spec', ...colorEnv });
+    });
+});
+
 describe('resolveCommand', () => {
+    const env = resolveEnv({}, true);
+
     test('returns absolute path to command', () => {
-        expect(path.isAbsolute(resolveCommand('node', process.cwd()))).toBe(true);
+        expect(path.isAbsolute(resolveCommand('node', process.cwd(), env))).toBe(true);
     });
 
     test('does not resolve nonexistant commands', () => {
-        expect(resolveCommand('abcd', process.cwd())).toBe('abcd');
+        expect(resolveCommand('abcd', process.cwd(), env)).toBe('abcd');
     });
 
     test('relative paths are resolved if file is found', () => {
-        const cmd = resolveCommand('node_modules/.bin/jest', process.cwd());
+        const cmd = resolveCommand('node_modules/.bin/jest', process.cwd(), env);
         expect(cmd.replace(/\b(\w+)\.\w+$/, '$1')).toBe(path.join(process.cwd(), 'node_modules', '.bin', 'jest'));
     });
 
     test('relative paths are not resolved if file is not found', () => {
-        expect(resolveCommand('.bin/jest', process.cwd())).toBe('.bin/jest');
+        expect(resolveCommand('.bin/jest', process.cwd(), env)).toBe('.bin/jest');
     });
 
     test('relative paths can be resolved from alternate cwd paths', () => {
-        const cmd = resolveCommand('.bin/jest', path.join(process.cwd(), 'node_modules'));
+        const cmd = resolveCommand('.bin/jest', path.join(process.cwd(), 'node_modules'), env);
         expect(cmd.replace(/\b(\w+)\.\w+$/, '$1')).toBe(path.join(process.cwd(), 'node_modules', '.bin', 'jest'));
     });
 
     test('commands can be resolved from specified env PATH', () => {
-        const cmd = resolveCommand('jest', process.cwd(), { PATH: path.join(process.cwd(), 'node_modules', '.bin') });
-        expect(cmd.replace(/\b(\w+)\.\w+$/, '$1')).toBe(path.join(process.cwd(), 'node_modules', '.bin', 'jest'));
+        const bin = path.join(process.cwd(), 'node_modules', '.bin'),
+            cmd = resolveCommand('jest', process.cwd(), resolveEnv({ PATH: bin }, false));
+        expect(cmd.replace(/\b(\w+)\.\w+$/, '$1')).toBe(path.join(bin, 'jest'));
     });
 });
 
@@ -83,27 +117,31 @@ describe('readableSpawn', () => {
     const dimensions = { columns: 20, rows: 5 };
 
     test('creates readable source events from subprocess writes to stdout', async () => {
-        const source = readableSpawn('node', ['-e', "process.stdout.write('echo to source stream');"], dimensions),
+        const source = readableSpawn('echo', ['log message'], { ...dimensions, shell: true }),
             events = await consume<SourceEvent>(source);
-        expect(events[0]).toEqual<SourceEvent>({
-            type: 'start',
-            command: 'node -e "process.stdout.write(\'echo to source stream\');"',
-        });
-        expect(events[events.length - 1]).toMatchObject<DeepPartial<SourceEvent>>({
+        // check start event
+        expect(events[0]).toEqual<SourceEvent>({ type: 'start', command: 'echo log message' });
+        // check finish event
+        expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({
             type: 'finish',
             result: { exitCode: 0, failed: false },
         });
-        expect(events.length).toBeGreaterThan(2);
+        // check write events
+        expect(events.slice(1, -1)).toEachMatchObject<Partial<SourceEvent>>({ content: expect.toBeString() });
+        // concat all write events
+        expect(stripAnsi(
+            (events.slice(1, -1) as Extract<SourceEvent, { type?: never }>[]).map((e) => e.content).join(''),
+        )).toBe('log message\n');
     });
 
     test('kills spawned subprocess if parent process exits', async () => {
-        const source = readableSpawn(
-            'node',
-            ['-e', 'new Promise((resolve) => setTimeout(resolve, 5000));'],
-            dimensions,
-        );
+        const source = readableSpawn('sleep', ['10'], {
+            ...dimensions,
+            shell: process.platform === 'win32' ? 'powershell.exe' : true,
+        });
         // mock the process exiting
-        (signalExit as MockSignalExit).flush(1, 'SIGINT');
+        await (signalExit as MockSignalExit).flushAfter(250, 1, 'SIGINT');
+        // result should have exit code 1 & signal 'SIGINT'
         await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({
             exitCode: 1,
             signal: 'SIGINT',
@@ -123,12 +161,15 @@ describe('readableSpawn', () => {
         });
         // consume events
         const events = await consume<SourceEvent>(source);
-        // check events
-        expect(events.length).toBeGreaterThan(2);
-        expect(events[events.length - 1]).toMatchObject<DeepPartial<SourceEvent>>({
+        // check start event
+        expect(events[0]).toMatchObject<SourceEvent>({ type: 'start' });
+        // check finish event
+        expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({
             type: 'finish',
             result: { exitCode: 0, failed: false },
         });
+        // check write events
+        expect(events.slice(1, -1)).toEachMatchObject<Partial<SourceEvent>>({ content: expect.toBeString() });
         // check stdout
         expect(stripAnsi(stdout.output).trimEnd().split(/\r*\n/g).map((l) => l.replace(/^.+\r/, ''))).toEqual([
             '>>> ● Capture Start >>>',
@@ -139,13 +180,14 @@ describe('readableSpawn', () => {
     });
 
     test('subprocess env will not extend process.env if `extendEnv` is false', async () => {
-        const source = readableSpawn(
-            'node',
-            ['-e', 'new Promise((resolve) => setTimeout(resolve, 0));'],
-            { ...dimensions, env: {}, extendEnv: false },
-        );
+        const source = readableSpawn('echo', ['message'], {
+            ...dimensions,
+            shell: true,
+            env: {},
+            extendEnv: false,
+        });
         await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({ exitCode: 0, failed: false });
-        expect(source.env).toEqual(colorEnv);
+        expect(source.env).toEqual(resolveEnv({}, false));
     });
 
     describe('validation', () => {
@@ -176,11 +218,12 @@ describe('readableSpawn', () => {
 
     describe('timeouts', () => {
         test('will send `killSignal` signal to spawned process on timeout', async () => {
-            await expect(readableSpawn(
-                'node',
-                ['-e', 'new Promise((resolve) => setTimeout(resolve, 1000));'],
-                { ...dimensions, timeout: 500, killSignal: 'SIGKILL' },
-            )).resolves.toMatchObject<Partial<SpawnResult>>({
+            await expect(readableSpawn('sleep', ['1'], {
+                ...dimensions,
+                shell: process.platform === 'win32' ? 'powershell.exe' : true,
+                timeout: 500,
+                killSignal: 'SIGKILL',
+            })).resolves.toMatchObject<Partial<SpawnResult>>({
                 exitCode: 1,
                 signal: 'SIGKILL',
                 timedOut: true,
@@ -188,11 +231,11 @@ describe('readableSpawn', () => {
         });
 
         test('timeout is cleared if process completes before it is reached', async () => {
-            const source = readableSpawn(
-                'node',
-                ['-e', 'new Promise((resolve) => setTimeout(resolve, 1000));'],
-                { ...dimensions, timeout: 2000 },
-            );
+            const source = readableSpawn('sleep', ['1'], {
+                ...dimensions,
+                shell: process.platform === 'win32' ? 'powershell.exe' : true,
+                timeout: 4000,
+            });
             await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({
                 timedOut: false,
                 failed: false,

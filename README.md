@@ -76,10 +76,10 @@ Options config object to specify [configuration options](#options) as well as th
 
 > #### *Additional Options:*
 
-<a name='options.spawn.term'></a>
-› &nbsp; **term** &nbsp;•&nbsp; `string`
+<a name='options.spawn.shell'></a>
+› &nbsp; **shell** &nbsp;•&nbsp; `boolean | string`
 
-Name of the terminal to be set in environment (`$TERM` variable). Default is `'xterm'`.
+Run the command inside of a shell. Default is `false`. If true, Unix will try to use the current shell (`process.env.SHELL`), falling back to `/bin/sh` if that fails, while Windows will try to use `process.env.ComSpec`, falling back to `cmd.exe` if that fails. Different shells can be specified using a string. The shell should understand the `-c` switch, or if the shell is `cmd.exe`, it should understand the `/d /s /c` switches.
 
 <a name='options.spawn.cwd'></a>
 › &nbsp; **cwd** &nbsp;•&nbsp; `string`

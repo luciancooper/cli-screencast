@@ -9,7 +9,7 @@ import { mergePromise } from './utils';
 
 const signals = Object.entries(constants.signals) as (readonly [NodeJS.Signals, number])[];
 
-type Env = Record<string, string>;
+type Env = Record<string, string | undefined>;
 
 export interface SpawnResult {
     exitCode: number
@@ -21,10 +21,13 @@ export interface SpawnResult {
 
 export interface SpawnOptions {
     /**
-     * Name of the terminal to be set in environment ($TERM variable).
-     * @defaultValue `xterm`
+     * If true, runs the command inside of a shell. Unix will try to use the current shell (`process.env.SHELL`),
+     * falling back to `/bin/sh` if that fails. Windows will try to use `process.env.ComSpec`, falling back to
+     * `cmd.exe` if that fails. Different shells can be specified using a string. The shell should understand
+     * the `-c` switch, or if the shell is `cmd.exe`, it should understand the `/d /s /c` switches.
+     * @defaultValue `false`
      */
-    term?: string
+    shell?: boolean | string
 
     /**
      * Working directory to be set for the child process.
@@ -39,7 +42,8 @@ export interface SpawnOptions {
     env?: Env
 
     /**
-     * Whether the child process env should extend from `process.env`;
+     * Whether the child process env should extend from `process.env`. If false, only the `PATH` env variable
+     * (plus `PATHEXT` & `SystemRoot` on windows) will be extended from the current process to the child process env.
      * @defaultValue `true`
      */
     extendEnv?: boolean
@@ -85,7 +89,46 @@ export const colorEnv = {
     FORCE_COLOR: '3',
 };
 
-export class SpawnStream extends RecordingStream {
+const winEnvRequiredKeys = [
+    'PATHEXT',
+    'SystemRoot', // required for powershell to load (error 8009001d)
+];
+
+function getPathKey(env: Env) {
+    return process.platform !== 'win32' ? 'PATH'
+        : Object.keys(env).reverse().find((key) => key.toUpperCase() === 'PATH') ?? 'Path';
+}
+
+export function resolveEnv(envOpt: Env, extendEnv: boolean): Env {
+    let env: Env = envOpt;
+    // get path from process.env
+    const pathKey = getPathKey(process.env);
+    let PATH = process.env[pathKey];
+    // extract path from env option spec if it exists
+    const optPathKey = Object.keys(env).reverse().find((key) => key.toUpperCase() === 'PATH');
+    if (optPathKey) ({ [optPathKey]: PATH, ...env } = env);
+    // extend `process.env` or include subset of required keys if platform is windows
+    if (extendEnv) {
+        env = { ...process.env, ...env };
+    } else if (process.platform === 'win32') {
+        env = {
+            ...winEnvRequiredKeys.reduce<Env>((acc, key) => {
+                if (process.env[key]) acc[key] = process.env[key]!;
+                return acc;
+            }, {}),
+            ...env,
+        };
+    }
+    // set resolved env path
+    if (PATH != null) env[pathKey] = PATH;
+    // resolve term name, can be set by specified env
+    env['TERM'] = envOpt['TERM'] ?? 'xterm-256color';
+    // add required color related env variables
+    env = { ...env, ...colorEnv };
+    return env;
+}
+
+class SpawnStream extends RecordingStream {
     cwd: string;
 
     env: Env;
@@ -102,10 +145,10 @@ export class SpawnStream extends RecordingStream {
  * {@link https://github.com/moxystudio/node-cross-spawn/blob/master/lib/util/resolveCommand.js}
  * @param command - command to run
  * @param cwd - directory to run command in
- * @param extendedEnv - optional env configuration
+ * @param env - env configuration
  * @returns resolved command file path
  */
-export function resolveCommand(command: string, cwd: string, extendedEnv?: Env) {
+export function resolveCommand(command: string, cwd: string, env: Env) {
     // get the current working directory
     const thisCwd = process.cwd();
     // change to specified cwd if necessary
@@ -115,14 +158,11 @@ export function resolveCommand(command: string, cwd: string, extendedEnv?: Env) 
         } catch {}
     }
     // extract PATH from env
-    const env = { ...process.env, ...extendedEnv },
-        pathKey = process.platform !== 'win32' ? 'PATH'
-            : Object.keys(env).reverse().find((key) => key.toUpperCase() === 'PATH') ?? 'Path',
-        PATH = env[pathKey];
+    const PATH = env[getPathKey(env)];
     // resolve command file path with `which`
     let resolved;
     try {
-        resolved = which.sync(command, { path: PATH });
+        resolved = which.sync(command, { path: PATH, pathExt: env['PATHEXT'] });
     } catch {
         try {
             // try resolving without path extension
@@ -143,7 +183,7 @@ export function resolveCommand(command: string, cwd: string, extendedEnv?: Env) 
 export default function readableSpawn(command: string, args: string[], {
     columns,
     rows,
-    term = 'xterm',
+    shell = false,
     cwd = process.cwd(),
     env: envOption,
     extendEnv = true,
@@ -171,24 +211,37 @@ export default function readableSpawn(command: string, args: string[], {
     // indicate start of the capture
     if (!silent) process.stdout.write(SpawnStream.kCaptureStartLine);
     // resolve env
-    const env = { ...(extendEnv ? { ...process.env, ...envOption } : { ...envOption }), ...colorEnv },
-        // create recording source stream
-        stream = new SpawnStream(cwd, env),
-        // resolve command
-        file = resolveCommand(command, cwd, envOption),
+    const env = resolveEnv(envOption ?? {}, extendEnv);
+    // resolve file & args
+    let file: string,
+        _args: string[] | string = args;
+    if (shell) {
+        // resolve shell path
+        const cmd = [command, ...args].join(' ');
+        if (process.platform === 'win32') {
+            file = typeof shell === 'string' ? shell : env['ComSpec'] ?? process.env['ComSpec'] ?? 'cmd.exe';
+            _args = /^(?:.*\\)?cmd(?:\.exe)?$/i.test(file) ? ['/d', '/s', '/c', `"${cmd}"`].join(' ') : ['-c', cmd];
+        } else {
+            file = typeof shell === 'string' ? shell : env['SHELL'] ?? process.env['SHELL'] ?? '/bin/sh';
+            _args = ['-c', cmd];
+        }
+    } else {
+        // resolve path to command
+        file = resolveCommand(command, cwd, env);
+    }
+    // create recording source stream
+    const stream = new SpawnStream(cwd, env),
         // create pty child process
-        spawned = pty.spawn(file, args, {
+        spawned = pty.spawn(file, _args, {
+            name: env['TERM']!,
             cols: columns,
             rows,
-            name: term,
             env,
             cwd,
             useConpty,
         });
     // emit stream start event
-    stream.start([command, ...args.map((arg) => (
-        (!arg.length || /^[\w.-]+$/.test(arg)) ? arg : `"${arg.replace(/"/g, '\\"')}"`
-    ))].join(' '));
+    stream.start([command, ...args].join(' '));
     // attach data listener
     const dataHook = spawned.onData((chunk: string) => {
         if (!silent) process.stdout.write(chunk);
