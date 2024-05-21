@@ -1,6 +1,6 @@
 import type { Writable } from 'stream';
 import type { SourceEvent, WriteEvent } from '@src/source';
-import TerminalRecordingStream from '@src/terminal';
+import NodeRecordingStream from '@src/node';
 import { applyDefaults } from '@src/options';
 import { consume } from './helpers/streams';
 import stub from './helpers/stub';
@@ -23,9 +23,9 @@ afterEach(() => {
     jest.restoreAllMocks();
 });
 
-describe('TerminalRecordingStream', () => {
+describe('NodeRecordingStream', () => {
     test('capture writes to stdout & stderr inside `run` block', async () => {
-        const stream = new TerminalRecordingStream(options);
+        const stream = new NodeRecordingStream(options);
         await stream.run((source) => {
             process.stdout.write('write to stdout', () => {});
             process.stderr.write(Buffer.from('write to stderr', 'utf-8'));
@@ -44,7 +44,7 @@ describe('TerminalRecordingStream', () => {
 
     test('ensure `stdout` & `stderr` streams implement tty.WriteStream when `isTTY` is false', async () => {
         const restore = stub(process.stdout, { isTTY: false }),
-            stream = new TerminalRecordingStream(options);
+            stream = new NodeRecordingStream(options);
         await expect(stream.run(() => {
             process.stdout.cursorTo(0);
             process.stdout.clearLine(1);
@@ -73,7 +73,7 @@ describe('TerminalRecordingStream', () => {
     });
 
     test('hook into stdout `columns` & `rows` to mimic provided terminal size', async () => {
-        await expect(new TerminalRecordingStream(options).run(() => [
+        await expect(new NodeRecordingStream(options).run(() => [
             process.stdout.columns,
             process.stdout.rows,
             process.stdout.getWindowSize(),
@@ -81,7 +81,7 @@ describe('TerminalRecordingStream', () => {
     });
 
     test('hook into stdout `getColorDepth` & `hasColors` methods to mimic 24 bit color support', async () => {
-        await expect(new TerminalRecordingStream(options).run(() => [
+        await expect(new NodeRecordingStream(options).run(() => [
             process.stdout.getColorDepth(),
             process.stdout.hasColors(),
             process.stdout.hasColors(256),
@@ -89,18 +89,18 @@ describe('TerminalRecordingStream', () => {
     });
 
     test('pipes output to terminal if `silent` option is `false`', async () => {
-        await new TerminalRecordingStream({ ...options, silent: false }).run(() => {
+        await new NodeRecordingStream({ ...options, silent: false }).run(() => {
             process.stdout.write('message');
         });
         expect(stdout.mock.calls.map(([a]) => a)).toEqual([
-            TerminalRecordingStream.kCaptureStartLine,
+            NodeRecordingStream.kCaptureStartLine,
             'message',
-            TerminalRecordingStream.kCaptureEndLine,
+            NodeRecordingStream.kCaptureEndLine,
         ]);
     });
 
     test('readline interface instances can be created via the `createInterface` method', async () => {
-        await expect(new TerminalRecordingStream(options).run<string[]>((source) => {
+        await expect(new NodeRecordingStream(options).run<string[]>((source) => {
             const rl = source.createInterface(),
                 lines: string[] = [];
             rl.on('line', (line) => void lines.push(line));
@@ -118,7 +118,7 @@ describe('TerminalRecordingStream', () => {
 
     describe('errors', () => {
         test('catch errors that occur in the function passed to `run`', async () => {
-            const stream = new TerminalRecordingStream(options);
+            const stream = new NodeRecordingStream(options);
             await expect(stream.run(() => {
                 throw new Error('run error');
             })).rejects.toMatchObject({ message: 'run error' });
@@ -132,7 +132,7 @@ describe('TerminalRecordingStream', () => {
         });
 
         test('pass an error to `finish` inside `run` block', async () => {
-            const stream = new TerminalRecordingStream(options);
+            const stream = new NodeRecordingStream(options);
             await expect(stream.run((source) => {
                 const error = new Error('run error');
                 source.finish(error);
@@ -146,7 +146,7 @@ describe('TerminalRecordingStream', () => {
 
     describe('input', () => {
         test('emit artificial keypress events', async () => {
-            const stream = new TerminalRecordingStream(options);
+            const stream = new NodeRecordingStream(options);
             // test run block
             await expect(stream.run<string[]>(async (source) => {
                 const rl = source.createInterface(),
@@ -171,7 +171,7 @@ describe('TerminalRecordingStream', () => {
         test('pipe `process.stdin` to `input` stream if `connectStdin` option is true', async () => {
             const setRawMode = jest.fn((() => {}) as any as typeof process.stdin.setRawMode),
                 restore = stub(process.stdin, { isTTY: true, isRaw: false, setRawMode });
-            await expect(new TerminalRecordingStream({ ...options, connectStdin: true }).run<string>((source) => {
+            await expect(new NodeRecordingStream({ ...options, connectStdin: true }).run<string>((source) => {
                 const rl = source.createInterface();
                 return new Promise((resolve) => {
                     rl.once('line', (line) => {
@@ -191,7 +191,7 @@ describe('TerminalRecordingStream', () => {
     });
 
     describe('resizing', () => {
-        const resizePromise = (recording: TerminalRecordingStream, stream: Writable) => (
+        const resizePromise = (recording: NodeRecordingStream, stream: Writable) => (
             new Promise((resolve) => {
                 const [onResize, onEnd] = [() => {
                     recording.removeListener('recording-end', onEnd);
@@ -206,7 +206,7 @@ describe('TerminalRecordingStream', () => {
         );
 
         test('trigger artificial resize events on `stdout` & `stderr` output streams', async () => {
-            const stream = new TerminalRecordingStream(options),
+            const stream = new NodeRecordingStream(options),
                 [resizeEmitted] = await Promise.all([
                     resizePromise(stream, process.stdout),
                     stream.run(async (source) => {
@@ -217,7 +217,7 @@ describe('TerminalRecordingStream', () => {
         });
 
         test('suppress artificial resize events when size does not change', async () => {
-            const stream = new TerminalRecordingStream(options),
+            const stream = new NodeRecordingStream(options),
                 [resizeEmitted] = await Promise.all([
                     resizePromise(stream, process.stdout),
                     stream.run((source) => {

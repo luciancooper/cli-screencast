@@ -1,11 +1,11 @@
 import type { Readable } from 'stream';
 import type { Dimensions, Frame } from './types';
-import { applyDefaults, Options, Config } from './options';
+import { applyDefaults, type Options, type Config } from './options';
 import parse from './parse';
 import { resolveTitle } from './title';
 import RecordingStream from './source';
-import readableSpawn, { SpawnOptions } from './spawn';
-import TerminalRecordingStream, { SessionOptions, RunCallback } from './terminal';
+import readableSpawn, { type SpawnOptions } from './spawn';
+import NodeRecordingStream, { type SessionOptions, type RunCallback } from './node';
 import captureSource from './capture';
 import extractCaptureFrames from './frames';
 import createFontCss from './fonts';
@@ -84,7 +84,7 @@ export async function renderSpawn(
 }
 
 /**
- * Capture any terminal output that occurs within a callback function and render it as an animated SVG.
+ * Capture any writes to stdout that occur within a callback function and render it as an animated SVG.
  * @remarks
  * Within the provided callback function `fn`, all writes to `process.stdout` and `process.stderr`, (and by extension
  * calls to `console.log` and `console.error`) will be captured and included in the returned SVG screencast.
@@ -92,12 +92,12 @@ export async function renderSpawn(
  * @param options - render options
  * @returns animated screen capture svg
  */
-export async function renderCapture(
+export async function renderCallback(
     fn: RunCallback<any>,
     options: Dimensions & Options & SessionOptions,
 ): Promise<string | Buffer> {
     const props = applyDefaults(options),
-        source = new TerminalRecordingStream(props);
+        source = new NodeRecordingStream(props);
     await source.run(fn);
     return renderSource(source, props);
 }

@@ -1,4 +1,4 @@
-import { renderScreen, renderFrames, renderSpawn, renderCapture } from '../src';
+import { renderScreen, renderFrames, renderSpawn, renderCallback } from '../src';
 
 const dimensions = { columns: 50, rows: 10 };
 
@@ -51,17 +51,17 @@ describe('renderSpawn', () => {
     });
 });
 
-describe('renderCapture', () => {
+describe('renderCallback', () => {
     test('promises a string when output type is `svg`', async () => {
         await expect(
-            renderCapture((source) => {
+            renderCallback((source) => {
                 source.write('captured write');
             }, dimensions).then((value) => typeof value),
         ).resolves.toBe('string');
     });
 
     test('promises a buffer when output type is `png`', async () => {
-        await expect(renderCapture((source) => {
+        await expect(renderCallback((source) => {
             source.write('captured write');
         }, {
             ...dimensions,

@@ -11,7 +11,7 @@ export interface SessionOptions {
     silent?: boolean
 }
 
-export type RunCallback<T> = (source: TerminalRecordingStream) => Promise<T> | T;
+export type RunCallback<T> = (source: NodeRecordingStream) => Promise<T> | T;
 
 interface Options extends Dimensions, SessionOptions, Required<Pick<CaptureOptions, 'keystrokeAnimationInterval'>> {
     tabSize: number
@@ -33,7 +33,7 @@ interface SocketHandle {
     getWindowSize?: (arr: [number, number]) => Error | null
 }
 
-export default class TerminalRecordingStream extends RecordingStream {
+export default class NodeRecordingStream extends RecordingStream {
     isTTY = true;
 
     private targetDescriptors: TargetDescriptors | null = null;
@@ -180,7 +180,7 @@ export default class TerminalRecordingStream extends RecordingStream {
 
     protected hookStreams() {
         if (this.targetDescriptors) return;
-        if (!this.silent) process.stdout.write(TerminalRecordingStream.kCaptureStartLine);
+        if (!this.silent) process.stdout.write(NodeRecordingStream.kCaptureStartLine);
         const stdoutTTY = process.stdout.isTTY,
             stderrTTY = process.stderr.isTTY;
         this.targetDescriptors = {
@@ -202,7 +202,7 @@ export default class TerminalRecordingStream extends RecordingStream {
         restoreProperty(process, 'stdin', stdin);
         this.input.unhook();
         this.targetDescriptors = null;
-        if (!this.silent) process.stdout.write(TerminalRecordingStream.kCaptureEndLine);
+        if (!this.silent) process.stdout.write(NodeRecordingStream.kCaptureEndLine);
     }
 
     override start(command?: string) {

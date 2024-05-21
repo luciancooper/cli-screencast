@@ -116,15 +116,15 @@ The maximum amount of time the process is allowed to run in milliseconds. If gre
 
 The signal to be used when the spawned process is killed by `timeout`. Default is `'SIGTERM'`.
 
-### `renderCapture(fn, options)`
+### `renderCallback(fn, options)`
 
-Capture and render all terminal output that occurs within a callback function.
+Capture and render all writes to stdout that occur within a callback function.
 
 > #### *Arguments:*
 
 › &nbsp; **fn** &nbsp;•&nbsp; `(source) => void`
 
-Callback function within which terminal output is captured. Can be synchronous or asynchronous. The callback function will be passed a `TerminalRecordingStream` instance.
+Callback function within which terminal output is captured. Can be synchronous or asynchronous. The callback function will be passed a `NodeRecordingStream` instance.
 
 **Note:** Within the scope of this function, all writes to `process.stdout` and `process.stderr`, (and by extension calls to `console.log` and `console.error`) will be captured.
 
