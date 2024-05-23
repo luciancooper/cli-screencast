@@ -1,5 +1,6 @@
 import { useContext, type FunctionComponent, type SVGProps } from 'react';
 import type { OmitStrict, AnsiStyle, AnsiStyleProps } from '../types';
+import { themeColor } from '../color';
 import Context from './Context';
 
 interface TextProps extends OmitStrict<AnsiStyle, 'props'>, Partial<AnsiStyleProps>, SVGProps<SVGTextElement> {
@@ -26,8 +27,9 @@ const Text: FunctionComponent<TextProps> = ({
 }) => {
     const { theme, grid: [dx, dy] } = useContext(Context),
         decoration = [...underline ? ['underline'] : [], strikeThrough ? ['line-through'] : []].join(' '),
-        bgColor = inverted ? fg ?? theme.text : bg,
-        color = inverted ? bg ?? theme.background : fg ?? theme.text,
+        [fgc, bgc] = [themeColor(fg, theme), themeColor(bg, theme)],
+        bgColor = inverted ? fgc ?? theme.text : bgc,
+        color = inverted ? bgc ?? theme.background : fgc ?? theme.text,
         props: SVGProps<SVGTextElement> = {
             ...textProps,
             x: x * dx,

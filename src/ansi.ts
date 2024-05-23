@@ -1,6 +1,6 @@
 import ansiRegex from 'ansi-regex';
-import type { Palette, AnsiStyle, AnsiStyleProps } from './types';
-import { toHex, color4Bit, color8Bit } from './color';
+import type { AnsiStyle, AnsiStyleProps } from './types';
+import { toHex, color8Bit } from './color';
 import { regexChunks } from './utils';
 
 export function expandProps(props: number): AnsiStyleProps {
@@ -20,7 +20,7 @@ export function stylesEqual(a: AnsiStyle, b: AnsiStyle): boolean {
 
 const sgrRegExp = /(?:[345]8;(?:2(?:;\d*){0,3}|5(?:;\d*)?|\d*)|\d*)[;m]/g;
 
-function parseEscape(palette: Palette, style: AnsiStyle, sequence: string) {
+function parseEscape(style: AnsiStyle, sequence: string) {
     const [, sgr, link] = /[\u001B\u009B](?:\[(\d*(?:;[\d;]+)?m)|\]8;;(.*)\u0007)/.exec(sequence) ?? [];
     // check if this is a hyperlink escape sequence
     if (typeof link === 'string') {
@@ -45,7 +45,7 @@ function parseEscape(palette: Palette, style: AnsiStyle, sequence: string) {
                 style[attr] = toHex([r, g, b]);
             } else if (bit === 5) {
                 // xterm 256 color (8 bit color)
-                style[attr] = color8Bit(Math.min(args[0] ?? 0, 0xFF), palette);
+                style[attr] = color8Bit(Math.min(args[0] ?? 0, 0xFF));
             }
             continue;
         }
@@ -67,17 +67,17 @@ function parseEscape(palette: Palette, style: AnsiStyle, sequence: string) {
                 29: 0b011111, // strikeThrough off
             }[code]!;
         } else if (code >= 30 && code <= 37) {
-            // foreground color
-            style.fg = color4Bit(code % 10, palette);
+            // foreground color (4 bit)
+            style.fg = code % 10;
         } else if (code >= 40 && code <= 47) {
-            // background color
-            style.bg = color4Bit(code % 10, palette);
+            // background color (4 bit)
+            style.bg = code % 10;
         } else if (code >= 90 && code <= 97) {
-            // foreground bright color
-            style.fg = color4Bit(8 + (code % 10), palette);
+            // foreground bright color (4 bit)
+            style.fg = 8 + (code % 10);
         } else if (code >= 100 && code <= 107) {
-            // background bright color
-            style.bg = color4Bit(8 + (code % 10), palette);
+            // background bright color (4 bit)
+            style.bg = 8 + (code % 10);
         } else if (code === 39) {
             // foreground reset
             style.fg = undefined;
@@ -94,7 +94,7 @@ export interface AnsiChunk {
     style: AnsiStyle
 }
 
-export default function* parseAnsi(palette: Palette, string: string): Generator<AnsiChunk> {
+export default function* parseAnsi(string: string): Generator<AnsiChunk> {
     let style: AnsiStyle = { props: 0 },
         queue: string[] = [],
         chunk = '';
@@ -105,7 +105,7 @@ export default function* parseAnsi(palette: Palette, string: string): Generator<
             continue;
         }
         const next: AnsiStyle = { ...style };
-        for (const esc of queue) parseEscape(palette, next, esc);
+        for (const esc of queue) parseEscape(next, esc);
         queue = [];
         if (!stylesEqual(style, next)) {
             if (chunk) yield { chunk, style };

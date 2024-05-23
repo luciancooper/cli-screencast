@@ -129,7 +129,7 @@ export class ScreenCapture extends Writable {
         this.keystrokeInterval = keystrokeAnimationInterval;
         this.context = context;
         // initial state
-        const title = resolveTitle(context.palette, windowTitle, windowIcon);
+        const title = resolveTitle(windowTitle, windowIcon);
         this.state = {
             lines: [],
             cursor: { line: 0, column: 0 },

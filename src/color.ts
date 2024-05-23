@@ -1,4 +1,5 @@
-import type { RGB, Palette } from './types';
+import type { RGB } from './types';
+import type { Theme } from './theme';
 
 /**
  * Convert RGB array to a hex triplet string, or normalize a hex triplet string.
@@ -33,30 +34,17 @@ export function fromHex(color: string): RGB {
 }
 
 /**
- * Get the color associated with a 4 bit color value
- * @param color - 4 bit color value
- * @param palette - 4 bit palette to get color from
- */
-export function color4Bit<T = string>(color: number, palette: Palette<T>): T {
-    if (color > 0xF || color < 0) {
-        throw new Error(`${color} is not a valid 4 bit color value`);
-    }
-    return palette[color]!;
-}
-
-/**
  * Convert 8 bit color to RGB xterm 256 color (8 bit color)
  * {@link https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit}
  * @param color - 8 bit color value (0 - 255)
- * @param palette - palette for 4 bit colors
- * @returns hex color string
+ * @returns 4 bit color if between 0 - 15, otherwise a hex color string
  */
-export function color8Bit(color: number, palette: Palette): string {
+export function color8Bit(color: number): number | string {
     if (color > 0xFF || color < 0) {
         throw new Error(`${color} is not a valid 8 bit color value`);
     }
     // 0 - 15 : 4 bit color
-    if (color < 16) return palette[color]!;
+    if (color < 16) return color;
     // 16 - 231 : 6 × 6 × 6 cube (216 colors)
     if (color < 232) {
         return toHex([
@@ -70,12 +58,35 @@ export function color8Bit(color: number, palette: Palette): string {
     return toHex([gray, gray, gray]);
 }
 
-/**
- * Invert a color
- * @param color - an RGB array or hex string to invert
- * @returns inverted color hex string
- */
-export function invert(color: RGB | string): string {
-    const [r, g, b] = typeof color === 'string' ? fromHex(color) : color;
-    return toHex([255 - r, 255 - g, 255 - b]);
+type ThemeColorKeys = { [K in keyof Theme]: Theme<never>[K] extends never ? K : never }[keyof Theme];
+
+const color4BitKeys: ThemeColorKeys[] = [
+    'black',
+    'red',
+    'green',
+    'yellow',
+    'blue',
+    'magenta',
+    'cyan',
+    'white',
+    'brightBlack',
+    'brightRed',
+    'brightGreen',
+    'brightYellow',
+    'brightBlue',
+    'brightMagenta',
+    'brightCyan',
+    'brightWhite',
+];
+
+export function themeColor<T extends RGB | string = string>(
+    color: number | T | undefined,
+    theme: Theme<T>,
+): T | undefined {
+    if (typeof color !== 'number') return color;
+    // 4 bit colors must be between 0 - 15
+    if (color > 0xF || color < 0) {
+        throw new Error(`${color} is not a valid 4 bit color value`);
+    }
+    return theme[color4BitKeys[color]!];
 }

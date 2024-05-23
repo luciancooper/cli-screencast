@@ -1,4 +1,4 @@
-import type { Entries, RGB, Palette } from './types';
+import type { Entries, RGB } from './types';
 import { toHex } from './color';
 
 type CursorType = 'beam' | 'block' | 'underline';
@@ -69,34 +69,10 @@ export const defaultTheme: Theme = {
     fontFamily: "'Monaco', 'Cascadia Code', 'Courier New'",
 };
 
-const color4BitKeys = [
-    'black',
-    'red',
-    'green',
-    'yellow',
-    'blue',
-    'magenta',
-    'cyan',
-    'white',
-    'brightBlack',
-    'brightRed',
-    'brightGreen',
-    'brightYellow',
-    'brightBlue',
-    'brightMagenta',
-    'brightCyan',
-    'brightWhite',
-] as const;
-
-export function toPalette<T>(theme: Theme<T>): Palette<T> {
-    return color4BitKeys.map((k) => theme[k]) as Palette<T>;
-}
-
 export function resolveTheme(spec: Partial<Theme> = {}) {
-    const theme = (Object.entries({ ...defaultTheme, ...spec }) as Entries<Theme>)
+    return (Object.entries({ ...defaultTheme, ...spec }) as Entries<Theme>)
         .reduce<Record<string, any>>((acc, [key, value]) => {
         acc[key] = typeof value === 'object' ? toHex(value) : value;
         return acc;
     }, {}) as Theme<string>;
-    return { theme, palette: toPalette(theme) };
 }

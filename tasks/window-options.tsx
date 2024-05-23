@@ -120,7 +120,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: Partial<Dim
             theme: { fontFamily: "'Cascadia Code', 'CaskaydiaCove NF Mono'" },
             ...options,
         }),
-        title = resolveTitle(props.palette, props.windowTitle, props.windowIcon),
+        title = resolveTitle(props.windowTitle, props.windowIcon),
         font = await createFontCss({ title, lines: [] }, props.theme.fontFamily),
         [context, windowOptions] = resolveContext({ ...props, ...font }),
         { columns, rows, grid: [dx, dy] } = context,

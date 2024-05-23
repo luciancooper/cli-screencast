@@ -100,12 +100,6 @@ export interface OutputOptions {
 
 export type RGB = readonly [number, number, number];
 
-export interface Palette<T = string> {
-    [K: number]: T
-    readonly length: 16
-    [Symbol.iterator]: () => IterableIterator<T>
-}
-
 export interface AnsiStyle {
     /**
      * 6 bit props mask - [strikeThrough, inverse, underline, italic, dim, bold]
@@ -114,11 +108,11 @@ export interface AnsiStyle {
     /**
      * Foreground color
      */
-    fg?: string | undefined
+    fg?: number | string | undefined
     /**
      * Background color
      */
-    bg?: string | undefined
+    bg?: number | string | undefined
     /**
      * Hyperlink
      */

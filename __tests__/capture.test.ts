@@ -1,14 +1,11 @@
 import { Readable } from 'stream';
 import type { DeepPartial, Dimensions, CaptureData, ContentKeyFrame, TitleKeyFrame } from '@src/types';
-import { resolveTheme } from '@src/theme';
 import { applyDefaults, Options } from '@src/options';
 import type { SourceEvent } from '@src/source';
 import { resolveTitle } from '@src/title';
 import captureSource from '@src/capture';
 import { makeLine, makeCursor } from './helpers/objects';
 import * as ansi from './helpers/ansi';
-
-const { palette } = resolveTheme();
 
 const defaultDimensions: Dimensions = {
     columns: 50,
@@ -68,9 +65,9 @@ describe('captureSource', () => {
             { type: 'finish', time: 1000 },
         ]);
         expect(title).toEqual<TitleKeyFrame[]>([
-            { time: 0, endTime: 500, ...resolveTitle(palette, undefined, 'shell') },
-            { time: 500, endTime: 1000, ...resolveTitle(palette, 'window title', 'shell') },
-            { time: 1000, endTime: 1500, ...resolveTitle(palette, 'window title without icon') },
+            { time: 0, endTime: 500, ...resolveTitle(undefined, 'shell') },
+            { time: 500, endTime: 1000, ...resolveTitle('window title', 'shell') },
+            { time: 1000, endTime: 1500, ...resolveTitle('window title without icon') },
         ]);
     });
 

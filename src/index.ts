@@ -27,7 +27,7 @@ export async function renderScreen(
             lines: [],
             cursor: { line: 0, column: 0 },
             cursorHidden: props.cursorHidden,
-            title: resolveTitle(props.palette, props.windowTitle, props.windowIcon),
+            title: resolveTitle(props.windowTitle, props.windowIcon),
         }, content),
         screenData = { ...state, cursor: !cursorHidden ? cursor : null },
         font = (output === 'png' || props.embedFonts)
