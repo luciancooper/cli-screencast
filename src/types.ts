@@ -164,12 +164,6 @@ export interface TerminalLines {
     lines: TerminalLine[]
 }
 
-export interface TerminalState extends TerminalLines {
-    title: Title
-    cursor: CursorLocation
-    cursorHidden: boolean
-}
-
 export interface ScreenData extends TerminalLines {
     cursor: CursorLocation | null
     title: Title

@@ -1,7 +1,7 @@
 import { stringWidth } from 'tty-strings';
-import type { IconID, Title, AnsiStyle, TextChunk, TextLine } from './types';
+import type { IconID, Title, AnsiStyle, TextChunk, TextLine } from '../types';
 import parseAnsi, { stylesEqual } from './ansi';
-import icons from './render/icons.json';
+import icons from '../render/icons.json';
 
 const iconMap = (
     Object.entries(icons) as [IconID, { alias?: string[], path: string }][]

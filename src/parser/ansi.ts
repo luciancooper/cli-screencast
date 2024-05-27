@@ -1,9 +1,9 @@
 import ansiRegex from 'ansi-regex';
-import type { AnsiStyle, AnsiStyleProps } from './types';
-import { toHex, color8Bit } from './color';
+import type { AnsiStyle, AnsiStyleProps } from '../types';
+import { toHex, color8Bit } from '../color';
 import { regexChunks } from './utils';
 
-export function expandProps(props: number): AnsiStyleProps {
+export function expandAnsiProps(props: number): AnsiStyleProps {
     return {
         bold: Boolean(props & (1 << 0)),
         dim: Boolean(props & (1 << 1)),

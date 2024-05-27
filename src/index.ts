@@ -1,8 +1,7 @@
 import type { Readable } from 'stream';
 import type { Dimensions, Frame } from './types';
 import { applyDefaults, type Options, type Config } from './options';
-import parse from './parse';
-import { resolveTitle } from './title';
+import { parse, resolveTitle } from './parser';
 import RecordingStream from './source';
 import readableSpawn, { type SpawnOptions } from './spawn';
 import NodeRecordingStream, { type SessionOptions, type RunCallback } from './node';

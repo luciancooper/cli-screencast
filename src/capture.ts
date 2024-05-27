@@ -1,9 +1,8 @@
 import { Writable, type Readable } from 'stream';
 import { splitChars } from 'tty-strings';
-import type { TerminalOptions, TerminalState, TerminalLine, CursorLocation, Title, CaptureData } from './types';
+import type { TerminalOptions, TerminalLine, CursorLocation, Title, CaptureData } from './types';
 import type { WriteEvent, FinishEvent, SourceEvent } from './source';
-import { resolveTitle } from './title';
-import parse, { ParseContext } from './parse';
+import { parse, resolveTitle, type ParseContext, type ParseState } from './parser';
 import { clone } from './utils';
 import serialize from './serialize';
 
@@ -78,7 +77,7 @@ export class ScreenCapture extends Writable {
 
     private cropAdjustment = 0;
 
-    private readonly state: TerminalState;
+    private readonly state: ParseState;
 
     private lastContent: { time: number, serialized: string, state: TerminalLine[] };
 

@@ -1,13 +1,13 @@
-import type { Dimensions, CursorLocation, Title, TerminalState, TerminalLine } from '@src/types';
+import type { Dimensions, CursorLocation, Title, TerminalLine } from '@src/types';
 import { clone } from '@src/utils';
-import parse, { ParseContext } from '@src/parse';
+import parse, { type ParseContext, type ParseState } from '@src/parser/parse';
 import { makeLine } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 
 interface Parser {
-    (...content: string[]): TerminalState
-    state: TerminalState
-    prev: TerminalState
+    (...content: string[]): ParseState
+    state: ParseState
+    prev: ParseState
 }
 
 const makeParser = (dim: Dimensions, cursorHidden = false, title: Partial<Title> = {}): Parser => {

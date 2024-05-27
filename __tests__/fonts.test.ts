@@ -1,4 +1,4 @@
-import { resolveTitle } from '@src/title';
+import { resolveTitle } from '@src/parser';
 import { GraphemeSet } from '@src/fonts/range';
 import extractContentSubsets, { createContentSubsets, type ContentSubsets } from '@src/fonts/content';
 import { getSystemFonts } from '@src/fonts/system';

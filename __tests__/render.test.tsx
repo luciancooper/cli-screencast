@@ -1,7 +1,7 @@
 import { create } from 'react-test-renderer';
 import { applyDefaults } from '@src/options';
 import { resolveTheme } from '@src/theme';
-import { resolveTitle } from '@src/title';
+import { resolveTitle } from '@src/parser';
 import type { CursorKeyFrame } from '@src/types';
 import type { KeyTime } from '@src/render/Animation';
 import Context, { RenderContext } from '@src/render/Context';

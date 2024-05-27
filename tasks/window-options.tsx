@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { FunctionComponent } from 'react';
 import type { Dimensions } from '../src/types';
 import { applyDefaults, type Options } from '../src/options';
-import { resolveTitle } from '../src/title';
+import { resolveTitle } from '../src/parser/title';
 import createFontCss from '../src/fonts';
 import Context from '../src/render/Context';
 import Window from '../src/render/Window';

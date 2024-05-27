@@ -2,7 +2,7 @@ import { Readable } from 'stream';
 import type { DeepPartial, Dimensions, CaptureData, ContentKeyFrame, TitleKeyFrame } from '@src/types';
 import { applyDefaults, Options } from '@src/options';
 import type { SourceEvent } from '@src/source';
-import { resolveTitle } from '@src/title';
+import { resolveTitle } from '@src/parser';
 import captureSource from '@src/capture';
 import { makeLine, makeCursor } from './helpers/objects';
 import * as ansi from './helpers/ansi';

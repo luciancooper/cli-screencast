@@ -1,5 +1,5 @@
 import { color8Bit, toHex } from '@src/color';
-import parseAnsi, { AnsiChunk } from '@src/ansi';
+import parseAnsi, { type AnsiChunk } from '@src/parser/ansi';
 import * as ansi from './helpers/ansi';
 import { makeStyle, StylePartial } from './helpers/objects';
 

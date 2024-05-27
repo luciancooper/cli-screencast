@@ -1,8 +1,16 @@
 import { splitLines, charWidths } from 'tty-strings';
-import type { Dimensions, TerminalState, TerminalLine, TextLine, TextChunk } from './types';
+import type {
+    Dimensions, TerminalLines, TerminalLine, Title, CursorLocation, TextLine, TextChunk,
+} from '../types';
 import parseAnsi, { stylesEqual } from './ansi';
 import { matchIcon, parseTitle } from './title';
 import { regexChunks } from './utils';
+
+export interface ParseState extends TerminalLines {
+    title: Title
+    cursor: CursorLocation
+    cursorHidden: boolean
+}
 
 export interface ParseContext extends Dimensions {
     tabSize: number
@@ -69,7 +77,7 @@ function sliceChunkAfter(chunk: TextChunk, column: number): TextChunk | null {
  * @param state - screen state upon which content will be written
  * @returns a terminal line partial
  */
-export function cursorLinePartial(state: Omit<TerminalState, 'title' | 'cursorHidden'>): TerminalLine {
+export function cursorLinePartial(state: Omit<ParseState, 'title' | 'cursorHidden'>): TerminalLine {
     const { lines, cursor } = state;
     if (cursor.line >= lines.length) {
         return { index: 0, columns: cursor.column, chunks: [] };
@@ -137,7 +145,7 @@ function updateSubsequentLineContinuity(lines: TerminalLine[], i: number, insert
 
 function parseContent(
     { columns, rows, tabSize }: ParseContext,
-    state: Omit<TerminalState, 'title' | 'cursorHidden'>,
+    state: Omit<ParseState, 'title' | 'cursorHidden'>,
     content: string,
 ) {
     const lines: TerminalLine[] = [];
@@ -237,7 +245,7 @@ export function clearLineAfter<T extends TextLine>(line: T, column: number): T {
     return { ...line, columns: totalColumns(chunks), chunks };
 }
 
-function parseEscape({ columns, rows }: ParseContext, state: TerminalState, esc: string) {
+function parseEscape({ columns, rows }: ParseContext, state: ParseState, esc: string) {
     const { lines, cursor, title } = state;
     // carriage return
     if (esc === '\r') {
@@ -394,7 +402,7 @@ function parseEscape({ columns, rows }: ParseContext, state: TerminalState, esc:
     // unsupported escapes fallthrough to here
 }
 
-export default function parse(context: ParseContext, state: TerminalState, content: string): TerminalState {
+export default function parse(context: ParseContext, state: ParseState, content: string): ParseState {
     const re = new RegExp(`${ctrlRegex}+`, 'g');
     for (const [chunk, ctrl] of regexChunks(re, content)) {
         if (ctrl) {

@@ -1,7 +1,7 @@
 import { useContext, type FunctionComponent } from 'react';
 import { stringWidth, sliceColumns } from 'tty-strings';
 import type { Title, KeyFrame, TextChunk } from '../types';
-import { expandProps } from '../ansi';
+import { expandAnsiProps } from '../parser';
 import Context from './Context';
 import Text from './Text';
 import { Animation } from './Animation';
@@ -47,7 +47,9 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
         }
         iconX = Math.max(Math.floor((columns - textSpan - iconInset) / 2), columnInset);
         textElement = chunks.map(({ str, x: [x, span], style: { props, ...style } }, j) => (
-            <Text key={j} x={iconX + iconInset + x} y={0} span={span} {...style} {...expandProps(props)}>{str}</Text>
+            <Text key={j} x={iconX + iconInset + x} y={0} span={span} {...style} {...expandAnsiProps(props)}>
+                {str}
+            </Text>
         ));
     } else {
         iconX = Math.floor((columns - Math.ceil(iconColumnWidth)) / 2);

@@ -1,5 +1,5 @@
 import type { Title, TextLine } from '@src/types';
-import { matchIcon, parseTitle, resolveTitle } from '@src/title';
+import { matchIcon, parseTitle, resolveTitle } from '@src/parser/title';
 import { makeLine } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 

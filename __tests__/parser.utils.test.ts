@@ -1,5 +1,5 @@
 import type { TerminalLine, TextLine } from '@src/types';
-import { cursorLinePartial, overwriteLine, clearLineBefore, clearLineAfter } from '@src/parse';
+import { cursorLinePartial, overwriteLine, clearLineBefore, clearLineAfter } from '@src/parser/parse';
 import { makeLine, makeCursor } from './helpers/objects';
 
 describe('cursorLinePartial', () => {
