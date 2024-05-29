@@ -1,14 +1,14 @@
-import type { Readable } from 'stream';
-import type { Dimensions, Frame } from './types';
-import { applyDefaults, type Options, type Config } from './options';
-import { parse, resolveTitle } from './parser';
-import RecordingStream from './source';
+import type { CaptureData, OutputOptions, TerminalOptions } from './types';
+import { applyDefTerminalOptions, applyDefOutputOptions, applyDefRenderOptions } from './options';
+import { applyLoggingOptions, type LoggingOptions } from './logger';
+import { parseScreen, parseCapture } from './parser';
+import RecordingStream, { type SourceFrame } from './source';
 import readableSpawn, { type SpawnOptions } from './spawn';
-import NodeRecordingStream, { type SessionOptions, type RunCallback } from './node';
-import captureSource from './capture';
-import extractCaptureFrames from './frames';
+import NodeRecordingStream, { type CallbackOptions, type RunCallback } from './node';
+import captureSource, { type CaptureOptions } from './capture';
+import extractScreenCastFrames from './frames';
 import createFontCss from './fonts';
-import { renderScreenSvg, renderCaptureSvg, renderCaptureFrames } from './render';
+import { renderScreenSvg, renderCaptureSvg, renderCaptureFrames, type RenderOptions } from './render';
 import { createPng, createAnimatedPng } from './image';
 
 /**
@@ -19,34 +19,29 @@ import { createPng, createAnimatedPng } from './image';
  */
 export async function renderScreen(
     content: string,
-    options: Dimensions & Options,
+    options: LoggingOptions & TerminalOptions & OutputOptions & RenderOptions,
 ): Promise<string | Buffer> {
-    const { output, scaleFactor, ...props } = applyDefaults(options, { cursorHidden: true }),
-        { cursorHidden, cursor, ...state } = parse(props, {
-            lines: [],
-            cursor: { line: 0, column: 0 },
-            cursorHidden: props.cursorHidden,
-            title: resolveTitle(props.windowTitle, props.windowIcon),
-        }, content),
-        screenData = { ...state, cursor: !cursorHidden ? cursor : null },
-        font = (output === 'png' || props.embedFonts)
+    applyLoggingOptions(options);
+    const { output, scaleFactor, embedFonts } = applyDefOutputOptions(options),
+        screenData = parseScreen(content, applyDefTerminalOptions(options, { cursorHidden: true })),
+        props = applyDefRenderOptions(options),
+        font = (output === 'png' || embedFonts)
             ? await createFontCss(screenData, props.theme.fontFamily) : null,
         rendered = renderScreenSvg(screenData, { ...props, ...font });
     return output === 'png' ? createPng(rendered, scaleFactor) : rendered.svg;
 }
 
-async function renderSource(
-    stream: Readable,
-    { output, scaleFactor, ...props }: Config,
-) {
-    const data = await captureSource(stream, props);
+async function renderCapture(capture: CaptureData, options: OutputOptions & RenderOptions) {
+    const data = parseCapture(capture),
+        { output, scaleFactor, embedFonts } = applyDefOutputOptions(options),
+        props = applyDefRenderOptions(options);
     if (output === 'png') {
-        const frames = extractCaptureFrames(data),
+        const frames = extractScreenCastFrames(data),
             font = await createFontCss(frames, props.theme.fontFamily),
             svgFrames = renderCaptureFrames(frames, { ...props, ...font });
         return createAnimatedPng(svgFrames, scaleFactor);
     }
-    const font = props.embedFonts ? await createFontCss(data, props.theme.fontFamily) : null;
+    const font = embedFonts ? await createFontCss(data, props.theme.fontFamily) : null;
     return renderCaptureSvg(data, { ...props, ...font });
 }
 
@@ -57,12 +52,13 @@ async function renderSource(
  * @returns animated screen capture svg or png
  */
 export async function renderFrames(
-    frames: Frame[],
-    options: Dimensions & Options,
+    frames: SourceFrame[],
+    options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & RenderOptions,
 ): Promise<string | Buffer> {
-    const props = applyDefaults(options),
-        source = RecordingStream.fromFrames(frames);
-    return renderSource(source, props);
+    applyLoggingOptions(options);
+    const source = RecordingStream.fromFrames(applyDefTerminalOptions(options), frames),
+        capture = await captureSource(source, options);
+    return renderCapture(capture, options);
 }
 
 /**
@@ -75,15 +71,16 @@ export async function renderFrames(
 export async function renderSpawn(
     command: string,
     args: string[],
-    options: Dimensions & Options & SpawnOptions,
+    options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & SpawnOptions & RenderOptions,
 ): Promise<string | Buffer> {
-    const props = applyDefaults(options),
-        source = readableSpawn(command, args, props);
-    return renderSource(source, props);
+    applyLoggingOptions(options);
+    const source = readableSpawn(command, args, options),
+        capture = await captureSource(source, options);
+    return renderCapture(capture, options);
 }
 
 /**
- * Capture any writes to stdout that occur within a callback function and render it as an animated SVG.
+ * Capture any terminal output that occurs within a callback function and render it as an animated SVG.
  * @remarks
  * Within the provided callback function `fn`, all writes to `process.stdout` and `process.stderr`, (and by extension
  * calls to `console.log` and `console.error`) will be captured and included in the returned SVG screencast.
@@ -93,14 +90,25 @@ export async function renderSpawn(
  */
 export async function renderCallback(
     fn: RunCallback<any>,
-    options: Dimensions & Options & SessionOptions,
+    options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & CallbackOptions & RenderOptions,
 ): Promise<string | Buffer> {
-    const props = applyDefaults(options),
-        source = new NodeRecordingStream(props);
+    applyLoggingOptions(options);
+    const source = new NodeRecordingStream(options);
     await source.run(fn);
-    return renderSource(source, props);
+    const capture = await captureSource(source, options);
+    return renderCapture(capture, options);
 }
 
 export type { RGB } from './types';
 export type { Theme } from './theme';
-export type { Frame, Options, SpawnOptions, SessionOptions };
+
+export type {
+    SourceFrame,
+    LoggingOptions,
+    OutputOptions,
+    TerminalOptions,
+    CaptureOptions,
+    RenderOptions,
+    SpawnOptions,
+    CallbackOptions,
+};

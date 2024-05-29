@@ -1,5 +1,5 @@
 import { create } from 'react-test-renderer';
-import { applyDefaults } from '@src/options';
+import { applyDefRenderOptions } from '@src/options';
 import { resolveTheme } from '@src/theme';
 import { resolveTitle } from '@src/parser';
 import type { CursorKeyFrame } from '@src/types';
@@ -11,7 +11,7 @@ import Text from '@src/render/Text';
 import { Cursor, CursorFrames, opacityKeyTimes, translateKeyTimes } from '@src/render/Cursor';
 import * as ansi from './helpers/ansi';
 
-const { theme: defTheme, ...defProps } = applyDefaults({});
+const { theme: defTheme, ...defProps } = applyDefRenderOptions({});
 
 const defContext: RenderContext = {
     ...defProps,

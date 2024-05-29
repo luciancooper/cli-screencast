@@ -120,14 +120,19 @@ describe('readableSpawn', () => {
         const source = readableSpawn('echo', ['log message'], { ...dimensions, shell: true }),
             events = await consume<SourceEvent>(source);
         // check start event
-        expect(events[0]).toEqual<SourceEvent>({ type: 'start', command: 'echo log message' });
+        expect(events[0]).toMatchObject<Partial<SourceEvent>>(
+            { type: 'start', command: 'echo log message', ...dimensions },
+        );
         // check finish event
         expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({
             type: 'finish',
             result: { exitCode: 0, failed: false },
         });
         // check write events
-        expect(events.slice(1, -1)).toEachMatchObject<Partial<SourceEvent>>({ content: expect.toBeString() });
+        expect(events.slice(1, -1)).toEachMatchObject<SourceEvent>({
+            content: expect.toBeString(),
+            time: expect.toBeNumber(),
+        });
         // concat all write events
         expect(stripAnsi(
             (events.slice(1, -1) as Extract<SourceEvent, { type?: never }>[]).map((e) => e.content).join(''),
@@ -162,14 +167,17 @@ describe('readableSpawn', () => {
         // consume events
         const events = await consume<SourceEvent>(source);
         // check start event
-        expect(events[0]).toMatchObject<SourceEvent>({ type: 'start' });
+        expect(events[0]).toMatchObject<Partial<SourceEvent>>({ type: 'start', ...dimensions });
         // check finish event
         expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({
             type: 'finish',
             result: { exitCode: 0, failed: false },
         });
         // check write events
-        expect(events.slice(1, -1)).toEachMatchObject<Partial<SourceEvent>>({ content: expect.toBeString() });
+        expect(events.slice(1, -1)).toEachMatchObject<SourceEvent>({
+            content: expect.toBeString(),
+            time: expect.toBeNumber(),
+        });
         // check stdout
         expect(stripAnsi(stdout.output).trimEnd().split(/\r*\n/g).map((l) => l.replace(/^.+\r/, ''))).toEqual([
             '>>> ● Capture Start >>>',

@@ -11,6 +11,19 @@ export function setLogLevel(level: LogLevel) {
     transport.level = level;
 }
 
+export interface LoggingOptions {
+    /**
+     * Control how much info is logged to the console during the render process
+     * Options are (in order of decending verbosity): 'debug', 'info', 'warn', 'error', and 'silent'
+     * @defaultValue 'info'
+     */
+    logLevel?: LogLevel
+}
+
+export function applyLoggingOptions({ logLevel }: LoggingOptions) {
+    setLogLevel(logLevel ?? 'info');
+}
+
 const SPLAT = Symbol.for('splat');
 
 const levels = {

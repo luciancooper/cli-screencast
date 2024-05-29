@@ -1,12 +1,3 @@
-/**
- * Deep clone an object
- * @param obj - object to clone
- * @returns cloned object
- */
-export function clone<T>(obj: T): T {
-    return JSON.parse(JSON.stringify(obj)) as T;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const promisePrototype = (async () => {})().constructor.prototype;
 

@@ -1,3 +1,18 @@
+/**
+ * Deep clone an object
+ * @param obj - object to clone
+ * @returns cloned object
+ */
+export function clone<T>(obj: T): T {
+    return JSON.parse(JSON.stringify(obj)) as T;
+}
+
+/**
+ * Generator function to split a string into chunks matched by a regular expression,
+ * including the chunks between matches
+ * @param regex - regular expression to match chunks
+ * @param string - string to process
+ */
 export function* regexChunks(regex: RegExp, string: string): Generator<readonly [string, boolean]> {
     // lower index of the chunk preceding each escape sequence
     let i = 0;

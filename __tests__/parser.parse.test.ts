@@ -1,5 +1,5 @@
 import type { Dimensions, CursorLocation, Title, TerminalLine } from '@src/types';
-import { clone } from '@src/utils';
+import { clone } from '@src/parser/utils';
 import parse, { type ParseContext, type ParseState } from '@src/parser/parse';
 import { makeLine } from './helpers/objects';
 import * as ansi from './helpers/ansi';

@@ -16,12 +16,12 @@ export interface ContentSubsets {
 
 type TermScreen = TerminalLines & { title: Title };
 
-export type FrameData = TermScreen | TermScreen[] | { content: TerminalLines[], title: Title[] };
+export type FrameData = TermScreen | { frames: TermScreen[] } | { content: TerminalLines[], title: Title[] };
 
 function* extractChunks(data: FrameData) {
-    if (Array.isArray(data)) {
+    if ('frames' in data) {
         // ScreenData[]
-        for (const frame of data) {
+        for (const frame of data.frames) {
             yield* frame.title.chunks;
             for (const line of frame.lines) {
                 yield* line.chunks;

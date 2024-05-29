@@ -1,4 +1,3 @@
-import type { LogLevel } from './logger';
 import icons from './render/icons.json';
 
 /**
@@ -14,9 +13,9 @@ export type DeepPartial<T> = T extends (...args: any[]) => any ? T
         : T extends Record<string, any> ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
 /**
- * Get the optional keys of type `T` (all keys defined like `{ k?: v }`)
+ * Make all properties in `T` optional except for keys `K`
  */
-export type OptionalKeys<T> = { [K in keyof T]-?: undefined extends { [P in keyof T]: P }[K] ? K : never; }[keyof T];
+export type PartialExcept<T, K extends keyof T> = Pick<T, K> & Partial<Pick<T, Exclude<keyof T, K>>>;
 
 /**
  * Adds `undefined` to all properties of `T` defined with the `?` prefix.
@@ -27,7 +26,7 @@ export type Optionalize<T> = { [K in keyof T]: undefined extends { [P in keyof T
 /**
  * Create a type from all the optional keys of `T`.
  */
-export type PickOptional<T> = Pick<T, OptionalKeys<T>>;
+export type PickOptional<T> = { [K in keyof T as {} extends Pick<T, K> ? K : never]: T[K]; };
 
 /**
  * Create a type that represents the type of an objects `[key, value]` entry pairs.
@@ -39,16 +38,12 @@ export type Entry<T> = readonly [keyof T, T[keyof T]];
  */
 export type Entries<T> = Entry<T>[];
 
-export interface BaseOptions {
-    /**
-     * Control how much info is logged to the console during the render process
-     * Options are (in order of decending verbosity): 'debug', 'info', 'warn', 'error', and 'silent'
-     * @defaultValue 'info'
-     */
-    logLevel?: LogLevel
+export interface Dimensions {
+    columns: number
+    rows: number
 }
 
-export interface TerminalOptions {
+export interface TerminalOptions extends Dimensions {
     /**
      * Tab column width
      * @defaultValue `8`
@@ -128,9 +123,10 @@ export interface AnsiStyleProps {
     strikeThrough: boolean
 }
 
-export interface Dimensions {
-    columns: number
-    rows: number
+export interface CaptureData extends Dimensions {
+    tabSize: number
+    endDelay: number
+    writes: { content: string, delay: number }[]
 }
 
 export interface CursorLocation {
@@ -164,14 +160,9 @@ export interface TerminalLines {
     lines: TerminalLine[]
 }
 
-export interface ScreenData extends TerminalLines {
+export interface ScreenData extends Dimensions, TerminalLines {
     cursor: CursorLocation | null
     title: Title
-}
-
-export interface Frame {
-    content: string
-    duration: number
 }
 
 export interface KeyFrame {
@@ -185,14 +176,21 @@ export interface CursorKeyFrame extends KeyFrame, CursorLocation {}
 
 export interface TitleKeyFrame extends KeyFrame, Title {}
 
-export interface CaptureData {
+export interface ScreenCastData extends Dimensions {
     content: ContentKeyFrame[]
     cursor: CursorKeyFrame[]
     title: TitleKeyFrame[]
     duration: number
 }
 
-export interface CaptureKeyFrame extends KeyFrame, ScreenData {}
+export interface ScreenCastKeyFrame extends KeyFrame, TerminalLines {
+    cursor: CursorLocation | null
+    title: Title
+}
+
+export interface ScreenCastFrames extends Dimensions {
+    frames: ScreenCastKeyFrame[]
+}
 
 export interface Size {
     width: number

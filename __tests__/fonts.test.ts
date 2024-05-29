@@ -21,13 +21,15 @@ const fixtures = {
         ],
         title: [resolveTitle('abc')],
     },
-    frames: [{
-        title: resolveTitle('abc'),
-        lines: [{ index: 0, ...makeLine('def', ['ghi', { bold: true }]) }],
-    }, {
-        title: resolveTitle('abc'),
-        lines: [{ index: 0, ...makeLine(['jkl', { bold: true, italic: true }], ['mno', { italic: true }]) }],
-    }],
+    frames: {
+        frames: [{
+            title: resolveTitle('abc'),
+            lines: [{ index: 0, ...makeLine('def', ['ghi', { bold: true }]) }],
+        }, {
+            title: resolveTitle('abc'),
+            lines: [{ index: 0, ...makeLine(['jkl', { bold: true, italic: true }], ['mno', { italic: true }]) }],
+        }],
+    },
 };
 
 describe('extractContentSubsets', () => {

@@ -3,7 +3,7 @@ import { constants } from 'os';
 import path from 'path';
 import which from 'which';
 import onExit from 'signal-exit';
-import type { Dimensions } from './types';
+import type { TerminalOptions } from './types';
 import RecordingStream from './source';
 import { mergePromise } from './utils';
 
@@ -128,13 +128,13 @@ export function resolveEnv(envOpt: Env, extendEnv: boolean): Env {
     return env;
 }
 
-class SpawnStream extends RecordingStream {
+class SpawnRecordingStream extends RecordingStream {
     cwd: string;
 
     env: Env;
 
-    constructor(cwd: string, env: Env) {
-        super();
+    constructor(options: TerminalOptions, cwd: string, env: Env) {
+        super(options);
         this.cwd = cwd;
         this.env = env;
     }
@@ -181,8 +181,6 @@ export function resolveCommand(command: string, cwd: string, env: Env) {
 }
 
 export default function readableSpawn(command: string, args: string[], {
-    columns,
-    rows,
     shell = false,
     cwd = process.cwd(),
     env: envOption,
@@ -192,7 +190,8 @@ export default function readableSpawn(command: string, args: string[], {
     timeout = 0,
     killSignal = 'SIGTERM',
     useConpty = false,
-}: Dimensions & SpawnOptions) {
+    ...opts
+}: TerminalOptions & SpawnOptions) {
     // validate args
     if (typeof command !== 'string') {
         throw new TypeError(`'command' must be a string. Received ${command as any}`);
@@ -209,7 +208,7 @@ export default function readableSpawn(command: string, args: string[], {
         throw new Error("'silent' option must be false if 'connectStdin' is true");
     }
     // indicate start of the capture
-    if (!silent) process.stdout.write(SpawnStream.kCaptureStartLine);
+    if (!silent) process.stdout.write(SpawnRecordingStream.kCaptureStartLine);
     // resolve env
     const env = resolveEnv(envOption ?? {}, extendEnv);
     // resolve file & args
@@ -230,12 +229,12 @@ export default function readableSpawn(command: string, args: string[], {
         file = resolveCommand(command, cwd, env);
     }
     // create recording source stream
-    const stream = new SpawnStream(cwd, env),
+    const stream = new SpawnRecordingStream(opts, cwd, env),
         // create pty child process
         spawned = pty.spawn(file, _args, {
             name: env['TERM']!,
-            cols: columns,
-            rows,
+            cols: opts.columns,
+            rows: opts.rows,
             env,
             cwd,
             useConpty,
@@ -350,7 +349,7 @@ export default function readableSpawn(command: string, args: string[], {
     // finally, invoke stream.finish
     promise = promise.then((result) => {
         // indicate end of the capture
-        if (!silent) process.stdout.write(SpawnStream.kCaptureEndLine);
+        if (!silent) process.stdout.write(SpawnRecordingStream.kCaptureEndLine);
         stream.finish({ result });
         return result;
     });

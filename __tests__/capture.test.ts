@@ -1,27 +1,26 @@
 import { Readable } from 'stream';
-import type { DeepPartial, Dimensions, CaptureData, ContentKeyFrame, TitleKeyFrame } from '@src/types';
-import { applyDefaults, Options } from '@src/options';
-import type { SourceEvent } from '@src/source';
-import { resolveTitle } from '@src/parser';
-import captureSource from '@src/capture';
-import { makeLine, makeCursor } from './helpers/objects';
+import type { PartialExcept, DeepPartial, CaptureData, TerminalOptions, Dimensions } from '@src/types';
+import type { StartEvent, WriteEvent, FinishEvent } from '@src/source';
+import captureSource, { type CaptureOptions } from '@src/capture';
+import { applyDefTerminalOptions } from '@src/options';
 import * as ansi from './helpers/ansi';
 
-const defaultDimensions: Dimensions = {
-    columns: 50,
-    rows: 10,
-};
+const defDimensions: Dimensions = { columns: 50, rows: 10 };
 
-function runCapture(events: SourceEvent[], options?: Options) {
+function runCapture(
+    events: (PartialExcept<StartEvent, 'type'> | WriteEvent | FinishEvent)[],
+    captureOptions: CaptureOptions = {},
+    termOptions: Partial<TerminalOptions> = {},
+) {
     const eventIterator = events[Symbol.iterator](),
-        props = applyDefaults({ ...defaultDimensions, ...options ?? {} });
+        termProps = applyDefTerminalOptions({ ...defDimensions, ...termOptions });
     return captureSource(new Readable({
         objectMode: true,
         read() {
             const next = eventIterator.next();
-            this.push(next.done ? null : next.value);
+            this.push(next.done ? null : next.value.type === 'start' ? { ...termProps, ...next.value } : next.value);
         },
-    }), props);
+    }), captureOptions);
 }
 
 type PartialCaptureData = DeepPartial<CaptureData>;
@@ -31,44 +30,70 @@ describe('captureSource', () => {
         await expect(runCapture([
             { type: 'start' },
             { content: 'first write', time: 0 },
-            { content: `${ansi.eraseLine}${ansi.cursorColumn(0)}second write`, time: 500 },
+            { content: 'second write', time: 500 },
             { type: 'finish', time: 600 },
         ], { endTimePadding: 400 })).resolves.toMatchObject<PartialCaptureData>({
-            content: [
-                { time: 0, endTime: 500, lines: [makeLine('first write')] },
-                { time: 500, endTime: 1000, lines: [makeLine('second write')] },
+            writes: [
+                { content: 'first write', delay: 0 },
+                { content: 'second write', delay: 500 },
             ],
-            cursor: [
-                { time: 0, endTime: 500, ...makeCursor(0, 11) },
-                { time: 500, endTime: 1000, ...makeCursor(0, 12) },
-            ],
-            duration: 1000,
+            endDelay: 500,
         });
     });
 
-    test('return no cursor keyframes if cursor is hidden', async () => {
-        const data = await runCapture([
-            { type: 'start' },
-            { content: 'first write', time: 0 },
-            { content: 'second write', time: 500 },
-            { type: 'finish', time: 500 },
-        ], { cursorHidden: true });
-        expect(data.cursor).toHaveLength(0);
-    });
+    describe('initial window title and icon conditions', () => {
+        test('window title only', async () => {
+            await expect(runCapture(
+                [{ type: 'start' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
+                { cropStartDelay: false },
+                { windowTitle: 'Title' },
+            )).resolves.toMatchObject<PartialCaptureData>({
+                writes: [{ content: '\x1b]2;Title\x07', delay: 0 }, { content: 'first write', delay: 500 }],
+            });
+        });
 
-    test('capture title keyframes when window title and icon changes', async () => {
-        const { title } = await runCapture([
-            { type: 'start' },
-            { content: '\x1b]1;shell\x07', time: 0 },
-            { content: '\x1b]2;window title\x07', time: 500 },
-            { content: '\x1b]2;window title without icon\x07\x1b]1;\x07', time: 1000 },
-            { type: 'finish', time: 1000 },
-        ]);
-        expect(title).toEqual<TitleKeyFrame[]>([
-            { time: 0, endTime: 500, ...resolveTitle(undefined, 'shell') },
-            { time: 500, endTime: 1000, ...resolveTitle('window title', 'shell') },
-            { time: 1000, endTime: 1500, ...resolveTitle('window title without icon') },
-        ]);
+        test('window title + icon (string)', async () => {
+            await expect(runCapture(
+                [{ type: 'start' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
+                { cropStartDelay: false },
+                { windowTitle: 'Title', windowIcon: 'node' },
+            )).resolves.toMatchObject<PartialCaptureData>({
+                writes: [
+                    { content: '\x1b]2;Title\x07\x1b]1;node\x07', delay: 0 },
+                    { content: 'first write', delay: 500 },
+                ],
+            });
+        });
+
+        test('window title + icon (boolean)', async () => {
+            await expect(runCapture(
+                [{ type: 'start' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
+                { cropStartDelay: false },
+                { windowTitle: 'Title', windowIcon: true },
+            )).resolves.toMatchObject<PartialCaptureData>({
+                writes: [{ content: '\x1b]0;Title\x07', delay: 0 }, { content: 'first write', delay: 500 }],
+            });
+        });
+
+        test('window icon only (string)', async () => {
+            await expect(runCapture(
+                [{ type: 'start' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
+                { cropStartDelay: false },
+                { windowIcon: 'node' },
+            )).resolves.toMatchObject<PartialCaptureData>({
+                writes: [{ content: '\x1b]1;node\x07', delay: 0 }, { content: 'first write', delay: 500 }],
+            });
+        });
+
+        test('window icon only (boolean)', async () => {
+            await expect(runCapture(
+                [{ type: 'start' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
+                { cropStartDelay: false },
+                { windowIcon: true },
+            )).resolves.toMatchObject<PartialCaptureData>({
+                writes: [{ content: '\x1b]1;_\x07', delay: 0 }, { content: 'first write', delay: 500 }],
+            });
+        });
     });
 
     describe('merging consecutive writes', () => {
@@ -81,15 +106,11 @@ describe('captureSource', () => {
                 { content: 'second write', time: 505 },
                 { type: 'finish', time: 600 },
             ], { endTimePadding: 400 })).resolves.toMatchObject<PartialCaptureData>({
-                content: [
-                    { time: 0, endTime: 500, lines: [makeLine('first write')] },
-                    { time: 500, endTime: 1000, lines: [makeLine('second write')] },
+                writes: [
+                    { content: 'first write', delay: 0 },
+                    { content: `${ansi.cursorColumn(0)}second write`, delay: 500 },
                 ],
-                cursor: [
-                    { time: 0, endTime: 500, ...makeCursor(0, 11) },
-                    { time: 500, endTime: 1000, ...makeCursor(0, 12) },
-                ],
-                duration: 1000,
+                endDelay: 500,
             });
         });
 
@@ -98,55 +119,98 @@ describe('captureSource', () => {
                 { type: 'start' },
                 { content: 'first write\n', time: 0 },
                 { content: 'second write\n', time: 5, adjustment: 500 },
-                { type: 'finish', time: 100, adjustment: 500 },
+                { type: 'finish', time: 100 },
             ], { endTimePadding: 400 })).resolves.toMatchObject<PartialCaptureData>({
-                content: [
-                    { time: 0, endTime: 505, lines: [makeLine('first write')] },
-                    { time: 505, endTime: 1000, lines: [makeLine('first write'), makeLine('second write')] },
+                writes: [
+                    { content: 'first write\n', delay: 0 },
+                    { content: 'second write\n', delay: 505 },
                 ],
-                cursor: [
-                    { time: 0, endTime: 505, ...makeCursor(1, 0) },
-                    { time: 505, endTime: 1000, ...makeCursor(2, 0) },
+                endDelay: 495,
+            });
+        });
+    });
+
+    describe('empty writes', () => {
+        test('does not capture empty writes', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { content: 'first write', time: 0 },
+                // empty write
+                { content: '', time: 500 },
+                { content: 'second write', time: 1000 },
+                // empty write with time adjustment
+                { content: '', time: 1000, adjustment: 500 },
+                { content: '', time: 1500 },
+                { content: 'third write', time: 2000, adjustment: 500 },
+                { type: 'finish', time: 2000 },
+            ])).resolves.toMatchObject<PartialCaptureData>({
+                writes: [
+                    { content: 'first write', delay: 0 },
+                    { content: 'second write', delay: 1000 },
+                    { content: 'third write', delay: 2000 },
                 ],
-                duration: 1000,
+                endDelay: 500,
+            });
+        });
+
+        test('empty ending writes are reflected in endDelay', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { content: 'first write', time: 0 },
+                { content: 'second write', time: 500 },
+                { content: '', time: 1000 },
+                { type: 'finish', time: 1200 },
+            ], { endTimePadding: 0 })).resolves.toMatchObject<PartialCaptureData>({
+                writes: [
+                    { content: 'first write', delay: 0 },
+                    { content: 'second write', delay: 500 },
+                ],
+                endDelay: 700,
             });
         });
     });
 
     describe('start delay', () => {
         test('delayed first write when `cropStartDelay` is disabled', async () => {
-            const { content } = await runCapture([
+            await expect(runCapture([
                 { type: 'start' },
                 { content: 'first write', time: 500 },
                 { type: 'finish', time: 1000 },
-            ], { cropStartDelay: false, endTimePadding: 0, cursorHidden: true });
-            expect(content).toEqual<ContentKeyFrame[]>([
-                { time: 0, endTime: 500, lines: [] },
-                { time: 500, endTime: 1000, lines: [{ index: 0, ...makeLine('first write') }] },
-            ]);
+            ], {
+                cropStartDelay: false,
+                endTimePadding: 0,
+            })).resolves.toMatchObject<PartialCaptureData>({
+                writes: [{ content: 'first write', delay: 500 }],
+                endDelay: 500,
+            });
         });
 
         test('delayed first write when `cropStartDelay` is enabled', async () => {
-            const { content } = await runCapture([
+            await expect(runCapture([
                 { type: 'start' },
                 { content: 'first write', time: 500 },
                 { type: 'finish', time: 1000 },
-            ], { cropStartDelay: true, endTimePadding: 0, cursorHidden: true });
-            expect(content).toEqual<ContentKeyFrame[]>([
-                { time: 0, endTime: 500, lines: [{ index: 0, ...makeLine('first write') }] },
-            ]);
+            ], {
+                cropStartDelay: true,
+                endTimePadding: 0,
+            })).resolves.toMatchObject<PartialCaptureData>({
+                writes: [{ content: 'first write', delay: 0 }],
+                endDelay: 500,
+            });
         });
 
         test('start delay cropping does not apply to time adjustments on the first write', async () => {
-            const { content } = await runCapture([
+            await expect(runCapture([
                 { type: 'start' },
                 { content: 'first write', time: 500, adjustment: 500 },
-                { type: 'finish', time: 1000, adjustment: 500 },
-            ], { cropStartDelay: true, endTimePadding: 0, cursorHidden: true });
-            expect(content).toEqual<ContentKeyFrame[]>([
-                { time: 0, endTime: 500, lines: [] },
-                { time: 500, endTime: 1000, lines: [{ index: 0, ...makeLine('first write') }] },
-            ]);
+                { type: 'finish', time: 1000 },
+            ], {
+                cropStartDelay: true,
+                endTimePadding: 0,
+            })).resolves.toMatchObject<PartialCaptureData>({
+                writes: [{ content: 'first write', delay: 500 }],
+                endDelay: 500,
+            });
         });
     });
 
@@ -162,21 +226,15 @@ describe('captureSource', () => {
                 keystrokeAnimation: true,
                 keystrokeAnimationInterval: 100,
                 endTimePadding: 500,
-                cursorHidden: true,
-            })).resolves.toMatchObject<PartialCaptureData>({
-                content: [
-                    { time: 0, endTime: 100, lines: [makeLine('> ')] },
-                    { time: 100, endTime: 200, lines: [makeLine('> l')] },
-                    { time: 200, endTime: 400, lines: [makeLine('> ls')] },
-                    { time: 400, endTime: 1400, lines: [makeLine('> ls'), makeLine('first write')] },
+            }, { cursorHidden: true })).resolves.toMatchObject<PartialCaptureData>({
+                writes: [
+                    { content: '> ', delay: 0 },
+                    { content: 'l', delay: 100 },
+                    { content: 's', delay: 100 },
+                    { content: '\n', delay: 100 },
+                    { content: '\x1b[?25lfirst write', delay: 100 },
                 ],
-                cursor: [
-                    { time: 0, endTime: 100, ...makeCursor(0, 2) },
-                    { time: 100, endTime: 200, ...makeCursor(0, 3) },
-                    { time: 200, endTime: 300, ...makeCursor(0, 4) },
-                    { time: 300, endTime: 400, ...makeCursor(1, 0) },
-                ],
-                duration: 1400,
+                endDelay: 1000,
             });
         });
 
@@ -192,58 +250,41 @@ describe('captureSource', () => {
                 cropStartDelay: true,
                 endTimePadding: 500,
             })).resolves.toMatchObject<PartialCaptureData>({
-                content: [
-                    { time: 0, endTime: 500, lines: [makeLine('> ls'), makeLine('first write')] },
-                ],
-                cursor: [
-                    { time: 0, endTime: 500, ...makeCursor(1, 11) },
-                ],
-                duration: 500,
+                writes: [{ content: '> ls\nfirst write', delay: 0 }],
+                endDelay: 500,
             });
         });
     });
 
     describe('source streams with no write events', () => {
-        const emptyData: CaptureData = {
-            content: [],
-            cursor: [],
-            title: [],
-            duration: 0,
-        };
-
-        test('source only emits finish event', async () => {
-            await expect(runCapture([
-                { type: 'finish', time: 0 },
-            ])).resolves.toEqual<CaptureData>(emptyData);
-        });
-
         test('source emits a start event followed immediately by a finish event', async () => {
-            await expect(runCapture([
-                { type: 'start' },
-                { type: 'finish', time: 0 },
-            ], { endTimePadding: 0 })).resolves.toEqual<CaptureData>(emptyData);
+            await expect(runCapture(
+                [{ type: 'start' }, { type: 'finish', time: 0 }],
+                { endTimePadding: 0 },
+                { cursorHidden: true },
+            )).resolves.toMatchObject<PartialCaptureData>({
+                writes: [{ content: '\x1b[?25l', delay: 0 }],
+                endDelay: 0,
+            });
         });
 
         test('delayed finish immediately following start when `cropStartDelay` is enabled', async () => {
-            await expect(runCapture([
-                { type: 'start' },
-                { type: 'finish', time: 500 },
-            ], { cropStartDelay: true, endTimePadding: 0 })).resolves.toEqual<CaptureData>(emptyData);
+            await expect(runCapture(
+                [{ type: 'start' }, { type: 'finish', time: 500 }],
+                { cropStartDelay: true, endTimePadding: 0 },
+            )).resolves.toMatchObject<PartialCaptureData>({
+                writes: [],
+                endDelay: 0,
+            });
         });
 
         test('delayed finish immediately following start when `cropStartDelay` is disabled', async () => {
-            await expect(runCapture([
-                { type: 'start' },
-                { type: 'finish', time: 500 },
-            ], { cropStartDelay: false, endTimePadding: 0 })).resolves.toEqual<CaptureData>({
-                content: [
-                    { time: 0, endTime: 500, lines: [] },
-                ],
-                cursor: [
-                    { time: 0, endTime: 500, ...makeCursor(0, 0) },
-                ],
-                title: [],
-                duration: 500,
+            await expect(runCapture(
+                [{ type: 'start' }, { type: 'finish', time: 500 }],
+                { cropStartDelay: false, endTimePadding: 0 },
+            )).resolves.toMatchObject<PartialCaptureData>({
+                writes: [],
+                endDelay: 500,
             });
         });
 
@@ -258,19 +299,58 @@ describe('captureSource', () => {
                 keystrokeAnimationInterval: 100,
                 endTimePadding: 500,
             })).resolves.toMatchObject<PartialCaptureData>({
-                content: [
-                    { time: 0, endTime: 100, lines: [makeLine('> ')] },
-                    { time: 100, endTime: 200, lines: [makeLine('> l')] },
-                    { time: 200, endTime: 900, lines: [makeLine('> ls')] },
+                writes: [
+                    { content: '> ', delay: 0 },
+                    { content: 'l', delay: 100 },
+                    { content: 's', delay: 100 },
+                    { content: '\n', delay: 100 },
                 ],
-                cursor: [
-                    { time: 0, endTime: 100, ...makeCursor(0, 2) },
-                    { time: 100, endTime: 200, ...makeCursor(0, 3) },
-                    { time: 200, endTime: 300, ...makeCursor(0, 4) },
-                    { time: 300, endTime: 900, ...makeCursor(1, 0) },
-                ],
-                duration: 900,
+                endDelay: 600,
             });
+        });
+    });
+
+    describe('irregular source event errors', () => {
+        test('source emits finish event before start', async () => {
+            await expect(runCapture([
+                { type: 'finish', time: 0 },
+            ])).rejects.toThrow('Capture has not started');
+        });
+
+        test('source emits write event before start', async () => {
+            await expect(runCapture([
+                { content: 'first write', time: 0 },
+            ])).rejects.toThrow('Capture has not started');
+        });
+
+        test('source emits multiple start events', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { type: 'start' },
+            ])).rejects.toThrow('Capture has already started');
+        });
+
+        test('source emits multiple finish events', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { type: 'finish', time: 10 },
+                { type: 'finish', time: 20 },
+            ])).rejects.toThrow('Capture already finished');
+        });
+
+        test('source emits events after finish', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { type: 'finish', time: 10 },
+                { content: 'first write', time: 20 },
+            ])).rejects.toThrow('Capture already finished');
+        });
+
+        test('source does not emit finish event', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { content: 'first write', time: 10 },
+            ])).rejects.toThrow('Incomplete capture - source did not emit finish');
         });
     });
 });
