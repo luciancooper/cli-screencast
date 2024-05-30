@@ -171,7 +171,12 @@ describe('readableSpawn', () => {
         // check write events
         expect(events.slice(1, -1)).toEachMatchObject<Partial<SourceEvent>>({ content: expect.toBeString() });
         // check stdout
-        expect(stripAnsi(stdout.output).trimEnd().split(/\r*\n/g).map((l) => l.replace(/^.+\r/, ''))).toEqual([
+        expect(
+            stripAnsi(stdout.output.replace(/\x1b\[1?G/g, '\r'))
+                .trimEnd()
+                .split(/\r*\n/g)
+                .map((l) => l.replace(/^.*\r/, '')),
+        ).toEqual([
             '>>> ● Capture Start >>>',
             'Prompt: Response',
             'Response',
@@ -218,7 +223,7 @@ describe('readableSpawn', () => {
 
     describe('timeouts', () => {
         test('will send `killSignal` signal to spawned process on timeout', async () => {
-            await expect(readableSpawn('sleep', ['1'], {
+            await expect(readableSpawn('sleep', ['5'], {
                 ...dimensions,
                 shell: process.platform === 'win32' ? 'powershell.exe' : true,
                 timeout: 500,

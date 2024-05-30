@@ -339,8 +339,8 @@ export default function readableSpawn(command: string, args: string[], {
             // set exit code & signal
             exitCode ??= code ?? 1;
             if (sig) signal ??= sig as NodeJS.Signals;
-            // kill spawned process
-            kill(process.platform !== 'win32' ? (sig ?? undefined) : undefined);
+            // kill spawned process using SIGKILL to prevent hang on unix
+            kill(process.platform !== 'win32' ? 'SIGKILL' : undefined);
         }
     });
     // cleanup exit handler
