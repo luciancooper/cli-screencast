@@ -1,3 +1,33 @@
+import { isAbsolute, resolve, extname, dirname } from 'path';
+import { mkdir, writeFile } from 'fs/promises';
+
+/**
+ * Resolve a file path relative to the current working directory
+ * @param file - path to resolve
+ * @returns absolute file path
+ */
+export function resolveFilePath(file: string) {
+    const path = isAbsolute(file) ? file : resolve(process.cwd(), file);
+    let ext = extname(path);
+    if (ext.startsWith('.')) ext = ext.slice(1);
+    return { path, ext };
+}
+
+/**
+ * Write content to a file path. Parent directory will be created recursively if it does not exist.
+ * @param path - absolute file path to write to
+ * @param content - content to write to file
+ */
+export async function writeToFile(path: string, content: string | Buffer) {
+    const dir = dirname(path);
+    // create parent directory if it doesn't exist
+    try {
+        await mkdir(dir, { recursive: true });
+    } catch {}
+    // write data to file
+    await writeFile(path, content);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const promisePrototype = (async () => {})().constructor.prototype;
 

@@ -73,12 +73,21 @@ export interface TerminalOptions extends Dimensions {
     windowIcon?: string | boolean | undefined
 }
 
+export type OutputType = 'svg' | 'png';
+
 export interface OutputOptions {
     /**
      * The desired output format, either `svg` or `png`.
      * @defaultValue `'svg'`
      */
-    output?: 'svg' | 'png'
+    output?: OutputType
+
+    /**
+     * File path or array of file paths to write output to. The type of output will be inferred by the
+     * file extension (can be either svg or png).
+     * @defaultValue `undefined`
+     */
+    outputPath?: string | string[] | undefined
 
     /**
      * the device scale factor used when rendering to png, only applicable when `output` is `'png'`.

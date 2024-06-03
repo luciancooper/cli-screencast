@@ -1,6 +1,8 @@
-import type { PickOptional, OutputOptions, TerminalOptions } from './types';
+import type { PickOptional, OutputOptions, OutputType, TerminalOptions } from './types';
 import type { RenderOptions } from './render';
 import { resolveTheme } from './theme';
+import { resolveFilePath } from './utils';
+import log from './logger';
 
 export function applyDefaults<D extends {}, O extends Partial<D> = Partial<D>>(def: D, options: O): D {
     return {
@@ -15,12 +17,30 @@ export function applyDefaults<D extends {}, O extends Partial<D> = Partial<D>>(d
 
 const defaultOutputOptions: Required<OutputOptions> = {
     output: 'svg',
+    outputPath: undefined,
     scaleFactor: 4,
     embedFonts: true,
 };
 
 export function applyDefOutputOptions(options: OutputOptions) {
-    return applyDefaults(defaultOutputOptions, options);
+    const { output, outputPath, ...spec } = applyDefaults(defaultOutputOptions, options),
+        // create array of output specs
+        outputs: { type: OutputType, path: string | null }[] = [{ type: output, path: null }];
+    if (outputPath) {
+        // create output spec for each specified output path
+        for (const file of (typeof outputPath === 'string' ? [outputPath] : outputPath)) {
+            const { path, ext } = resolveFilePath(file);
+            if (ext === 'svg' || ext === 'png') {
+                outputs.push({ type: ext, path });
+                continue;
+            }
+            log.warn(`output file path %O has ${
+                ext ? `unsupported extension ${ext}` : 'no extension'
+            }, ${output} data will be written to file`, file);
+            outputs.push({ type: output, path });
+        }
+    }
+    return { outputs, ...spec };
 }
 
 const defaultTerminalOptions: Required<PickOptional<TerminalOptions>> = {

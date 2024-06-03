@@ -1,4 +1,4 @@
-import type { CaptureData, OutputOptions, TerminalOptions } from './types';
+import type { CaptureData, OutputOptions, OutputType, TerminalOptions } from './types';
 import { applyDefTerminalOptions, applyDefOutputOptions, applyDefRenderOptions } from './options';
 import { applyLoggingOptions, type LoggingOptions } from './logger';
 import { parseScreen, parseCapture } from './parser';
@@ -10,6 +10,7 @@ import extractScreenCastFrames from './frames';
 import createFontCss from './fonts';
 import { renderScreenSvg, renderCaptureSvg, renderCaptureFrames, type RenderOptions } from './render';
 import { createPng, createAnimatedPng } from './image';
+import { writeToFile } from './utils';
 
 /**
  * Render a terminal screen shot to SVG
@@ -22,27 +23,54 @@ export async function renderScreen(
     options: LoggingOptions & TerminalOptions & OutputOptions & RenderOptions,
 ): Promise<string | Buffer> {
     applyLoggingOptions(options);
-    const { output, scaleFactor, embedFonts } = applyDefOutputOptions(options),
+    const { outputs, scaleFactor, embedFonts } = applyDefOutputOptions(options),
         screenData = parseScreen(content, applyDefTerminalOptions(options, { cursorHidden: true })),
         props = applyDefRenderOptions(options),
-        font = (output === 'png' || embedFonts)
-            ? await createFontCss(screenData, props.theme.fontFamily) : null,
-        rendered = renderScreenSvg(screenData, { ...props, ...font });
-    return output === 'png' ? createPng(rendered, scaleFactor) : rendered.svg;
+        cache: Partial<Record<OutputType, string | Buffer>> = {};
+    let output: string | Buffer;
+    for (const { type, path } of outputs) {
+        if (cache[type]) {
+            await writeToFile(path!, cache[type]!);
+            continue;
+        }
+        const font = (type === 'png' || embedFonts)
+                ? await createFontCss(screenData, props.theme.fontFamily) : null,
+            rendered = renderScreenSvg(screenData, { ...props, ...font });
+        cache[type] = type === 'png' ? await createPng(rendered, scaleFactor) : rendered.svg;
+        if (path) await writeToFile(path, cache[type]!);
+        else output = cache[type]!;
+    }
+    return output!;
 }
 
 async function renderCapture(capture: CaptureData, options: OutputOptions & RenderOptions) {
     const data = parseCapture(capture),
-        { output, scaleFactor, embedFonts } = applyDefOutputOptions(options),
-        props = applyDefRenderOptions(options);
-    if (output === 'png') {
-        const frames = extractScreenCastFrames(data),
-            font = await createFontCss(frames, props.theme.fontFamily),
-            svgFrames = renderCaptureFrames(frames, { ...props, ...font });
-        return createAnimatedPng(svgFrames, scaleFactor);
+        { outputs, scaleFactor, embedFonts } = applyDefOutputOptions(options),
+        props = applyDefRenderOptions(options),
+        cache: Partial<Record<OutputType, string | Buffer>> = {};
+    let output: string | Buffer;
+    for (const { type, path } of outputs) {
+        if (cache[type]) {
+            await writeToFile(path!, cache[type]!);
+            continue;
+        }
+        if (type === 'png') {
+            const frames = extractScreenCastFrames(data),
+                svgFrames = renderCaptureFrames(frames, {
+                    ...props,
+                    ...await createFontCss(frames, props.theme.fontFamily),
+                });
+            cache[type] = await createAnimatedPng(svgFrames, scaleFactor);
+        } else {
+            cache[type] = renderCaptureSvg(data, {
+                ...props,
+                ...(embedFonts ? await createFontCss(data, props.theme.fontFamily) : null),
+            });
+        }
+        if (path) await writeToFile(path, cache[type]!);
+        else output = cache[type]!;
     }
-    const font = embedFonts ? await createFontCss(data, props.theme.fontFamily) : null;
-    return renderCaptureSvg(data, { ...props, ...font });
+    return output!;
 }
 
 /**

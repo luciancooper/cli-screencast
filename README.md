@@ -158,6 +158,11 @@ Controls how much info is logged to the console during the render process. Optio
 
 The desired output format. Must be either `'svg'` or `'png'`. The default is `'svg'`.
 
+<a name='options.outputPath'></a>
+› &nbsp; **outputPath** &nbsp;•&nbsp; `string | string[]`
+
+File path or array of file paths to write output to. The type of output will be inferred by the file extension (can be either svg or png). Default is `undefined`.
+
 <a name='options.scaleFactor'></a>
 › &nbsp; **scaleFactor** &nbsp;•&nbsp; `number`
 
