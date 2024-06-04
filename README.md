@@ -26,7 +26,7 @@ yarn add cli-screencast
 
 All methods accept an `options` object as the last argument. Options common to all methods are listed in the [options](#options) section below.
 
-All methods are asynchronous and return a `string` or `Buffer` depending on the output format specified by the [`output`](#options.output) option. If `output` is `'svg'` or `'json'`, the method will return a svg or json data `string`. If `output` is `'png'`, the method will return a png image `Buffer`.
+All methods are asynchronous and return a `string` or `Buffer` depending on the output format specified by the [`output`](#options.output) option. If `output` is `'svg'`, `'json'`, or `'yaml'`, the method will return a svg, json, or yaml data `string`. If `output` is `'png'`, the method will return a png image `Buffer`.
 
 ### `renderScreen(content, options)`
 
@@ -146,13 +146,13 @@ Silently capture output to `process.stdout` and `process.stderr`. Defaults to `t
 
 ### `renderData(path, options)`
 
-Render a screencast or screenshot from a json data file. If any of the other api methods were used to write screencast data to json, this method can be used to render that data to svg or png.
+Render a screencast or screenshot from a json or yaml data file. If any of the other api methods were used to write screencast data to json or yaml, this method can be used to render that data to svg or png.
 
 > #### *Arguments:*
 
 › &nbsp; **path** &nbsp;•&nbsp; `string`
 
-Json data file containing the screencast data to render.
+Json or yaml data file containing the screencast data to render.
 
 › &nbsp; **options** &nbsp;•&nbsp; `Object`
 
@@ -170,12 +170,12 @@ Controls how much info is logged to the console during the render process. Optio
 <a name='options.output'></a>
 › &nbsp; **output** &nbsp;•&nbsp; `string`
 
-The desired output format. Must be either `'svg'`, `'png'`, or `'json'`. The default is `'svg'`.
+The desired output format. Must be either `'svg'`, `'png'`, `'json'`, or `'yaml'`. The default is `'svg'`.
 
 <a name='options.outputPath'></a>
 › &nbsp; **outputPath** &nbsp;•&nbsp; `string | string[]`
 
-File path or array of file paths to write output to. The type of output will be inferred by the file extension (can be svg, png, or json). Default is `undefined`.
+File path or array of file paths to write output to. The type of output will be inferred by the file extension (can be svg, png, json, or yaml). Default is `undefined`.
 
 <a name='options.scaleFactor'></a>
 › &nbsp; **scaleFactor** &nbsp;•&nbsp; `number`

@@ -1,5 +1,5 @@
 import { resolve, extname, dirname } from 'path';
-import { readFile, mkdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile } from 'fs/promises';
 
 /**
  * Resolve a file path relative to the current working directory
@@ -10,21 +10,8 @@ export function resolveFilePath(file: string) {
     const path = resolve(file);
     let ext = extname(path);
     if (ext.startsWith('.')) ext = ext.slice(1);
+    ext = ext.toLowerCase();
     return { path, ext };
-}
-
-/**
- * Read the contents of a file. Path is resolved relative to the current working directory
- * @param file - file path to read
- * @returns contents of the file
- */
-export async function readFromFile(file: string) {
-    const path = resolve(file);
-    try {
-        return (await readFile(path)).toString();
-    } catch (err) {
-        throw new Error(`File not found: '${file}'`);
-    }
 }
 
 /**

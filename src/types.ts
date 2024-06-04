@@ -73,7 +73,7 @@ export interface TerminalOptions extends Dimensions {
     windowIcon?: string | boolean | undefined
 }
 
-export type OutputType = 'svg' | 'png' | 'json';
+export type OutputType = 'svg' | 'png' | 'json' | 'yaml';
 
 export interface OutputOptions {
     /**

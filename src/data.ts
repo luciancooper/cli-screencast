@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+import { readFile } from 'fs/promises';
+import YAML from 'yaml';
 import type { CaptureData, ScreenData } from './types';
+import { resolveFilePath } from './utils';
 import { version } from '../package.json';
 
 function validateField(
@@ -17,9 +20,8 @@ function validateField(
     }
 }
 
-export function validateData(json: string) {
-    let parsed = JSON.parse(json),
-        data: CaptureData | ScreenData | null = null;
+export function validateData(parsed: any) {
+    let data: CaptureData | ScreenData | null = null;
     const errors: string[] = [];
     if (!(parsed instanceof Object && !Array.isArray(parsed))) {
         errors.push('data must be an object');
@@ -38,6 +40,7 @@ export function validateData(json: string) {
     } else if (parsed.type !== 'capture' && parsed.type !== 'screen') {
         errors.push("'type' must be either 'capture' or 'screen'");
     } else {
+        // eslint-disable-next-line no-param-reassign
         ({ type, ...parsed } = parsed);
     }
     // validate shared numerical fields 'columns', 'rows', 'tabSize'
@@ -64,7 +67,7 @@ export function validateData(json: string) {
         } else if (typeof parsed.windowIcon !== 'string' && typeof parsed.windowIcon !== 'boolean') {
             errors.push("'windowIcon' must be a string or boolean");
         }
-        // cast json to ScreenData if there are no validation errors
+        // cast data to ScreenData if there are no validation errors
         if (!errors.length) data = parsed as ScreenData;
     } else {
         // validate 'endDelay' field
@@ -89,16 +92,30 @@ export function validateData(json: string) {
             // add a maximum of 5 write element errors to errors array as to not overflow
             errors.push(...writeErrors.slice(0, 5));
         }
-        // cast json to CaptureData if there are no validation errors
+        // cast data to CaptureData if there are no validation errors
         if (!errors.length) data = parsed as CaptureData;
     }
     return { data, errors };
 }
 
-export function dataFromJson(json: string): ScreenData | CaptureData {
-    const { data, errors } = validateData(json);
+export async function dataFromFile(file: string): Promise<ScreenData | CaptureData> {
+    const { path, ext } = resolveFilePath(file);
+    // check data file extension
+    if (ext !== 'json' && ext !== 'yaml') {
+        throw new Error(`Unsupported data file type: '${file}', must be json or yaml`);
+    }
+    // read contents of data file
+    let content: string;
+    try {
+        content = (await readFile(path)).toString();
+    } catch (err) {
+        throw new Error(`File not found: '${file}'`);
+    }
+    // validate the data
+    const { data, errors } = validateData(ext === 'yaml' ? YAML.parse(content) : JSON.parse(content));
+    // throw error if validation failed
     if (errors.length) {
-        throw new Error(`Invalid JSON data:\n${errors.map((e) => `\n * ${e}`).join('')}`);
+        throw new Error(`Invalid data:\n${errors.map((e) => `\n * ${e}`).join('')}`);
     }
     return data!;
 }
@@ -112,5 +129,11 @@ export function dataToJson(type: 'capture', data: CaptureData): JSONOutput;
 export function dataToJson(type: 'screen', data: ScreenData): JSONOutput;
 export function dataToJson(type: 'capture' | 'screen', data: CaptureData | ScreenData): JSONOutput {
     const json = { version, type, ...data };
-    return { data: JSON.stringify(json), pretty: JSON.stringify(json, null, 4) };
+    return { data: JSON.stringify(json), pretty: JSON.stringify(json, null, 2) };
+}
+
+export function dataToYaml(type: 'capture', data: CaptureData): string;
+export function dataToYaml(type: 'screen', data: ScreenData): string;
+export function dataToYaml(type: 'capture' | 'screen', data: CaptureData | ScreenData): string {
+    return YAML.stringify({ version, type, ...data });
 }

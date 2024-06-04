@@ -10,13 +10,14 @@ import extractCaptureFrames from './frames';
 import createFontCss from './fonts';
 import { renderScreenSvg, renderCaptureSvg, renderCaptureFrames, type RenderOptions } from './render';
 import { createPng, createAnimatedPng } from './image';
-import { dataToJson, dataFromJson } from './data';
-import { readFromFile, writeToFile } from './utils';
+import { dataToJson, dataToYaml, dataFromFile } from './data';
+import { writeToFile } from './utils';
 
 interface OutputCache {
     svg?: string
     png?: Buffer
     json?: { data: string, pretty: string }
+    yaml?: string
 }
 
 async function renderScreenData(screen: ScreenData, options: OutputOptions & RenderOptions) {
@@ -28,6 +29,8 @@ async function renderScreenData(screen: ScreenData, options: OutputOptions & Ren
         if (!cache[type]) {
             if (type === 'json') {
                 cache[type] = dataToJson('screen', screen);
+            } else if (type === 'yaml') {
+                cache[type] = dataToYaml('screen', screen);
             } else {
                 const parsed = parseScreen(screen),
                     font = (type === 'png' || embedFonts)
@@ -51,7 +54,11 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
         output: string | Buffer;
     for (const { type, path } of outputs) {
         if (!cache[type]) {
-            if (type !== 'json') {
+            if (type === 'json') {
+                cache[type] = dataToJson('capture', capture);
+            } else if (type === 'yaml') {
+                cache[type] = dataToYaml('capture', capture);
+            } else {
                 parsed ??= parseCapture(capture);
                 if (type === 'png') {
                     const frames = extractCaptureFrames(parsed),
@@ -66,7 +73,7 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
                         ...(embedFonts ? await createFontCss(parsed, props.theme.fontFamily) : null),
                     });
                 }
-            } else cache[type] = dataToJson('capture', capture);
+            }
         }
         if (path) await writeToFile(path, type === 'json' ? cache[type]!.pretty : cache[type]!);
         else output = type === 'json' ? cache[type]!.data : cache[type]!;
@@ -143,15 +150,14 @@ export async function renderCallback(
 }
 
 /**
- * Render a screencast or screenshot from a json data file.
+ * Render a screencast or screenshot from a json or yaml data file.
  * @param path - data file containing the screencast data to render
  * @param options - render options
  * @returns rendered screencast svg string or png buffer
  */
 export async function renderData(path: string, options: LoggingOptions & OutputOptions & RenderOptions = {}) {
     applyLoggingOptions(options);
-    const content = await readFromFile(path),
-        data = dataFromJson(content);
+    const data = await dataFromFile(path);
     return ('writes' in data) ? renderCaptureData(data, options) : renderScreenData(data, options);
 }
 

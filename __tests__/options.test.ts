@@ -23,15 +23,16 @@ describe('applyDefOutputOptions', () => {
 
     test('infers type of output from file extension', () => {
         expect(applyDefOutputOptions({
-            outputPath: './file.png',
+            outputPath: ['./file.png', './file.JSON'],
         }).outputs).toStrictEqual([
             { type: 'svg', path: null },
-            { type: 'png', path: path.resolve(process.cwd(), './file.png') },
+            { type: 'png', path: path.resolve('./file.png') },
+            { type: 'json', path: path.resolve('./file.JSON') },
         ]);
     });
 
     test('output paths can be absolute', () => {
-        const file = path.resolve(process.cwd(), './file.svg');
+        const file = path.resolve('./file.svg');
         expect(applyDefOutputOptions({
             outputPath: file,
         }).outputs).toStrictEqual([
@@ -46,8 +47,8 @@ describe('applyDefOutputOptions', () => {
             outputPath: ['./file', './file.jpg'],
         }).outputs).toStrictEqual([
             { type: 'png', path: null },
-            { type: 'png', path: path.resolve(process.cwd(), './file') },
-            { type: 'png', path: path.resolve(process.cwd(), './file.jpg') },
+            { type: 'png', path: path.resolve('./file') },
+            { type: 'png', path: path.resolve('./file.jpg') },
         ]);
     });
 });
