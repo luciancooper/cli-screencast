@@ -1,14 +1,14 @@
-import type { ScreenCastData, ScreenCastFrames } from '@src/types';
-import extractScreenCastFrames from '@src/frames';
+import type { ParsedCaptureData, ParsedCaptureFrames } from '@src/types';
+import extractCaptureFrames from '@src/frames';
 import { makeLine } from './helpers/objects';
 
 const dimensions = { columns: 10, rows: 5 };
 
-const makeScreenCastData = (
+const makeParsedCaptureData = (
     content: [number, number, string][],
     cursor: [number, number, boolean?][],
     title: [number, number, string?][],
-): ScreenCastData => ({
+): ParsedCaptureData => ({
     ...dimensions,
     content: content.map(([time, endTime, line]) => ({
         time,
@@ -41,9 +41,9 @@ const makeScreen = (line: string, cursor: number, title?: string) => ({
     title: { icon: undefined, text: title, ...makeLine(title) },
 });
 
-describe('extractScreenCastFrames', () => {
+describe('extractCaptureFrames', () => {
     test('splits capture data into discrete screen data frames', () => {
-        const data = makeScreenCastData([
+        const data = makeParsedCaptureData([
             [0, 1, 'content 1'],
             [1, 2, 'content 2'],
             [2, 3, 'content 3'],
@@ -52,7 +52,7 @@ describe('extractScreenCastFrames', () => {
             [1, 2, 'title 2'],
             [2, 3, 'title 3'],
         ]);
-        expect(extractScreenCastFrames(data)).toEqual<ScreenCastFrames>({
+        expect(extractCaptureFrames(data)).toEqual<ParsedCaptureFrames>({
             ...dimensions,
             frames: [
                 { time: 0, endTime: 1, ...makeScreen('content 1', 0, 'title 1') },
@@ -63,7 +63,7 @@ describe('extractScreenCastFrames', () => {
     });
 
     test('handles overlapping content, cursor, and title frames', () => {
-        const data = makeScreenCastData([
+        const data = makeParsedCaptureData([
             [0, 3, 'content 1'],
             [3, 6, 'content 2'],
             [6, 9, 'content 3'],
@@ -71,7 +71,7 @@ describe('extractScreenCastFrames', () => {
             [2, 5, 'title 1'],
             [5, 8, 'title 2'],
         ]);
-        expect(extractScreenCastFrames(data)).toEqual<ScreenCastFrames>({
+        expect(extractCaptureFrames(data)).toEqual<ParsedCaptureFrames>({
             ...dimensions,
             frames: [
                 { time: 0, endTime: 1, ...makeScreen('content 1', NaN) },

@@ -1,5 +1,5 @@
 import type {
-    PartialExcept, DeepPartial, TerminalOptions, ScreenData, CaptureData, ScreenCastData, TitleKeyFrame,
+    PartialExcept, DeepPartial, ScreenData, ParsedScreenData, CaptureData, ParsedCaptureData, TitleKeyFrame,
 } from '@src/types';
 import { applyDefTerminalOptions } from '@src/options';
 import { parseScreen, parseCapture, resolveTitle } from '@src/parser';
@@ -7,20 +7,21 @@ import { clone } from '@src/parser/utils';
 import { makeLine, makeCursor } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 
-function parseScreenTest(content: string, options?: Partial<TerminalOptions>) {
+function parseScreenTest({ content, ...options }: PartialExcept<ScreenData, 'content'>) {
     const def = { columns: 50, rows: 10 };
-    return parseScreen(content, applyDefTerminalOptions({ ...def, ...options }, { cursorHidden: true }));
+    return parseScreen({ ...applyDefTerminalOptions({ ...def, ...options }, { cursorHidden: true }), content });
 }
 
-type PartialScreenData = DeepPartial<ScreenData>;
+type PartialParsedScreenData = DeepPartial<ParsedScreenData>;
 
 describe('parseScreen', () => {
     test('resolves initial window title and cursor conditions', () => {
-        expect(parseScreenTest('xxxxxxxxxxxxxxxxxxxx\nyyyyyyyyyyyyyyyyyyyy', {
+        expect(parseScreenTest({
+            content: 'xxxxxxxxxxxxxxxxxxxx\nyyyyyyyyyyyyyyyyyyyy',
             windowTitle: 'title',
             windowIcon: 'icon',
             cursorHidden: false,
-        })).toMatchObject<PartialScreenData>({
+        })).toMatchObject<PartialParsedScreenData>({
             lines: [makeLine('xxxxxxxxxxxxxxxxxxxx'), makeLine('yyyyyyyyyyyyyyyyyyyy')],
             title: resolveTitle('title', 'icon'),
             cursor: makeCursor(1, 20),
@@ -28,11 +29,12 @@ describe('parseScreen', () => {
     });
 
     test('escapes overwrite initial window title and cursor conditions', () => {
-        expect(parseScreenTest('xxxxxxxxx\x1b]2;new title\x07\x1b]1;\x07xxxxxxxxxxx\x1b[?25l', {
+        expect(parseScreenTest({
+            content: 'xxxxxxxxx\x1b]2;new title\x07\x1b]1;\x07xxxxxxxxxxx\x1b[?25l',
             windowTitle: 'title',
             windowIcon: 'icon',
             cursorHidden: false,
-        })).toMatchObject<PartialScreenData>({
+        })).toMatchObject<PartialParsedScreenData>({
             lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')],
             title: resolveTitle('new title'),
             cursor: null,
@@ -45,7 +47,7 @@ function parseCaptureTest(spec: PartialExcept<CaptureData, 'writes' | 'endDelay'
     return parseCapture({ ...def, ...spec });
 }
 
-type PartialScreenCastData = DeepPartial<ScreenCastData>;
+type PartialParsedCaptureData = DeepPartial<ParsedCaptureData>;
 
 describe('parseCapture', () => {
     test('parses writes from capture data', () => {
@@ -55,7 +57,7 @@ describe('parseCapture', () => {
                 { content: `${ansi.eraseLine}${ansi.cursorColumn(0)}yyyyyyyyyy`, delay: 500 },
             ],
             endDelay: 500,
-        })).toMatchObject<PartialScreenCastData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>(clone({
             content: [
                 { time: 0, endTime: 500, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] },
                 { time: 500, endTime: 1000, lines: [makeLine('yyyyyyyyyy')] },
@@ -87,7 +89,7 @@ describe('parseCapture', () => {
                 { content: '\x1b[?25h', delay: 500 }, // show cursor
             ],
             endDelay: 500,
-        })).toMatchObject<PartialScreenCastData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>(clone({
             content: [{ time: 0, endTime: 2000, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] }],
             cursor: [
                 { time: 0, endTime: 500, ...makeCursor(0, 20) },
@@ -121,7 +123,7 @@ describe('parseCapture', () => {
                 { content: 'yyyyyyyyyy', delay: 500 },
             ],
             endDelay: 500,
-        })).toMatchObject<PartialScreenCastData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>(clone({
             content: [
                 { time: 0, endTime: 1500, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] },
                 { time: 1500, endTime: 2000, lines: [makeLine('yyyyyyyyyyxxxxxxxxxx')] },
@@ -147,7 +149,7 @@ describe('parseCapture', () => {
                 { content: 'zzzzz\n', delay: 0 },
             ],
             endDelay: 500,
-        })).toMatchObject<PartialScreenCastData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>(clone({
             content: [
                 { time: 0, endTime: 500, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] },
                 { time: 500, endTime: 1000, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx'), makeLine('yyyyyzzzzz')] },
@@ -167,7 +169,7 @@ describe('parseCapture', () => {
                 { content: 'yyyyyyyyyy', delay: 500 },
             ],
             endDelay: 0,
-        })).toMatchObject<PartialScreenCastData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>(clone({
             content: [{ time: 0, endTime: 500, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] }],
             cursor: [{ time: 0, endTime: 500, ...makeCursor(1, 0) }],
             duration: 500,
@@ -178,7 +180,7 @@ describe('parseCapture', () => {
         expect(parseCaptureTest({
             writes: [{ content: 'xxxxxxxxxxxxxxxxxxxx', delay: 500 }],
             endDelay: 500,
-        })).toMatchObject<PartialScreenCastData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>(clone({
             content: [
                 { time: 0, endTime: 500, lines: [] },
                 { time: 500, endTime: 1000, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] },
@@ -195,7 +197,7 @@ describe('parseCapture', () => {
         expect(parseCaptureTest({
             writes: [],
             endDelay: 500,
-        })).toMatchObject<PartialScreenCastData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>(clone({
             content: [{ time: 0, endTime: 500, lines: [] }],
             cursor: [{ time: 0, endTime: 500, ...makeCursor(0, 0) }],
             title: [],
@@ -207,7 +209,7 @@ describe('parseCapture', () => {
         expect(parseCaptureTest({
             writes: [],
             endDelay: 0,
-        })).toMatchObject<PartialScreenCastData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>(clone({
             content: [],
             cursor: [],
             title: [],

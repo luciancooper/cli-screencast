@@ -30,7 +30,7 @@ export function applyDefOutputOptions(options: OutputOptions) {
         // create output spec for each specified output path
         for (const file of (typeof outputPath === 'string' ? [outputPath] : outputPath)) {
             const { path, ext } = resolveFilePath(file);
-            if (ext === 'svg' || ext === 'png') {
+            if (ext === 'svg' || ext === 'png' || ext === 'json') {
                 outputs.push({ type: ext, path });
                 continue;
             }

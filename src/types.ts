@@ -73,7 +73,7 @@ export interface TerminalOptions extends Dimensions {
     windowIcon?: string | boolean | undefined
 }
 
-export type OutputType = 'svg' | 'png';
+export type OutputType = 'svg' | 'png' | 'json';
 
 export interface OutputOptions {
     /**
@@ -169,7 +169,11 @@ export interface TerminalLines {
     lines: TerminalLine[]
 }
 
-export interface ScreenData extends Dimensions, TerminalLines {
+export interface ScreenData extends Required<TerminalOptions> {
+    content: string
+}
+
+export interface ParsedScreenData extends Dimensions, TerminalLines {
     cursor: CursorLocation | null
     title: Title
 }
@@ -185,20 +189,20 @@ export interface CursorKeyFrame extends KeyFrame, CursorLocation {}
 
 export interface TitleKeyFrame extends KeyFrame, Title {}
 
-export interface ScreenCastData extends Dimensions {
+export interface ParsedCaptureData extends Dimensions {
     content: ContentKeyFrame[]
     cursor: CursorKeyFrame[]
     title: TitleKeyFrame[]
     duration: number
 }
 
-export interface ScreenCastKeyFrame extends KeyFrame, TerminalLines {
+export interface CaptureKeyFrame extends KeyFrame, TerminalLines {
     cursor: CursorLocation | null
     title: Title
 }
 
-export interface ScreenCastFrames extends Dimensions {
-    frames: ScreenCastKeyFrame[]
+export interface ParsedCaptureFrames extends Dimensions {
+    frames: CaptureKeyFrame[]
 }
 
 export interface Size {

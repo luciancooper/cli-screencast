@@ -1,12 +1,12 @@
 import type {
-    CaptureData, Title, CursorLocation, TerminalLine, ScreenCastData, ScreenData, TerminalOptions,
+    ScreenData, ParsedScreenData, CaptureData, Title, CursorLocation, TerminalLine, ParsedCaptureData,
 } from '../types';
 import parse, { type ParseContext, type ParseState } from './parse';
 import { resolveTitle } from './title';
 import * as serialize from './serialize';
 import { clone } from './utils';
 
-export function parseScreen(content: string, opts: Required<TerminalOptions>): ScreenData {
+export function parseScreen({ content, ...opts }: ScreenData): ParsedScreenData {
     const { cursorHidden, cursor, ...state } = parse({ ...opts }, {
         lines: [],
         cursor: { line: 0, column: 0 },
@@ -27,7 +27,7 @@ export function parseCapture({
     tabSize,
     columns,
     rows,
-}: CaptureData): ScreenCastData {
+}: CaptureData): ParsedCaptureData {
     const context: ParseContext = { columns, rows, tabSize },
         state: ParseState = {
             lines: [],
@@ -35,7 +35,7 @@ export function parseCapture({
             cursorHidden: false,
             title: resolveTitle(),
         },
-        data: ScreenCastData = {
+        data: ParsedCaptureData = {
             columns,
             rows,
             content: [],

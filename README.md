@@ -26,7 +26,7 @@ yarn add cli-screencast
 
 All methods accept an `options` object as the last argument. Options common to all methods are listed in the [options](#options) section below.
 
-All methods are asynchronous and return a `string` or `Buffer` depending on the output format specified by the [`output`](#options.output) option. If `output` is `'svg'`, the method will return an svg image `string`. If `output` is `'png'`, the method will return a png image `Buffer`.
+All methods are asynchronous and return a `string` or `Buffer` depending on the output format specified by the [`output`](#options.output) option. If `output` is `'svg'` or `'json'`, the method will return a svg or json data `string`. If `output` is `'png'`, the method will return a png image `Buffer`.
 
 ### `renderScreen(content, options)`
 
@@ -144,6 +144,20 @@ Connect capture session to `process.stdin` to capture any input from the user. D
 
 Silently capture output to `process.stdout` and `process.stderr`. Defaults to `true`.
 
+### `renderData(path, options)`
+
+Render a screencast or screenshot from a json data file. If any of the other api methods were used to write screencast data to json, this method can be used to render that data to svg or png.
+
+> #### *Arguments:*
+
+› &nbsp; **path** &nbsp;•&nbsp; `string`
+
+Json data file containing the screencast data to render.
+
+› &nbsp; **options** &nbsp;•&nbsp; `Object`
+
+Options config object to specify [configuration options](#options).
+
 ## Options
 
 <a name='options.logLevel'></a>
@@ -156,26 +170,26 @@ Controls how much info is logged to the console during the render process. Optio
 <a name='options.output'></a>
 › &nbsp; **output** &nbsp;•&nbsp; `string`
 
-The desired output format. Must be either `'svg'` or `'png'`. The default is `'svg'`.
+The desired output format. Must be either `'svg'`, `'png'`, or `'json'`. The default is `'svg'`.
 
 <a name='options.outputPath'></a>
 › &nbsp; **outputPath** &nbsp;•&nbsp; `string | string[]`
 
-File path or array of file paths to write output to. The type of output will be inferred by the file extension (can be either svg or png). Default is `undefined`.
+File path or array of file paths to write output to. The type of output will be inferred by the file extension (can be svg, png, or json). Default is `undefined`.
 
 <a name='options.scaleFactor'></a>
 › &nbsp; **scaleFactor** &nbsp;•&nbsp; `number`
 
 The device scale factor used when rendering to png. Default is `4`.
 
-**Note:** This option is only applicable when `output` is `'png'`.
+**Note:** This option is only applicable when rendering to png.
 
 <a name='options.embedFonts'></a>
 › &nbsp; **embedFonts** &nbsp;•&nbsp; `boolean`
 
 Embed required fonts when rendering to svg, Defaults to `true`.
 
-**Note:** This option is only applicable when `output` is `'svg'`.
+**Note:** This option is only applicable when rendering to svg.
 
 > ### *Capture Related Options*
 

@@ -20,7 +20,7 @@ export type FrameData = TermScreen | { frames: TermScreen[] } | { content: Termi
 
 function* extractChunks(data: FrameData) {
     if ('frames' in data) {
-        // ScreenData[]
+        // ParsedCaptureFrames
         for (const frame of data.frames) {
             yield* frame.title.chunks;
             for (const line of frame.lines) {
@@ -28,7 +28,7 @@ function* extractChunks(data: FrameData) {
             }
         }
     } else if ('content' in data) {
-        // CaptureData
+        // ParsedCaptureData
         for (const frame of data.title) {
             yield* frame.chunks;
         }
@@ -38,7 +38,7 @@ function* extractChunks(data: FrameData) {
             }
         }
     } else {
-        // ScreenData
+        // ParsedScreenData
         yield* data.title.chunks;
         for (const line of data.lines) {
             yield* line.chunks;

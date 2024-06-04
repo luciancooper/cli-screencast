@@ -1,4 +1,4 @@
-import type { CaptureData, OutputOptions, OutputType, TerminalOptions } from './types';
+import type { CaptureData, ScreenData, ParsedCaptureData, OutputOptions, TerminalOptions } from './types';
 import { applyDefTerminalOptions, applyDefOutputOptions, applyDefRenderOptions } from './options';
 import { applyLoggingOptions, type LoggingOptions } from './logger';
 import { parseScreen, parseCapture } from './parser';
@@ -6,11 +6,73 @@ import RecordingStream, { type SourceFrame } from './source';
 import readableSpawn, { type SpawnOptions } from './spawn';
 import NodeRecordingStream, { type CallbackOptions, type RunCallback } from './node';
 import captureSource, { type CaptureOptions } from './capture';
-import extractScreenCastFrames from './frames';
+import extractCaptureFrames from './frames';
 import createFontCss from './fonts';
 import { renderScreenSvg, renderCaptureSvg, renderCaptureFrames, type RenderOptions } from './render';
 import { createPng, createAnimatedPng } from './image';
-import { writeToFile } from './utils';
+import { dataToJson, dataFromJson } from './data';
+import { readFromFile, writeToFile } from './utils';
+
+interface OutputCache {
+    svg?: string
+    png?: Buffer
+    json?: { data: string, pretty: string }
+}
+
+async function renderScreenData(screen: ScreenData, options: OutputOptions & RenderOptions) {
+    const { outputs, scaleFactor, embedFonts } = applyDefOutputOptions(options),
+        props = applyDefRenderOptions(options),
+        cache: OutputCache = {};
+    let output: string | Buffer;
+    for (const { type, path } of outputs) {
+        if (!cache[type]) {
+            if (type === 'json') {
+                cache[type] = dataToJson('screen', screen);
+            } else {
+                const parsed = parseScreen(screen),
+                    font = (type === 'png' || embedFonts)
+                        ? await createFontCss(parsed, props.theme.fontFamily) : null,
+                    rendered = renderScreenSvg(parsed, { ...props, ...font });
+                if (type === 'svg') cache[type] = rendered.svg;
+                else cache[type] = await createPng(rendered, scaleFactor);
+            }
+        }
+        if (path) await writeToFile(path, type === 'json' ? cache[type]!.pretty : cache[type]!);
+        else output = type === 'json' ? cache[type]!.data : cache[type]!;
+    }
+    return output!;
+}
+
+async function renderCaptureData(capture: CaptureData, options: OutputOptions & RenderOptions) {
+    const { outputs, scaleFactor, embedFonts } = applyDefOutputOptions(options),
+        props = applyDefRenderOptions(options),
+        cache: OutputCache = {};
+    let parsed: ParsedCaptureData | null = null,
+        output: string | Buffer;
+    for (const { type, path } of outputs) {
+        if (!cache[type]) {
+            if (type !== 'json') {
+                parsed ??= parseCapture(capture);
+                if (type === 'png') {
+                    const frames = extractCaptureFrames(parsed),
+                        svgFrames = renderCaptureFrames(frames, {
+                            ...props,
+                            ...await createFontCss(frames, props.theme.fontFamily),
+                        });
+                    cache[type] = await createAnimatedPng(svgFrames, scaleFactor);
+                } else {
+                    cache[type] = renderCaptureSvg(parsed, {
+                        ...props,
+                        ...(embedFonts ? await createFontCss(parsed, props.theme.fontFamily) : null),
+                    });
+                }
+            } else cache[type] = dataToJson('capture', capture);
+        }
+        if (path) await writeToFile(path, type === 'json' ? cache[type]!.pretty : cache[type]!);
+        else output = type === 'json' ? cache[type]!.data : cache[type]!;
+    }
+    return output!;
+}
 
 /**
  * Render a terminal screen shot to SVG
@@ -23,54 +85,7 @@ export async function renderScreen(
     options: LoggingOptions & TerminalOptions & OutputOptions & RenderOptions,
 ): Promise<string | Buffer> {
     applyLoggingOptions(options);
-    const { outputs, scaleFactor, embedFonts } = applyDefOutputOptions(options),
-        screenData = parseScreen(content, applyDefTerminalOptions(options, { cursorHidden: true })),
-        props = applyDefRenderOptions(options),
-        cache: Partial<Record<OutputType, string | Buffer>> = {};
-    let output: string | Buffer;
-    for (const { type, path } of outputs) {
-        if (cache[type]) {
-            await writeToFile(path!, cache[type]!);
-            continue;
-        }
-        const font = (type === 'png' || embedFonts)
-                ? await createFontCss(screenData, props.theme.fontFamily) : null,
-            rendered = renderScreenSvg(screenData, { ...props, ...font });
-        cache[type] = type === 'png' ? await createPng(rendered, scaleFactor) : rendered.svg;
-        if (path) await writeToFile(path, cache[type]!);
-        else output = cache[type]!;
-    }
-    return output!;
-}
-
-async function renderCapture(capture: CaptureData, options: OutputOptions & RenderOptions) {
-    const data = parseCapture(capture),
-        { outputs, scaleFactor, embedFonts } = applyDefOutputOptions(options),
-        props = applyDefRenderOptions(options),
-        cache: Partial<Record<OutputType, string | Buffer>> = {};
-    let output: string | Buffer;
-    for (const { type, path } of outputs) {
-        if (cache[type]) {
-            await writeToFile(path!, cache[type]!);
-            continue;
-        }
-        if (type === 'png') {
-            const frames = extractScreenCastFrames(data),
-                svgFrames = renderCaptureFrames(frames, {
-                    ...props,
-                    ...await createFontCss(frames, props.theme.fontFamily),
-                });
-            cache[type] = await createAnimatedPng(svgFrames, scaleFactor);
-        } else {
-            cache[type] = renderCaptureSvg(data, {
-                ...props,
-                ...(embedFonts ? await createFontCss(data, props.theme.fontFamily) : null),
-            });
-        }
-        if (path) await writeToFile(path, cache[type]!);
-        else output = cache[type]!;
-    }
-    return output!;
+    return renderScreenData({ ...applyDefTerminalOptions(options, { cursorHidden: true }), content }, options);
 }
 
 /**
@@ -86,7 +101,7 @@ export async function renderFrames(
     applyLoggingOptions(options);
     const source = RecordingStream.fromFrames(applyDefTerminalOptions(options), frames),
         capture = await captureSource(source, options);
-    return renderCapture(capture, options);
+    return renderCaptureData(capture, options);
 }
 
 /**
@@ -104,7 +119,7 @@ export async function renderSpawn(
     applyLoggingOptions(options);
     const source = readableSpawn(command, args, options),
         capture = await captureSource(source, options);
-    return renderCapture(capture, options);
+    return renderCaptureData(capture, options);
 }
 
 /**
@@ -124,7 +139,20 @@ export async function renderCallback(
     const source = new NodeRecordingStream(options);
     await source.run(fn);
     const capture = await captureSource(source, options);
-    return renderCapture(capture, options);
+    return renderCaptureData(capture, options);
+}
+
+/**
+ * Render a screencast or screenshot from a json data file.
+ * @param path - data file containing the screencast data to render
+ * @param options - render options
+ * @returns rendered screencast svg string or png buffer
+ */
+export async function renderData(path: string, options: LoggingOptions & OutputOptions & RenderOptions = {}) {
+    applyLoggingOptions(options);
+    const content = await readFromFile(path),
+        data = dataFromJson(content);
+    return ('writes' in data) ? renderCaptureData(data, options) : renderScreenData(data, options);
 }
 
 export type { RGB } from './types';

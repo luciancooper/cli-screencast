@@ -1,12 +1,14 @@
 import { resolve } from 'path';
-import { writeFile } from 'fs/promises';
-import { renderScreen, renderFrames, renderSpawn, renderCallback } from '../src';
+import { writeFile, readFile } from 'fs/promises';
+import type { SourceFrame } from '@src/source';
+import { renderScreen, renderFrames, renderSpawn, renderCallback, renderData } from '../src';
 
 const dimensions = { columns: 50, rows: 10 };
 
 const outputPaths = {
-    svg: resolve(process.cwd(), './file.svg'),
-    png: resolve(process.cwd(), './file.png'),
+    svg: resolve('./file.svg'),
+    png: resolve('./file.png'),
+    json: resolve('./file.json'),
 } as const;
 
 // mock fs so tests don't actually write out to any output files
@@ -16,6 +18,7 @@ jest.mock('fs/promises', () => {
         ...originalModule,
         mkdir: jest.fn(async () => {}),
         writeFile: jest.fn(async () => {}),
+        readFile: jest.fn(originalModule.readFile),
     };
 });
 
@@ -24,6 +27,16 @@ afterEach(() => {
 });
 
 describe('renderScreen', () => {
+    test('promises a string when output type is `json`', async () => {
+        await expect(renderScreen('Hello World!', {
+            ...dimensions,
+            output: 'json',
+            outputPath: outputPaths.json,
+        })).resolves.toBeString();
+        expect(writeFile).toHaveBeenCalledTimes(1);
+        expect(writeFile).toHaveBeenCalledWith(outputPaths.json, expect.toBeString());
+    });
+
     test('promises a string when output type is `svg`', async () => {
         const svg = await renderScreen('Hello World!', {
             ...dimensions,
@@ -39,27 +52,45 @@ describe('renderScreen', () => {
         const png = await renderScreen('Hello World!', {
             ...dimensions,
             output: 'png',
-            outputPath: [outputPaths.svg, outputPaths.png],
+            outputPath: [outputPaths.json, outputPaths.svg, outputPaths.png],
             cursorHidden: false,
             scaleFactor: 1,
         });
         expect(Buffer.isBuffer(png)).toBe(true);
-        expect(writeFile).toHaveBeenCalledTimes(2);
-        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.svg, expect.toBeString());
-        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.png, png);
+        expect(writeFile).toHaveBeenCalledTimes(3);
+        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeString());
+        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.svg, expect.toBeString());
+        expect(writeFile).toHaveBeenNthCalledWith(3, outputPaths.png, png);
     });
 });
 
 describe('renderFrames', () => {
-    test('renders animated svg from array of content frames', async () => {
-        const svg = await renderFrames([
-            { content: 'line 1', duration: 500 },
-            { content: 'line 2', duration: 500 },
-            { content: 'line 3', duration: 500 },
-        ], { ...dimensions, embedFonts: false, outputPath: outputPaths.svg });
-        expect(svg).toBeString();
+    const frames: SourceFrame[] = [
+        { content: 'line 1', duration: 500 },
+        { content: 'line 2', duration: 500 },
+        { content: 'line 3', duration: 500 },
+    ];
+
+    test('promises a string when output type is `json`', async () => {
+        await expect(renderFrames(frames, {
+            ...dimensions,
+            output: 'json',
+            outputPath: outputPaths.json,
+        })).resolves.toBeString();
         expect(writeFile).toHaveBeenCalledTimes(1);
-        expect(writeFile).toHaveBeenCalledWith(outputPaths.svg, svg);
+        expect(writeFile).toHaveBeenCalledWith(outputPaths.json, expect.toBeString());
+    });
+
+    test('promises a string when output type is `svg`', async () => {
+        const svg = await renderFrames(frames, {
+            ...dimensions,
+            embedFonts: false,
+            outputPath: [outputPaths.json, outputPaths.svg],
+        });
+        expect(svg).toBeString();
+        expect(writeFile).toHaveBeenCalledTimes(2);
+        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeString());
+        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.svg, svg);
     });
 });
 
@@ -106,5 +137,37 @@ describe('renderCallback', () => {
         expect(writeFile).toHaveBeenCalledTimes(2);
         expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.svg, expect.toBeString());
         expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.png, png);
+    });
+});
+
+describe('renderData', () => {
+    const baseData = '"version": "1.0.0", "columns": 50, "rows": 10, "tabSize": 8';
+
+    test('throws error if file path does not exist', async () => {
+        await expect(renderData('./badpath.json')).rejects.toThrow("File not found: './badpath.json'");
+    });
+
+    test('throws data validation error if file contains bad data', async () => {
+        (readFile as jest.Mock).mockImplementationOnce(async () => (
+            `{ ${baseData}, "type": "capture", "endDelay": 500 }`
+        ));
+        await expect(renderData('./invalid.json')).rejects.toThrow(
+            'Invalid JSON data:\n'
+            + "\n * missing 'writes' field",
+        );
+    });
+
+    test('renders screen data from json file', async () => {
+        (readFile as jest.Mock).mockImplementationOnce(async () => (
+            `{ ${baseData}, "type": "screen", "content": "Hello World!", "cursorHidden": true  }`
+        ));
+        await expect(renderData('./screen.json', { embedFonts: false })).resolves.toBeString();
+    });
+
+    test('renders capture data from json file', async () => {
+        (readFile as jest.Mock).mockImplementationOnce(async () => (
+            `{ ${baseData}, "type": "capture", "writes": [{ "content": "Hello", "delay": 0 }], "endDelay": 500 }`
+        ));
+        await expect(renderData('./capture.json', { embedFonts: false })).resolves.toBeString();
     });
 });
