@@ -1,20 +1,17 @@
-import type { Dimensions, CursorLocation, Title, TerminalState, TerminalLine } from '@src/types';
-import { resolveTheme } from '@src/theme';
-import { clone } from '@src/utils';
-import parse, { ParseContext } from '@src/parse';
+import type { Dimensions, CursorLocation, Title, TerminalLine } from '@src/types';
+import { clone } from '@src/parser/utils';
+import parse, { type ParseContext, type ParseState } from '@src/parser/parse';
 import { makeLine } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 
-const { theme, palette } = resolveTheme();
-
 interface Parser {
-    (...content: string[]): TerminalState
-    state: TerminalState
-    prev: TerminalState
+    (...content: string[]): ParseState
+    state: ParseState
+    prev: ParseState
 }
 
 const makeParser = (dim: Dimensions, cursorHidden = false, title: Partial<Title> = {}): Parser => {
-    const context: ParseContext = { ...dim, tabSize: 8, palette },
+    const context: ParseContext = { ...dim, tabSize: 8 },
         state = {
             lines: [],
             cursor: { line: 0, column: 0 },
@@ -100,12 +97,12 @@ describe('writing lines', () => {
         // foreground green styled chunk
         parser(ansi.fg(32, 'ab'));
         expect(parser.state.lines).toEqual<TerminalLine[]>([
-            { index: 0, ...makeLine(['ab', { fg: theme.green }]) },
+            { index: 0, ...makeLine(['ab', { fg: 2 }]) },
         ]);
         // foreground red styled chunk
         parser(ansi.fg(31, 'cdef'));
         expect(parser.state.lines).toEqual<TerminalLine[]>([
-            { index: 0, ...makeLine(['ab', { fg: theme.green }], ['cdef', { fg: theme.red }]) },
+            { index: 0, ...makeLine(['ab', { fg: 2 }], ['cdef', { fg: 1 }]) },
         ]);
     });
 
@@ -259,13 +256,13 @@ describe('overwriting lines', () => {
         const parser = makeParser({ columns: 20, rows: 10 });
         parser('aaaaaaaa\r', ansi.fg(32, 'bbbb'));
         expect(parser.state.lines).toEqual<TerminalLine[]>([
-            { index: 0, ...makeLine(['bbbb', { fg: theme.green }], 'aaaa') },
+            { index: 0, ...makeLine(['bbbb', { fg: 2 }], 'aaaa') },
         ]);
         // add a new line from the middle of the first line
         parser(ansi.fg(31, '\r\ncccc'));
         expect(parser.state.lines).toEqual<TerminalLine[]>([
-            { index: 0, ...makeLine(['bbbb', { fg: theme.green }], 'aaaa') },
-            { index: 0, ...makeLine(['cccc', { fg: theme.red }]) },
+            { index: 0, ...makeLine(['bbbb', { fg: 2 }], 'aaaa') },
+            { index: 0, ...makeLine(['cccc', { fg: 1 }]) },
         ]);
     });
 

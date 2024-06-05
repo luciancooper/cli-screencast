@@ -1,7 +1,7 @@
 import { resolveTheme } from '@src/theme';
-import { toHex, fromHex, color4Bit, color8Bit, invert } from '@src/color';
+import { toHex, fromHex, themeColor, color8Bit } from '@src/color';
 
-const { palette, theme } = resolveTheme();
+const theme = resolveTheme();
 
 describe('toHex', () => {
     test('converts rgb arrays to hex triplet strings', () => {
@@ -35,54 +35,48 @@ describe('fromHex', () => {
     });
 });
 
-describe('color4Bit', () => {
-    test('throws an error if input is not between 0 - 15', () => {
-        expect(() => color4Bit(-1, palette)).toThrow('-1 is not a valid 4 bit color value');
-        expect(() => color4Bit(16, palette)).toThrow('16 is not a valid 4 bit color value');
+describe('themeColor', () => {
+    test('does nothing if color is a string or undefined', () => {
+        expect(themeColor('#fefefe', theme)).toBe('#fefefe');
+        expect(themeColor(undefined, theme)).toBeUndefined();
     });
 
-    test('standard colors (0 - 7)', () => {
-        expect(color4Bit(0x2, palette)).toBe(theme.green);
+    test('throws an error if input is a number not between 0 - 15', () => {
+        expect(() => themeColor(-1, theme)).toThrow('-1 is not a valid 4 bit color value');
+        expect(() => themeColor(16, theme)).toThrow('16 is not a valid 4 bit color value');
     });
 
-    test('high intensity colors (8 - 15)', () => {
-        expect(color4Bit(0xC, palette)).toBe(theme.brightBlue);
+    test('converts 4 bit colors to color strings', () => {
+        // standard colors (0 - 7)
+        expect(themeColor(0x2, theme)).toBe(theme.green);
+        // high intensity colors (8 - 15)
+        expect(themeColor(0xC, theme)).toBe(theme.brightBlue);
     });
 });
 
 describe('color8Bit', () => {
     test('throws an error if input is not between 0 - 255', () => {
-        expect(() => color8Bit(-5, palette)).toThrow('-5 is not a valid 8 bit color value');
-        expect(() => color8Bit(260, palette)).toThrow('260 is not a valid 8 bit color value');
+        expect(() => color8Bit(-5)).toThrow('-5 is not a valid 8 bit color value');
+        expect(() => color8Bit(260)).toThrow('260 is not a valid 8 bit color value');
     });
 
-    test('0-7 - standard colors', () => {
-        expect(color8Bit(0x3, palette)).toBe(theme.yellow);
+    test('4 bit standard colors (0-7)', () => {
+        expect(color8Bit(0x3)).toBe(0x3);
     });
 
-    test('8-15 - high intensity colors', () => {
-        expect(color8Bit(0xE, palette)).toBe(theme.brightCyan);
+    test('4 bit high intensity colors (8-15)', () => {
+        expect(color8Bit(0xE)).toBe(0xE);
     });
 
     test('16-231 6 × 6 × 6 cube (216 colors)', () => {
-        expect(color8Bit(16, palette)).toBe(toHex([0, 0, 0])); // 0 × 0 × 0
-        expect(color8Bit(188, palette)).toBe(toHex([215, 215, 215])); // 4 × 4 × 4
-        expect(color8Bit(212, palette)).toBe(toHex([255, 135, 215])); // 5 × 2 × 4
+        expect(color8Bit(16)).toBe(toHex([0, 0, 0])); // 0 × 0 × 0
+        expect(color8Bit(188)).toBe(toHex([215, 215, 215])); // 4 × 4 × 4
+        expect(color8Bit(212)).toBe(toHex([255, 135, 215])); // 5 × 2 × 4
     });
 
     test('232-255 - grayscale from black to white in 24 steps', () => {
-        expect(color8Bit(232, palette)).toBe(toHex([8, 8, 8])); // 0xe8
-        expect(color8Bit(245, palette)).toBe(toHex([138, 138, 138])); // 0xf5
-        expect(color8Bit(255, palette)).toBe(toHex([238, 238, 238])); // 0xff
-    });
-});
-
-describe('invert', () => {
-    test('inverts hex color triplets', () => {
-        expect(invert('#000000')).toBe('#ffffff');
-    });
-
-    test('inverts RGB arrays', () => {
-        expect(invert([255, 255, 255])).toBe('#000000');
+        expect(color8Bit(232)).toBe(toHex([8, 8, 8])); // 0xe8
+        expect(color8Bit(245)).toBe(toHex([138, 138, 138])); // 0xf5
+        expect(color8Bit(255)).toBe(toHex([238, 238, 238])); // 0xff
     });
 });

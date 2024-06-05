@@ -1,5 +1,4 @@
-import { applyDefaults } from '@src/options';
-import { resolveTitle } from '@src/title';
+import { resolveTitle } from '@src/parser';
 import { GraphemeSet } from '@src/fonts/range';
 import extractContentSubsets, { createContentSubsets, type ContentSubsets } from '@src/fonts/content';
 import { getSystemFonts } from '@src/fonts/system';
@@ -7,15 +6,9 @@ import { fetchGoogleFontMetadata } from '@src/fonts/google';
 import createFontCss from '@src/fonts';
 import { makeLine } from './helpers/objects';
 
-const { palette } = applyDefaults({});
-
-const makeTitle = (text?: string, icon?: string | boolean) => (
-    resolveTitle(palette, text, icon)
-);
-
 const fixtures = {
     frame: {
-        title: makeTitle('abc'),
+        title: resolveTitle('abc'),
         lines: [
             { index: 0, ...makeLine('def', ['ghi', { bold: true }]) },
             { index: 0, ...makeLine(['jkl', { bold: true, italic: true }], ['mno', { italic: true }]) },
@@ -26,15 +19,17 @@ const fixtures = {
             { lines: [{ index: 0, ...makeLine('def', ['ghi', { bold: true }]) }] },
             { lines: [{ index: 0, ...makeLine(['jkl', { bold: true, italic: true }], ['mno', { italic: true }]) }] },
         ],
-        title: [makeTitle('abc')],
+        title: [resolveTitle('abc')],
     },
-    frames: [{
-        title: makeTitle('abc'),
-        lines: [{ index: 0, ...makeLine('def', ['ghi', { bold: true }]) }],
-    }, {
-        title: makeTitle('abc'),
-        lines: [{ index: 0, ...makeLine(['jkl', { bold: true, italic: true }], ['mno', { italic: true }]) }],
-    }],
+    frames: {
+        frames: [{
+            title: resolveTitle('abc'),
+            lines: [{ index: 0, ...makeLine('def', ['ghi', { bold: true }]) }],
+        }, {
+            title: resolveTitle('abc'),
+            lines: [{ index: 0, ...makeLine(['jkl', { bold: true, italic: true }], ['mno', { italic: true }]) }],
+        }],
+    },
 };
 
 describe('extractContentSubsets', () => {

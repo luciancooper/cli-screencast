@@ -1,13 +1,25 @@
 import { Duplex, type DuplexOptions } from 'stream';
-import type { Frame } from './types';
+import type { TerminalOptions, PickOptional } from './types';
+import { applyDefTerminalOptions } from './options';
 
-export interface StartEvent {
+export interface SourceFrame {
+    content: string
+    duration: number
+}
+
+export interface StartEvent extends Required<TerminalOptions> {
     type: 'start'
     command?: string | undefined
 }
 
 interface EventTime {
+    /**
+     * ms after the source stream started
+     */
     time: number
+    /**
+     * ms to add to the time due to artifical time adjustments
+     */
     adjustment?: number
 }
 
@@ -35,13 +47,19 @@ export default class RecordingStream extends DuplexConstructor {
 
     static kCaptureEndLine = '\x1b[36;1m<<<\x1b[39m \x1b[31m■\x1b[39m Capture End \x1b[36m<<<\x1b[39;22m\n';
 
+    columns: number;
+
+    rows: number;
+
+    context: Required<PickOptional<TerminalOptions>>;
+
     private started = false;
 
     private startTime = NaN;
 
     private timeAdjustment = 0;
 
-    constructor() {
+    constructor(options: TerminalOptions) {
         super({
             decodeStrings: false,
             allowHalfOpen: false,
@@ -50,11 +68,15 @@ export default class RecordingStream extends DuplexConstructor {
             writableHighWaterMark: 65536,
             readableHighWaterMark: 1000,
         });
+        const { columns, rows, ...context } = applyDefTerminalOptions(options);
+        this.columns = columns;
+        this.rows = rows;
+        this.context = context;
     }
 
-    static fromFrames(frames: Frame[]): RecordingStream {
-        const stream = new RecordingStream();
-        stream.push({ type: 'start' });
+    static fromFrames(opts: TerminalOptions, frames: SourceFrame[]): RecordingStream {
+        const stream = new RecordingStream(opts);
+        stream.push({ type: 'start', ...stream.termOptions });
         let time = 0;
         for (const { content, duration } of frames) {
             stream.push({ time, content });
@@ -63,6 +85,11 @@ export default class RecordingStream extends DuplexConstructor {
         stream.push({ type: 'finish', time });
         stream.push(null);
         return stream;
+    }
+
+    get termOptions(): Required<TerminalOptions> {
+        const { columns, rows, context } = this;
+        return { columns, rows, ...context };
     }
 
     get ended(): boolean {
@@ -75,6 +102,8 @@ export default class RecordingStream extends DuplexConstructor {
             time: Date.now() - this.startTime,
             adjustment: this.timeAdjustment,
         });
+        // reset time adjustment
+        this.timeAdjustment = 0;
     }
 
     override _read() {}
@@ -118,7 +147,7 @@ export default class RecordingStream extends DuplexConstructor {
         this.started = true;
         this.startTime = Date.now();
         // create start event
-        this.push({ type: 'start', command });
+        this.push({ type: 'start', command, ...this.termOptions });
         this.emit('recording-start', this.startTime);
     }
 
@@ -127,6 +156,9 @@ export default class RecordingStream extends DuplexConstructor {
             throw new Error('Source stream is closed');
         }
         const time = this.started ? Date.now() - this.startTime : 0;
+        // emit start event if stream has not started
+        if (!this.started) this.start();
+        // push finish event
         this.push({
             type: 'finish',
             time,
@@ -134,6 +166,8 @@ export default class RecordingStream extends DuplexConstructor {
             error,
             result,
         });
+        // reset time adjustment
+        this.timeAdjustment = 0;
         this.push(null);
         this.emit('recording-end', time);
     }

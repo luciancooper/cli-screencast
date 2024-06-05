@@ -1,7 +1,7 @@
 import { stringWidth } from 'tty-strings';
-import type { IconID, Title, Palette, AnsiStyle, TextChunk, TextLine } from './types';
+import type { IconID, Title, AnsiStyle, TextChunk, TextLine } from '../types';
 import parseAnsi, { stylesEqual } from './ansi';
-import icons from './render/icons.json';
+import icons from '../render/icons.json';
 
 const iconMap = (
     Object.entries(icons) as [IconID, { alias?: string[], path: string }][]
@@ -15,11 +15,11 @@ export function matchIcon(string: string, fallback: IconID = 'shell'): IconID {
     return cmd.length ? (iconMap[cmd] ?? fallback) : fallback;
 }
 
-export function parseTitle(palette: Palette, title: string): TextLine {
+export function parseTitle(title: string): TextLine {
     const chunks: TextChunk[] = [];
     let [x, width, str] = [0, 0, ''],
         chunkStyle: AnsiStyle | null = null;
-    for (const { chunk, style } of parseAnsi(palette, title)) {
+    for (const { chunk, style } of parseAnsi(title)) {
         const span = stringWidth(chunk);
         if (!span) continue;
         if (chunkStyle) {
@@ -38,10 +38,10 @@ export function parseTitle(palette: Palette, title: string): TextLine {
     return { columns: x + width, chunks };
 }
 
-export function resolveTitle(palette: Palette, text?: string, icon?: string | boolean): Title {
+export function resolveTitle(text?: string, icon?: string | boolean): Title {
     return {
         text,
         icon: icon ? matchIcon(typeof icon === 'boolean' ? text ?? '' : icon) : undefined,
-        ...parseTitle(palette, text ?? ''),
+        ...parseTitle(text ?? ''),
     };
 }

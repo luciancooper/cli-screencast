@@ -1,21 +1,27 @@
 import * as readline from 'readline';
 import type { Interface, ReadLineOptions } from 'readline';
 import RecordingStream from '../source';
-import type { OmitStrict, Dimensions } from '../types';
-import type { CaptureOptions } from '../capture';
-import InputStream from './input';
+import type { OmitStrict, TerminalOptions } from '../types';
+import { type CaptureOptions, defaultCaptureOptions } from '../capture';
+import { applyDefaults } from '../options';
 import { restoreProperty } from '../utils';
+import InputStream from './input';
 
-export interface SessionOptions {
+export interface CallbackOptions {
+    /**
+     * Connect capture session to `process.stdin` to capture any input from the user.
+     * @defaultValue `false`
+     */
     connectStdin?: boolean
+
+    /**
+     * Silently capture output to `process.stdout` and `process.stderr`.
+     * @defaultValue `true`
+     */
     silent?: boolean
 }
 
-export type RunCallback<T> = (source: TerminalRecordingStream) => Promise<T> | T;
-
-interface Options extends Dimensions, SessionOptions, Required<Pick<CaptureOptions, 'keystrokeAnimationInterval'>> {
-    tabSize: number
-}
+export type RunCallback<T> = (source: NodeRecordingStream) => Promise<T> | T;
 
 interface OutputStreamDescriptors {
     columns: PropertyDescriptor | undefined
@@ -33,35 +39,26 @@ interface SocketHandle {
     getWindowSize?: (arr: [number, number]) => Error | null
 }
 
-export default class TerminalRecordingStream extends RecordingStream {
+export default class NodeRecordingStream extends RecordingStream {
     isTTY = true;
 
     private targetDescriptors: TargetDescriptors | null = null;
 
     readonly input: InputStream;
 
-    columns: number;
-
-    rows: number;
-
-    tabSize: number;
-
     silent: boolean;
 
     keystrokeAnimationInterval: number;
 
-    constructor({
-        columns,
-        rows,
-        tabSize,
-        keystrokeAnimationInterval,
-        connectStdin = false,
-        silent = true,
-    }: Options) {
-        super();
-        this.columns = columns;
-        this.rows = rows;
-        this.tabSize = tabSize;
+    constructor(options: TerminalOptions & CallbackOptions & Pick<CaptureOptions, 'keystrokeAnimationInterval'>) {
+        super(options);
+        // apply defaults
+        const { connectStdin, silent, keystrokeAnimationInterval } = applyDefaults({
+            connectStdin: false,
+            silent: true,
+            keystrokeAnimationInterval: defaultCaptureOptions.keystrokeAnimationInterval,
+        }, options);
+        // set options
         this.silent = silent;
         this.keystrokeAnimationInterval = keystrokeAnimationInterval;
         // setup input stream
@@ -98,12 +95,11 @@ export default class TerminalRecordingStream extends RecordingStream {
     }
 
     createInterface(options: OmitStrict<ReadLineOptions, 'input' | 'tabSize' | 'terminal'> = {}): Interface {
-        const { input, tabSize } = this;
         return readline.createInterface({
             output: process.stdout,
             ...options,
-            input,
-            tabSize,
+            input: this.input,
+            tabSize: this.context.tabSize,
             terminal: true,
         });
     }
@@ -180,7 +176,7 @@ export default class TerminalRecordingStream extends RecordingStream {
 
     protected hookStreams() {
         if (this.targetDescriptors) return;
-        if (!this.silent) process.stdout.write(TerminalRecordingStream.kCaptureStartLine);
+        if (!this.silent) process.stdout.write(NodeRecordingStream.kCaptureStartLine);
         const stdoutTTY = process.stdout.isTTY,
             stderrTTY = process.stderr.isTTY;
         this.targetDescriptors = {
@@ -202,7 +198,7 @@ export default class TerminalRecordingStream extends RecordingStream {
         restoreProperty(process, 'stdin', stdin);
         this.input.unhook();
         this.targetDescriptors = null;
-        if (!this.silent) process.stdout.write(TerminalRecordingStream.kCaptureEndLine);
+        if (!this.silent) process.stdout.write(NodeRecordingStream.kCaptureEndLine);
     }
 
     override start(command?: string) {

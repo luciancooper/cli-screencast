@@ -1,41 +1,63 @@
-import type { Dimensions, Palette, BaseOptions, TerminalOptions, OutputOptions } from './types';
-import type { CaptureOptions } from './capture';
+import type { PickOptional, OutputOptions, OutputType, TerminalOptions } from './types';
 import type { RenderOptions } from './render';
-import { resolveTheme, Theme } from './theme';
-import { setLogLevel } from './logger';
+import { resolveTheme } from './theme';
+import { resolveFilePath } from './utils';
+import log from './logger';
 
-type CoreOptions = TerminalOptions & OutputOptions & RenderOptions & CaptureOptions;
-
-export interface Options extends BaseOptions, CoreOptions {
-    theme?: Partial<Theme>
+export function applyDefaults<D extends {}, O extends Partial<D> = Partial<D>>(def: D, options: O): D {
+    return {
+        ...def,
+        ...(Object.keys(def) as (keyof O)[]).reduce<O>((acc, key) => {
+            if (Object.hasOwn(options, key)) acc[key] = options[key];
+            return acc;
+        // eslint-disable-next-line @typescript-eslint/prefer-reduce-type-parameter
+        }, {} as O),
+    };
 }
 
-export interface Config extends Dimensions, Required<CoreOptions> {
-    theme: Theme<string>
-    palette: Palette
+const defaultOutputOptions: Required<OutputOptions> = {
+    output: 'svg',
+    outputPath: undefined,
+    scaleFactor: 4,
+    embedFonts: true,
+};
+
+export function applyDefOutputOptions(options: OutputOptions) {
+    const { output, outputPath, ...spec } = applyDefaults(defaultOutputOptions, options),
+        // create array of output specs
+        outputs: { type: OutputType, path: string | null }[] = [{ type: output, path: null }];
+    if (outputPath) {
+        // create output spec for each specified output path
+        for (const file of (typeof outputPath === 'string' ? [outputPath] : outputPath)) {
+            const { path, ext } = resolveFilePath(file);
+            if (['svg', 'png', 'json', 'yaml'].includes(ext)) {
+                outputs.push({ type: ext as OutputType, path });
+                continue;
+            }
+            log.warn(`output file path %O has ${
+                ext ? `unsupported extension ${ext}` : 'no extension'
+            }, ${output} data will be written to file`, file);
+            outputs.push({ type: output, path });
+        }
+    }
+    return { outputs, ...spec };
 }
 
-export const defaults: Required<BaseOptions & CoreOptions> = {
-    // BaseOptions
-    logLevel: 'info',
-    // TerminalOptions
+const defaultTerminalOptions: Required<PickOptional<TerminalOptions>> = {
     tabSize: 8,
     cursorHidden: false,
     windowTitle: undefined,
     windowIcon: undefined,
-    // OutputOptions
-    output: 'svg',
-    scaleFactor: 4,
-    embedFonts: true,
-    // CaptureOptions
-    writeMergeThreshold: 80,
-    endTimePadding: 500,
-    cropStartDelay: true,
-    captureCommand: true,
-    prompt: '> ',
-    keystrokeAnimation: true,
-    keystrokeAnimationInterval: 100,
-    // RenderOptions
+};
+
+export function applyDefTerminalOptions(
+    { columns, rows, ...options }: TerminalOptions,
+    overrides?: PickOptional<TerminalOptions>,
+) {
+    return { columns, rows, ...applyDefaults({ ...defaultTerminalOptions, ...overrides }, options) };
+}
+
+const defaultRenderOptions: Required<Omit<RenderOptions, 'theme'>> = {
     fontSize: 16,
     lineHeight: 1.25,
     columnWidth: undefined,
@@ -48,11 +70,6 @@ export const defaults: Required<BaseOptions & CoreOptions> = {
     paddingX: 5,
 };
 
-export function applyDefaults<T extends Options, D>(options: T, extraDefaults?: D) {
-    const { theme: themeOption, ...other } = options,
-        { palette, theme } = resolveTheme(themeOption),
-        { logLevel, ...spec } = { ...defaults, ...(extraDefaults ?? {}), ...other };
-    // set package wide log level
-    setLogLevel(logLevel);
-    return { ...spec, theme, palette };
+export function applyDefRenderOptions({ theme, ...options }: RenderOptions) {
+    return { ...applyDefaults(defaultRenderOptions, options), theme: resolveTheme(theme) };
 }

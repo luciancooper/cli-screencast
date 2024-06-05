@@ -1,7 +1,7 @@
 import { create } from 'react-test-renderer';
-import { applyDefaults } from '@src/options';
+import { applyDefRenderOptions } from '@src/options';
 import { resolveTheme } from '@src/theme';
-import { resolveTitle } from '@src/title';
+import { resolveTitle } from '@src/parser';
 import type { CursorKeyFrame } from '@src/types';
 import type { KeyTime } from '@src/render/Animation';
 import Context, { RenderContext } from '@src/render/Context';
@@ -11,7 +11,7 @@ import Text from '@src/render/Text';
 import { Cursor, CursorFrames, opacityKeyTimes, translateKeyTimes } from '@src/render/Cursor';
 import * as ansi from './helpers/ansi';
 
-const { theme: defTheme, palette, ...defProps } = applyDefaults({});
+const { theme: defTheme, ...defProps } = applyDefRenderOptions({});
 
 const defContext: RenderContext = {
     ...defProps,
@@ -61,7 +61,7 @@ describe('<Window/>', () => {
 
     test('render with a title', () => {
         expect(render(
-            <Window {...defProps} decorations={false} title={resolveTitle(palette, 'window title', 'node')}/>,
+            <Window {...defProps} decorations={false} title={resolveTitle('window title', 'node')}/>,
         )).toMatchObject({
             type: 'svg',
             children: [
@@ -84,8 +84,8 @@ describe('<Window/>', () => {
                 {...defProps}
                 decorations={false}
                 title={[
-                    { ...resolveTitle(palette, 'first title frame', 'shell'), time: 0, endTime: 1000 },
-                    { ...resolveTitle(palette, 'second title frame', 'node'), time: 1000, endTime: 2000 },
+                    { ...resolveTitle('first title frame', 'shell'), time: 0, endTime: 1000 },
+                    { ...resolveTitle('second title frame', 'node'), time: 1000, endTime: 2000 },
                 ]}
             />,
             { duration: 2000 },
@@ -118,7 +118,7 @@ describe('<Window/>', () => {
 describe('<WindowTitle/>', () => {
     test('render centered title text and icon', () => {
         expect(render(
-            <WindowTitle columnInset={0} title={resolveTitle(palette, 'window title', 'shell')}/>,
+            <WindowTitle columnInset={0} title={resolveTitle('window title', 'shell')}/>,
         )).toMatchObject({
             type: 'g',
             props: { className: 'title-frame' },
@@ -130,13 +130,13 @@ describe('<WindowTitle/>', () => {
     });
 
     test('render only icon', () => {
-        expect(render(<WindowTitle columnInset={0} title={resolveTitle(palette, undefined, 'shell')}/>))
+        expect(render(<WindowTitle columnInset={0} title={resolveTitle(undefined, 'shell')}/>))
             .toMatchObject({ type: 'g', children: [{ type: 'use', props: { x: 24.2 } }] });
     });
 
     test('truncate styled title text to fit window columns', () => {
         expect(render(
-            <WindowTitle columnInset={4} title={resolveTitle(palette, `longer ${ansi.bold('window title')}`)}/>,
+            <WindowTitle columnInset={4} title={resolveTitle(`longer ${ansi.bold('window title')}`)}/>,
             { columns: 20 },
         )).toMatchObject({
             type: 'g',
@@ -150,7 +150,7 @@ describe('<WindowTitle/>', () => {
 
     test('truncate to fit title text and icon', () => {
         expect(render(
-            <WindowTitle columnInset={4} title={resolveTitle(palette, 'longer window title', 'shell')}/>,
+            <WindowTitle columnInset={4} title={resolveTitle('longer window title', 'shell')}/>,
             { columns: 20 },
         )).toMatchObject({
             type: 'g',
@@ -166,7 +166,7 @@ describe('<WindowTitle/>', () => {
         expect(render(
             <WindowTitle
                 columnInset={0}
-                title={resolveTitle(palette, 'window title frame')}
+                title={resolveTitle('window title frame')}
                 keyFrame={{ time: 0, endTime: 1000 }}
             />,
             { duration: 2000 },
@@ -218,7 +218,7 @@ describe('<Text/>', () => {
             { type: 'text', props: { fill: defTheme.background }, children: ['inverted'] },
         ]);
         expect(render(
-            <Text x={0} y={0} span={8} fg={defTheme.red} bg={defTheme.yellow} inverted>inverted</Text>,
+            <Text x={0} y={0} span={8} fg={1} bg={3} inverted>inverted</Text>,
         )).toMatchObject([
             { type: 'rect', props: { fill: defTheme.red } },
             { type: 'text', props: { fill: defTheme.yellow }, children: ['inverted'] },
@@ -238,7 +238,7 @@ describe('<Text/>', () => {
 
 describe('<Cursor/>', () => {
     test('renders with an opacity animation when `cursorBlink` theme prop is enabled', () => {
-        const { theme } = resolveTheme({ cursorBlink: true });
+        const theme = resolveTheme({ cursorBlink: true });
         expect(render(<Cursor line={0} column={0}/>, { theme, grid: [1, 1] })).toMatchObject({
             type: 'rect',
             children: [{ type: 'animate', props: { attributeName: 'opacity' } }],
@@ -246,7 +246,7 @@ describe('<Cursor/>', () => {
     });
 
     test('renders a beam shaped rect when the `cursorType` theme prop is set to `beam`', () => {
-        const { theme } = resolveTheme({ cursorType: 'beam' });
+        const theme = resolveTheme({ cursorType: 'beam' });
         expect(render(<Cursor line={0} column={0}/>, { theme, grid: [1, 1] })).toMatchObject({
             type: 'rect',
             props: { y: 0, width: 0.15, height: 1 },
@@ -254,7 +254,7 @@ describe('<Cursor/>', () => {
     });
 
     test('renders a block shaped rect when the `cursorType` theme prop is set to `block`', () => {
-        const { theme } = resolveTheme({ cursorType: 'block' });
+        const theme = resolveTheme({ cursorType: 'block' });
         expect(render(<Cursor line={0} column={0}/>, { theme, grid: [1, 1] })).toMatchObject({
             type: 'rect',
             props: { y: 0, width: 1, height: 1 },
@@ -262,7 +262,7 @@ describe('<Cursor/>', () => {
     });
 
     test('renders an underline shaped rect when the `cursorType` theme prop is set to `underline`', () => {
-        const { theme } = resolveTheme({ cursorType: 'underline' });
+        const theme = resolveTheme({ cursorType: 'underline' });
         expect(render(<Cursor line={0} column={0}/>, { theme, grid: [1, 1] })).toMatchObject({
             type: 'rect',
             props: { y: 0.9, width: 1, height: 0.10 },

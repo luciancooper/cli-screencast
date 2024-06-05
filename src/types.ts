@@ -1,4 +1,3 @@
-import type { LogLevel } from './logger';
 import icons from './render/icons.json';
 
 /**
@@ -14,9 +13,9 @@ export type DeepPartial<T> = T extends (...args: any[]) => any ? T
         : T extends Record<string, any> ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
 /**
- * Get the optional keys of type `T` (all keys defined like `{ k?: v }`)
+ * Make all properties in `T` optional except for keys `K`
  */
-export type OptionalKeys<T> = { [K in keyof T]-?: undefined extends { [P in keyof T]: P }[K] ? K : never; }[keyof T];
+export type PartialExcept<T, K extends keyof T> = Pick<T, K> & Partial<Pick<T, Exclude<keyof T, K>>>;
 
 /**
  * Adds `undefined` to all properties of `T` defined with the `?` prefix.
@@ -27,7 +26,7 @@ export type Optionalize<T> = { [K in keyof T]: undefined extends { [P in keyof T
 /**
  * Create a type from all the optional keys of `T`.
  */
-export type PickOptional<T> = Pick<T, OptionalKeys<T>>;
+export type PickOptional<T> = { [K in keyof T as {} extends Pick<T, K> ? K : never]: T[K]; };
 
 /**
  * Create a type that represents the type of an objects `[key, value]` entry pairs.
@@ -39,16 +38,12 @@ export type Entry<T> = readonly [keyof T, T[keyof T]];
  */
 export type Entries<T> = Entry<T>[];
 
-export interface BaseOptions {
-    /**
-     * Control how much info is logged to the console during the render process
-     * Options are (in order of decending verbosity): 'debug', 'info', 'warn', 'error', and 'silent'
-     * @defaultValue 'info'
-     */
-    logLevel?: LogLevel
+export interface Dimensions {
+    columns: number
+    rows: number
 }
 
-export interface TerminalOptions {
+export interface TerminalOptions extends Dimensions {
     /**
      * Tab column width
      * @defaultValue `8`
@@ -78,12 +73,21 @@ export interface TerminalOptions {
     windowIcon?: string | boolean | undefined
 }
 
+export type OutputType = 'svg' | 'png' | 'json' | 'yaml';
+
 export interface OutputOptions {
     /**
      * The desired output format, either `svg` or `png`.
      * @defaultValue `'svg'`
      */
-    output?: 'svg' | 'png'
+    output?: OutputType
+
+    /**
+     * File path or array of file paths to write output to. The type of output will be inferred by the
+     * file extension (can be either svg or png).
+     * @defaultValue `undefined`
+     */
+    outputPath?: string | string[] | undefined
 
     /**
      * the device scale factor used when rendering to png, only applicable when `output` is `'png'`.
@@ -100,12 +104,6 @@ export interface OutputOptions {
 
 export type RGB = readonly [number, number, number];
 
-export interface Palette<T = string> {
-    [K: number]: T
-    readonly length: 16
-    [Symbol.iterator]: () => IterableIterator<T>
-}
-
 export interface AnsiStyle {
     /**
      * 6 bit props mask - [strikeThrough, inverse, underline, italic, dim, bold]
@@ -114,11 +112,11 @@ export interface AnsiStyle {
     /**
      * Foreground color
      */
-    fg?: string | undefined
+    fg?: number | string | undefined
     /**
      * Background color
      */
-    bg?: string | undefined
+    bg?: number | string | undefined
     /**
      * Hyperlink
      */
@@ -134,9 +132,10 @@ export interface AnsiStyleProps {
     strikeThrough: boolean
 }
 
-export interface Dimensions {
-    columns: number
-    rows: number
+export interface CaptureData extends Dimensions {
+    tabSize: number
+    endDelay: number
+    writes: { content: string, delay: number }[]
 }
 
 export interface CursorLocation {
@@ -170,20 +169,13 @@ export interface TerminalLines {
     lines: TerminalLine[]
 }
 
-export interface TerminalState extends TerminalLines {
-    title: Title
-    cursor: CursorLocation
-    cursorHidden: boolean
+export interface ScreenData extends Required<TerminalOptions> {
+    content: string
 }
 
-export interface ScreenData extends TerminalLines {
+export interface ParsedScreenData extends Dimensions, TerminalLines {
     cursor: CursorLocation | null
     title: Title
-}
-
-export interface Frame {
-    content: string
-    duration: number
 }
 
 export interface KeyFrame {
@@ -197,14 +189,21 @@ export interface CursorKeyFrame extends KeyFrame, CursorLocation {}
 
 export interface TitleKeyFrame extends KeyFrame, Title {}
 
-export interface CaptureData {
+export interface ParsedCaptureData extends Dimensions {
     content: ContentKeyFrame[]
     cursor: CursorKeyFrame[]
     title: TitleKeyFrame[]
     duration: number
 }
 
-export interface CaptureKeyFrame extends KeyFrame, ScreenData {}
+export interface CaptureKeyFrame extends KeyFrame, TerminalLines {
+    cursor: CursorLocation | null
+    title: Title
+}
+
+export interface ParsedCaptureFrames extends Dimensions {
+    frames: CaptureKeyFrame[]
+}
 
 export interface Size {
     width: number

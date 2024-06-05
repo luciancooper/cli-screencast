@@ -1,11 +1,8 @@
 import { Writable, type Readable } from 'stream';
 import { splitChars } from 'tty-strings';
-import type { TerminalOptions, TerminalState, TerminalLine, CursorLocation, Title, CaptureData } from './types';
-import type { WriteEvent, FinishEvent, SourceEvent } from './source';
-import { resolveTitle } from './title';
-import parse, { ParseContext } from './parse';
-import { clone } from './utils';
-import serialize from './serialize';
+import type { CaptureData } from './types';
+import type { StartEvent, WriteEvent, FinishEvent, SourceEvent } from './source';
+import { applyDefaults } from './options';
 
 interface BufferedWrite {
     time: number
@@ -60,39 +57,40 @@ export interface CaptureOptions {
     cropStartDelay?: boolean
 }
 
-export interface ScreenCaptureOptions extends Required<TerminalOptions & CaptureOptions>, ParseContext {}
+export const defaultCaptureOptions: Required<CaptureOptions> = {
+    writeMergeThreshold: 80,
+    endTimePadding: 500,
+    cropStartDelay: true,
+    captureCommand: true,
+    prompt: '> ',
+    keystrokeAnimation: true,
+    keystrokeAnimationInterval: 100,
+};
 
-export class ScreenCapture extends Writable {
+export class CaptureStream extends Writable {
     private started = false;
 
-    data: CaptureData = {
-        content: [],
-        cursor: [],
-        title: [],
-        duration: NaN,
-    };
+    private context: Pick<CaptureData, 'columns' | 'rows' | 'tabSize'> | null = null;
+
+    data: CaptureData | null = null;
+
+    private readonly writes: CaptureData['writes'] = [];
 
     private buffered: BufferedWrite | null = null;
 
-    private addedTime = 0;
+    private lastWriteTime = 0;
+
+    private accAdjustment = 0;
 
     private cropAdjustment = 0;
 
-    private readonly state: TerminalState;
-
-    private lastContent: { time: number, serialized: string, state: TerminalLine[] };
-
-    private lastCursor: { time: number, loc: CursorLocation | null };
-
-    private lastTitle: { time: number, serialized: string, state: Title };
+    private firstWrite = true;
 
     mergeThreshold: number;
 
     cropStartDelay: boolean;
 
     endTimePadding: number;
-
-    cursorHidden: boolean;
 
     captureCommand: boolean;
 
@@ -102,196 +100,156 @@ export class ScreenCapture extends Writable {
 
     keystrokeInterval: number;
 
-    context: ParseContext;
-
-    constructor({
-        cursorHidden,
-        windowTitle,
-        windowIcon,
-        writeMergeThreshold,
-        endTimePadding,
-        cropStartDelay,
-        captureCommand,
-        prompt,
-        keystrokeAnimation,
-        keystrokeAnimationInterval,
-        ...context
-    }: ScreenCaptureOptions) {
+    constructor(options: CaptureOptions) {
         super({ objectMode: true });
         // set options
-        this.mergeThreshold = writeMergeThreshold;
-        this.cropStartDelay = cropStartDelay;
-        this.endTimePadding = endTimePadding;
-        this.cursorHidden = cursorHidden;
-        this.captureCommand = captureCommand;
-        this.prompt = prompt;
-        this.keystrokeAnimation = keystrokeAnimation;
-        this.keystrokeInterval = keystrokeAnimationInterval;
-        this.context = context;
-        // initial state
-        const title = resolveTitle(context.palette, windowTitle, windowIcon);
-        this.state = {
-            lines: [],
-            cursor: { line: 0, column: 0 },
-            cursorHidden,
-            title,
-        };
-        this.lastContent = { time: 0, serialized: serialize.lines([]), state: [] };
-        this.lastCursor = { time: 0, loc: !cursorHidden ? clone(this.state.cursor) : null };
-        this.lastTitle = { time: 0, serialized: serialize.title(title), state: clone(title) };
-    }
-
-    private startCapture(command?: string) {
-        this.started = true;
-        if (!(command && this.captureCommand)) return;
-        const { state, keystrokeAnimation, keystrokeInterval } = this;
-        // if keystrokeAnimation is false, just update initial content
-        if (!keystrokeAnimation) {
-            // set initial content
-            parse(this.context, state, `${this.prompt}${command}\n`);
-            this.pushContent(0, state.lines);
-            this.pushCursor(0, !state.cursorHidden ? state.cursor : null);
-            return;
-        }
-        // set initial prompt content
-        parse(this.context, state, this.prompt);
-        // ensure cursor is visible for command capture
-        if (state.cursorHidden) parse(this.context, state, '\x1b[?25h');
-        // update initial content and cursor
-        this.pushContent(0, state.lines);
-        this.pushCursor(0, state.cursor);
-        // split command chars
-        let time = keystrokeInterval;
-        for (const char of splitChars(`${command}\n`)) {
-            parse(this.context, state, char);
-            this.pushContent(time, state.lines);
-            this.pushCursor(time, state.cursor);
-            time += keystrokeInterval;
-        }
-        this.addedTime = time;
-        // hide cursor if it is hidden at the start of the capture
-        if (this.cursorHidden) {
-            parse(this.context, state, '\x1b[?25l');
-            this.pushCursor(time, null);
-        }
-    }
-
-    private pushCursor(time: number, cursor: CursorLocation | null) {
-        const serialized = serialize.cursor(cursor),
-            last = this.lastCursor;
-        // compare updated cursor location to the last cursor location
-        if (serialize.cursor(last.loc) !== serialized) {
-            if (last.loc && time > last.time) {
-                this.data.cursor.push({ time: last.time, endTime: time, ...last.loc });
-            }
-            this.lastCursor = { time, loc: cursor && clone(cursor) };
-        }
-    }
-
-    private pushContent(time: number, lines: TerminalLine[]) {
-        const serialized = serialize.lines(lines),
-            last = this.lastContent;
-        // compare updated content lines to the last content lines
-        if (last.serialized !== serialized) {
-            if (time > last.time) {
-                this.data.content.push({ time: last.time, endTime: time, lines: last.state });
-            }
-            this.lastContent = { time, serialized, state: clone(lines) };
-        }
-    }
-
-    private pushTitle(time: number, title: Title) {
-        const serialized = serialize.title(title),
-            last = this.lastTitle;
-        // compare updated title to the last title
-        if (last.serialized !== serialized) {
-            if (time > last.time && last.serialized) {
-                this.data.title.push({ time: last.time, endTime: time, ...last.state });
-            }
-            this.lastTitle = { time, serialized, state: clone(title) };
-        }
+        const props = applyDefaults(defaultCaptureOptions, options);
+        this.mergeThreshold = props.writeMergeThreshold;
+        this.cropStartDelay = props.cropStartDelay;
+        this.endTimePadding = props.endTimePadding;
+        this.captureCommand = props.captureCommand;
+        this.prompt = props.prompt;
+        this.keystrokeAnimation = props.keystrokeAnimation;
+        this.keystrokeInterval = props.keystrokeAnimationInterval;
     }
 
     private pushFrame({ time, content }: BufferedWrite) {
-        const { state, addedTime } = this;
-        // parse frame content
-        parse(this.context, state, content);
-        // adjust time to account for time added to the beginning of the capture
-        const adjTime = time + addedTime;
-        // push content & cursor state
-        this.pushContent(adjTime, state.lines);
-        this.pushCursor(adjTime, !state.cursorHidden ? state.cursor : null);
-        this.pushTitle(adjTime, state.title);
-    }
-
-    private finishCapture({ time, adjustment = 0 }: FinishEvent) {
-        let duration: number;
-        if (!this.started) {
-            // capture was never started
-            duration = 0;
-        } else if (!this.buffered) {
-            // capture started, but no writes occurred
-            duration = (this.cropStartDelay ? 0 : time) + adjustment + this.addedTime + this.endTimePadding;
-        } else {
-            // capture started, and at least one write occurred
-            this.pushFrame(this.buffered);
-            this.buffered = null;
-            duration = (time - this.cropAdjustment) + adjustment + this.addedTime + this.endTimePadding;
-        }
-        this.data.duration = duration;
-        const { lastContent: content, lastCursor: cursor, lastTitle: title } = this;
-        // add last content keyframe
-        if (duration > content.time) {
-            this.data.content.push({ time: content.time, endTime: duration, lines: content.state });
-        }
-        // add last cursor keyframe if cursor is visible or if keyframes array is not empty
-        if (duration > cursor.time && cursor.loc) {
-            this.data.cursor.push({ time: cursor.time, endTime: duration, ...cursor.loc });
-        }
-        // add last title keyframe if title is not empty
-        if (duration > title.time && title.serialized) {
-            this.data.title.push({ time: title.time, endTime: duration, ...title.state });
-        }
+        // do not push empty writes
+        if (!content) return;
+        // push write
+        this.writes.push({ content, delay: time - this.lastWriteTime });
+        // update last write time
+        this.lastWriteTime = time;
     }
 
     private bufferWrite({ time, adjustment = 0, content }: WriteEvent): void {
-        const { buffered } = this;
-        if (buffered) {
-            const adjTime = (time - this.cropAdjustment) + adjustment;
-            if (adjTime - buffered.time > this.mergeThreshold) {
-                this.pushFrame(buffered);
-                this.buffered = { time: adjTime, content };
-            } else {
-                buffered.content += content;
-            }
-        } else {
-            this.cropAdjustment = this.cropStartDelay ? time : 0;
-            this.buffered = { time: (time - this.cropAdjustment) + adjustment, content };
+        // add to accumulated time adjustment
+        this.accAdjustment += adjustment;
+        // check if there are no previously buffered writes
+        if (!this.buffered) {
+            // set first buffered write
+            this.buffered = { time: (time - this.cropAdjustment) + this.accAdjustment, content };
+            return;
         }
+        const adjTime = (time - this.cropAdjustment) + this.accAdjustment;
+        if (adjTime - this.buffered.time > this.mergeThreshold) {
+            this.pushFrame(this.buffered);
+            this.buffered = { time: adjTime, content };
+        } else {
+            this.buffered.content += content;
+        }
+    }
+
+    private startCapture({
+        command,
+        columns,
+        rows,
+        tabSize,
+        cursorHidden,
+        windowTitle,
+        windowIcon,
+    }: StartEvent) {
+        // set capture started flag
+        this.started = true;
+        // store context for output capture data
+        this.context = { columns, rows, tabSize };
+        // determine initial window title / icon escape
+        let windowEscape = '';
+        if (windowTitle) {
+            windowEscape = windowIcon ? (
+                typeof windowIcon === 'string' ? `\x1b]2;${windowTitle}\x07\x1b]1;${windowIcon}\x07`
+                    : `\x1b]0;${windowTitle}\x07`
+            ) : `\x1b]2;${windowTitle}\x07`;
+        } else if (windowIcon) {
+            windowEscape = `\x1b]1;${typeof windowIcon === 'string' ? windowIcon : '_'}\x07`;
+        }
+        // initial cursor visibility escape
+        const cursorEscape = cursorHidden ? '\x1b[?25l' : '';
+        if (!(command && this.captureCommand)) {
+            const esc = windowEscape + cursorEscape;
+            if (esc) this.bufferWrite({ time: 0, content: esc });
+            return;
+        }
+        const { keystrokeAnimation, keystrokeInterval } = this;
+        // if keystrokeAnimation is false, just update initial content
+        if (!keystrokeAnimation) {
+            // set initial content
+            const content = `${windowEscape}${cursorEscape}${this.prompt}${command}\n`;
+            this.bufferWrite({ time: 0, content });
+            return;
+        }
+        // buffer initial prompt content
+        this.bufferWrite({ time: 0, content: windowEscape + this.prompt });
+        // split command chars
+        for (const char of splitChars(`${command}\n`)) {
+            this.bufferWrite({ time: 0, adjustment: keystrokeInterval, content: char });
+        }
+        // hide cursor if it is hidden at the start of the capture
+        this.bufferWrite({ time: 0, adjustment: keystrokeInterval, content: cursorEscape });
+    }
+
+    private finishCapture({ time, adjustment = 0 }: FinishEvent) {
+        // add to accumulated time adjustment
+        this.accAdjustment += adjustment;
+        // process buffered writes
+        if (this.buffered) {
+            this.pushFrame(this.buffered);
+            this.buffered = null;
+        }
+        // capture duration
+        const duration = (time - this.cropAdjustment) + this.accAdjustment + this.endTimePadding;
+        // create capture data
+        this.data = {
+            ...this.context!,
+            writes: this.writes,
+            endDelay: duration - this.lastWriteTime,
+        };
     }
 
     override _write(event: SourceEvent, enc: BufferEncoding, cb: (error?: Error | null) => void) {
-        switch (event.type) {
-            case 'start':
-                this.startCapture(event.command);
-                break;
-            case 'finish':
-                this.finishCapture(event);
-                break;
-            default:
-                this.bufferWrite(event);
-                break;
+        let err: Error | undefined;
+        try {
+            // ensure capture has not already been finished
+            if (this.data) {
+                throw new Error('Capture already finished');
+            }
+            if (event.type === 'start') {
+                // ensure this is not a duplicate start event
+                if (this.started) {
+                    throw new Error('Capture has already started');
+                }
+                // start capture
+                this.startCapture(event);
+            } else {
+                // ensure capture has started
+                if (!this.started) {
+                    throw new Error('Capture has not started');
+                }
+                // set crop adjustment if this is the first event after start
+                if (this.firstWrite) {
+                    this.cropAdjustment = this.cropStartDelay ? event.time : 0;
+                    this.firstWrite = false;
+                }
+                if (event.type === 'finish') {
+                    this.finishCapture(event);
+                } else {
+                    this.bufferWrite(event);
+                }
+            }
+        } catch (error) {
+            err = error as Error;
         }
-        cb();
+        cb(err);
     }
 }
 
-export default function captureSource(source: Readable, props: ScreenCaptureOptions) {
+export default function captureSource(source: Readable, props: CaptureOptions) {
     return new Promise<CaptureData>((resolve, reject) => {
-        const recording = source.pipe(new ScreenCapture(props));
-        recording.on('finish', () => {
-            resolve(recording.data);
+        const capture = source.pipe(new CaptureStream(props));
+        capture.on('finish', () => {
+            if (capture.data) resolve(capture.data);
+            else reject(new Error('Incomplete capture - source did not emit finish'));
         });
-        recording.on('error', reject);
+        capture.on('error', reject);
     });
 }

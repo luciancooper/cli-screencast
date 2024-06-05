@@ -2,13 +2,13 @@ import fs from 'fs';
 import path from 'path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { FunctionComponent } from 'react';
-import type { Dimensions } from '../src/types';
-import { applyDefaults, type Options } from '../src/options';
-import { resolveTitle } from '../src/title';
+import type { TerminalOptions } from '../src/types';
+import { applyDefRenderOptions, applyDefTerminalOptions } from '../src/options';
+import { resolveTitle } from '../src/parser/title';
 import createFontCss from '../src/fonts';
 import Context from '../src/render/Context';
 import Window from '../src/render/Window';
-import { resolveContext } from '../src/render';
+import { resolveContext, type RenderOptions } from '../src/render';
 import log, { setLogLevel } from '../src/logger';
 
 const labelFontProps = {
@@ -106,23 +106,17 @@ const DiagramLabel: FunctionComponent<DiagramLabelProps & { labelColumnWidth: nu
     );
 };
 
-interface DiagramOptions {
+interface DiagramOptions extends Partial<TerminalOptions>, RenderOptions {
     scaleFactor: number
     insets: [number, number]
 }
 
-async function render({ scaleFactor, insets: [ix, iy], ...options }: Partial<Dimensions> & Options & DiagramOptions) {
-    const props = applyDefaults({
-            logLevel: 'debug',
-            columns: 50,
-            rows: 10,
-            cursorHidden: true,
-            theme: { fontFamily: "'Cascadia Code', 'CaskaydiaCove NF Mono'" },
-            ...options,
-        }),
-        title = resolveTitle(props.palette, props.windowTitle, props.windowIcon),
-        font = await createFontCss({ title, lines: [] }, props.theme.fontFamily),
-        [context, windowOptions] = resolveContext({ ...props, ...font }),
+async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOptions) {
+    const termProps = applyDefTerminalOptions({ columns: 50, rows: 10, ...options }, { cursorHidden: true }),
+        renderProps = applyDefRenderOptions(options),
+        title = resolveTitle(termProps.windowTitle, termProps.windowIcon),
+        font = await createFontCss({ title, lines: [] }, renderProps.theme.fontFamily),
+        [context, windowOptions] = resolveContext({ ...renderProps, ...font }, termProps),
         { columns, rows, grid: [dx, dy] } = context,
         { paddingX, paddingY } = windowOptions,
         top = windowOptions.decorations ? windowOptions.insetMajor : (title.icon || title.text) ? dy * 1.5 : 0,
@@ -317,6 +311,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: Partial<Dim
             decorations: true,
             windowIcon: 'shell',
             windowTitle: 'Title',
+            theme: { fontFamily: "'Cascadia Code', 'CaskaydiaCove NF Mono'" },
         }));
         log.info('wrote window options diagram to %O', filePath);
     } catch (e: unknown) {

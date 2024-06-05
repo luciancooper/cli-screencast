@@ -1,6 +1,6 @@
 import { useContext, type FunctionComponent, type SVGProps } from 'react';
 import type { TerminalLine, KeyFrame } from '../types';
-import { expandProps } from '../ansi';
+import { expandAnsiProps } from '../parser';
 import Context from './Context';
 import Text from './Text';
 import { Animation } from './Animation';
@@ -16,7 +16,9 @@ const Frame: FunctionComponent<FrameProps> = ({ lines, keyFrame, ...svgProps }) 
         <g className='frame' dominantBaseline='central' {...svgProps}>
             {lines.flatMap(({ chunks }, i) => (
                 chunks.map(({ str, x: [x, span], style: { props, ...style } }, j) => (
-                    <Text key={`${i}:${j}`} x={x} y={i} span={span} {...style} {...expandProps(props)}>{str}</Text>
+                    <Text key={`${i}:${j}`} x={x} y={i} span={span} {...style} {...expandAnsiProps(props)}>
+                        {str}
+                    </Text>
                 ))
             ))}
             {keyFrame ? (

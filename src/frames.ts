@@ -1,4 +1,4 @@
-import type { CaptureData, CursorLocation, Title, CaptureKeyFrame } from './types';
+import type { ParsedCaptureData, CursorLocation, Title, ParsedCaptureFrames } from './types';
 
 const emptyTitle = (): Title => ({
     icon: undefined,
@@ -7,7 +7,7 @@ const emptyTitle = (): Title => ({
     chunks: [],
 });
 
-export default function extractCaptureFrames(capture: CaptureData): CaptureKeyFrame[] {
+export default function extractCaptureFrames({ columns, rows, ...capture }: ParsedCaptureData): ParsedCaptureFrames {
     // fill cursor frames
     const cursorFrames: { time: number, endTime: number, loc: CursorLocation | null }[] = [];
     {
@@ -35,11 +35,11 @@ export default function extractCaptureFrames(capture: CaptureData): CaptureKeyFr
     let content = contentFrames.shift(),
         cursor = cursorFrames.shift(),
         title = titleFrames.shift();
-    const frames: CaptureKeyFrame[] = [];
+    const data: ParsedCaptureFrames = { columns, rows, frames: [] };
     while (content && cursor && title) {
         const time = Math.max(content.time, cursor.time, title.time),
             endTime = Math.min(content.endTime, cursor.endTime, title.endTime);
-        frames.push({
+        data.frames.push({
             time,
             endTime,
             title: title.data,
@@ -50,5 +50,5 @@ export default function extractCaptureFrames(capture: CaptureData): CaptureKeyFr
         if (cursor.endTime === endTime) cursor = cursorFrames.shift();
         if (title.endTime === endTime) title = titleFrames.shift();
     }
-    return frames;
+    return data;
 }

@@ -1,12 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import type {
-    Dimensions,
-    CaptureData,
-    ScreenData,
-    Size,
-    SVGData,
-    CaptureKeyFrame,
-    SVGCaptureData,
+    Dimensions, ParsedCaptureData, ParsedScreenData, ParsedCaptureFrames, Size, SVGData, SVGCaptureData,
 } from '../types';
 import type { Theme } from '../theme';
 import Context, { type RenderContext } from './Context';
@@ -15,6 +9,11 @@ import Frame from './Frame';
 import { Cursor, CursorFrames } from './Cursor';
 
 export interface RenderOptions extends WindowOptions {
+    /**
+     * Theme specification
+     */
+    theme?: Partial<Theme>
+
     /**
      * @defaultValue `16`
      */
@@ -36,7 +35,7 @@ export interface RenderOptions extends WindowOptions {
     iconColumnWidth?: number
 }
 
-export interface RenderProps extends Dimensions, Required<RenderOptions> {
+export interface RenderProps extends Required<RenderOptions> {
     theme: Theme<string>
     fontFamily?: string
     fontColumnWidth?: number | undefined
@@ -44,8 +43,6 @@ export interface RenderProps extends Dimensions, Required<RenderOptions> {
 }
 
 export function resolveContext({
-    columns,
-    rows,
     theme,
     fontSize,
     columnWidth,
@@ -53,7 +50,7 @@ export function resolveContext({
     lineHeight,
     iconColumnWidth,
     ...windowOptions
-}: RenderProps, duration = 0) {
+}: RenderProps, { columns, rows, duration = 0 }: Dimensions & { duration?: number }) {
     const context: RenderContext = {
         columns,
         rows,
@@ -66,8 +63,8 @@ export function resolveContext({
     return [context, windowOptions] as const;
 }
 
-export function renderCaptureSvg(data: CaptureData, options: RenderProps): string {
-    const [context, windowOptions] = resolveContext(options, data.duration);
+export function renderCaptureSvg(data: ParsedCaptureData, options: RenderProps): string {
+    const [context, windowOptions] = resolveContext(options, data);
     return renderToStaticMarkup(
         <Context.Provider value={context}>
             <Window {...windowOptions} title={data.title.length ? data.title : null}>
@@ -80,9 +77,9 @@ export function renderCaptureSvg(data: CaptureData, options: RenderProps): strin
     );
 }
 
-export function renderScreenSvg(data: ScreenData, options: RenderProps): SVGData {
+export function renderScreenSvg(data: ParsedScreenData, options: RenderProps): SVGData {
     const { lines, title, cursor } = data,
-        [context, windowOptions] = resolveContext(options);
+        [context, windowOptions] = resolveContext(options, data);
     let size = { width: NaN, height: NaN };
     const svg = renderToStaticMarkup(
         <Context.Provider value={context}>
@@ -95,9 +92,9 @@ export function renderScreenSvg(data: ScreenData, options: RenderProps): SVGData
     return { ...size, svg };
 }
 
-export function renderCaptureFrames(captureFrames: CaptureKeyFrame[], options: RenderProps): SVGCaptureData {
-    const [context, windowOptions] = resolveContext(options),
-        hasTitle = captureFrames.some(({ title }) => (!!title.icon || !!title.text)),
+export function renderCaptureFrames(data: ParsedCaptureFrames, options: RenderProps): SVGCaptureData {
+    const [context, windowOptions] = resolveContext(options, data),
+        hasTitle = data.frames.some(({ title }) => (!!title.icon || !!title.text)),
         frames = [];
     let size = { width: 0, height: 0 };
     const sizeRef = (s: Size | null) => {
@@ -106,7 +103,7 @@ export function renderCaptureFrames(captureFrames: CaptureKeyFrame[], options: R
             height: Math.max(size.height, s!.height),
         };
     };
-    for (const { time, endTime, ...frame } of captureFrames) {
+    for (const { time, endTime, ...frame } of data.frames) {
         // render svg frame
         const svg = renderToStaticMarkup(
             <Context.Provider value={context}>

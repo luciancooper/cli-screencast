@@ -26,7 +26,7 @@ yarn add cli-screencast
 
 All methods accept an `options` object as the last argument. Options common to all methods are listed in the [options](#options) section below.
 
-All methods are asynchronous and return a `string` or `Buffer` depending on the output format specified by the [`output`](#options.output) option. If `output` is `'svg'`, the method will return an svg image `string`. If `output` is `'png'`, the method will return a png image `Buffer`.
+All methods are asynchronous and return a `string` or `Buffer` depending on the output format specified by the [`output`](#options.output) option. If `output` is `'svg'`, `'json'`, or `'yaml'`, the method will return a svg, json, or yaml data `string`. If `output` is `'png'`, the method will return a png image `Buffer`.
 
 ### `renderScreen(content, options)`
 
@@ -116,15 +116,15 @@ The maximum amount of time the process is allowed to run in milliseconds. If gre
 
 The signal to be used when the spawned process is killed by `timeout`. Default is `'SIGTERM'`.
 
-### `renderCapture(fn, options)`
+### `renderCallback(fn, options)`
 
-Capture and render all terminal output that occurs within a callback function.
+Capture and render all writes to stdout that occur within a callback function.
 
 > #### *Arguments:*
 
 › &nbsp; **fn** &nbsp;•&nbsp; `(source) => void`
 
-Callback function within which terminal output is captured. Can be synchronous or asynchronous. The callback function will be passed a `TerminalRecordingStream` instance.
+Callback function within which terminal output is captured. Can be synchronous or asynchronous. The callback function will be passed a `NodeRecordingStream` instance.
 
 **Note:** Within the scope of this function, all writes to `process.stdout` and `process.stderr`, (and by extension calls to `console.log` and `console.error`) will be captured.
 
@@ -144,6 +144,20 @@ Connect capture session to `process.stdin` to capture any input from the user. D
 
 Silently capture output to `process.stdout` and `process.stderr`. Defaults to `true`.
 
+### `renderData(path, options)`
+
+Render a screencast or screenshot from a json or yaml data file. If any of the other api methods were used to write screencast data to json or yaml, this method can be used to render that data to svg or png.
+
+> #### *Arguments:*
+
+› &nbsp; **path** &nbsp;•&nbsp; `string`
+
+Json or yaml data file containing the screencast data to render.
+
+› &nbsp; **options** &nbsp;•&nbsp; `Object`
+
+Options config object to specify [configuration options](#options).
+
 ## Options
 
 <a name='options.logLevel'></a>
@@ -156,21 +170,26 @@ Controls how much info is logged to the console during the render process. Optio
 <a name='options.output'></a>
 › &nbsp; **output** &nbsp;•&nbsp; `string`
 
-The desired output format. Must be either `'svg'` or `'png'`. The default is `'svg'`.
+The desired output format. Must be either `'svg'`, `'png'`, `'json'`, or `'yaml'`. The default is `'svg'`.
+
+<a name='options.outputPath'></a>
+› &nbsp; **outputPath** &nbsp;•&nbsp; `string | string[]`
+
+File path or array of file paths to write output to. The type of output will be inferred by the file extension (can be svg, png, json, or yaml). Default is `undefined`.
 
 <a name='options.scaleFactor'></a>
 › &nbsp; **scaleFactor** &nbsp;•&nbsp; `number`
 
 The device scale factor used when rendering to png. Default is `4`.
 
-**Note:** This option is only applicable when `output` is `'png'`.
+**Note:** This option is only applicable when rendering to png.
 
 <a name='options.embedFonts'></a>
 › &nbsp; **embedFonts** &nbsp;•&nbsp; `boolean`
 
 Embed required fonts when rendering to svg, Defaults to `true`.
 
-**Note:** This option is only applicable when `output` is `'svg'`.
+**Note:** This option is only applicable when rendering to svg.
 
 > ### *Capture Related Options*
 
