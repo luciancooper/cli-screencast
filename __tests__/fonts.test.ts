@@ -119,9 +119,10 @@ describe('getSystemFonts', () => {
         });
     });
 
-    test('filters results to match an array of font-family names', async () => {
-        const fonts = await getSystemFonts(['Monaco']);
-        expect(Object.keys(fonts)).toEqual(['Monaco']);
+    test('filters results to match an array of case insensitive font-family names', async () => {
+        const fonts = Object.keys(await getSystemFonts(['Monaco', 'cascadia code']));
+        expect(fonts).toHaveLength(2);
+        expect(fonts).toEqual(expect.arrayContaining(['Monaco', 'Cascadia Code']));
     });
 });
 
@@ -155,9 +156,9 @@ describe('resolveFonts', () => {
         });
     });
 
-    test('resolves system font families', async () => {
+    test('resolves system font families matching names case insensitively', async () => {
         const subset = createContentSubsets(['abc', 'cde', 'efg', 'ghi']);
-        await expect(resolveFonts(subset, 'Cascadia Code')).resolves.toStrictEqual<ResolvedFontData>({
+        await expect(resolveFonts(subset, 'cascadia code')).resolves.toStrictEqual<ResolvedFontData>({
             fontFamilies: [{
                 name: 'Cascadia Code',
                 type: 'system',
@@ -201,7 +202,7 @@ describe('resolveFonts', () => {
 
     test('uses fallbacks when font families do not support a style', async () => {
         const subset = createContentSubsets(['abcʃ∂∆', '∆∏∑', 'cde', '']);
-        await expect(resolveFonts(subset, '"Fira Code", Monaco, monospace')).resolves.toEqual<ResolvedFontData>({
+        await expect(resolveFonts(subset, '"Fira Code", monaco, MONOSPACE')).resolves.toEqual<ResolvedFontData>({
             fontFamilies: [{
                 name: 'Fira Code',
                 type: 'google',

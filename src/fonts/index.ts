@@ -1,6 +1,7 @@
 import log from '../logger';
 import type { ResolvedFontFamily } from './types';
 import extractContentSubsets, { createContentSubsets, type FrameData, type ContentSubsets } from './content';
+import { caselessMatch } from './names';
 import { getSystemFonts, resolveSystemFont, embedSystemFont } from './system';
 import { fetchGoogleFontMetadata, resolveGoogleFont, embedGoogleFont } from './google';
 
@@ -41,6 +42,8 @@ export async function resolveFonts(
     const familyNames = fontFamily.split(',').map((f) => f.trim().replace(/(?:^["']|["']$)/g, '')),
         // fetch system fonts
         systemFonts = await getSystemFonts(familyNames),
+        // get system font keys
+        systemFontKeys = Object.keys(systemFonts),
         // create object to accumulate resolved font data
         resolved: { families: ResolvedFontFamily[], columnWidth: [number, number | undefined][] } = {
             families: [],
@@ -50,14 +53,15 @@ export async function resolveFonts(
     for (let i = 0; i < familyNames.length; i += 1) {
         const name = familyNames[i]!;
         // if family is a generic key, add it to the embedded family spec and continue
-        if (genericFamilies.includes(name)) {
-            resolved.families.push({ name, type: 'generic' });
+        if (genericFamilies.includes(name.toLocaleLowerCase())) {
+            resolved.families.push({ name: name.toLocaleLowerCase(), type: 'generic' });
             continue;
         }
         // check if specified font is installed locally
-        if (systemFonts[name]) {
+        const sid = caselessMatch(systemFontKeys, name);
+        if (sid) {
             // resolve from locally installed system font
-            subsets = await resolveSystemFont(resolved, subsets, { name, fonts: systemFonts[name]! });
+            subsets = await resolveSystemFont(resolved, subsets, { name: sid, fonts: systemFonts[sid]! });
         } else {
             // check if specified font can be fetched from the google fonts api
             const meta = await fetchGoogleFontMetadata(name);
@@ -66,8 +70,8 @@ export async function resolveFonts(
         if (subsets.coverage.empty()) {
             resolved.families.push(
                 ...familyNames.slice(i + 1)
-                    .filter((n) => genericFamilies.includes(n))
-                    .map((n) => ({ name: n, type: 'generic' } as const)),
+                    .filter((n) => genericFamilies.includes(n.toLocaleLowerCase()))
+                    .map((n) => ({ name: n.toLocaleLowerCase(), type: 'generic' } as const)),
             );
             break;
         }

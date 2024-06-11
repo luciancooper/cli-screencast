@@ -114,3 +114,12 @@ export function localizeNames(records: NameRecord[]) {
     }
     return names;
 }
+
+export function caselessMatch(names: string[], match: string): string | null {
+    for (const name of names) {
+        if (name.localeCompare(match, undefined, { sensitivity: 'accent' }) === 0) {
+            return name;
+        }
+    }
+    return null;
+}

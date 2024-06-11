@@ -4,7 +4,7 @@ import type {
 } from './types';
 import FontReader from './reader';
 import { getEncoding } from './encoding';
-import { getLanguage, localizeNames } from './names';
+import { getLanguage, localizeNames, caselessMatch } from './names';
 import { getFontStyle, extendFontStyle } from './style';
 import { type CmapEncodingRecord, cmapCoverage, selectCmapRecord } from './cmap';
 
@@ -464,7 +464,7 @@ export default class FontDecoder extends FontReader {
             // determine font family name and font style
             { family, style } = getFontStyle(names, os2, head);
         // apply family name filter if provided
-        if (checkName && (!family || (this.match && !this.match.includes(family)))) return;
+        if (checkName && (!family || (this.match && !caselessMatch(this.match, family)))) return;
         // decode 'cmap' table
         const cmap = await this.decodeSfntTable(header, 'cmap', this.cmapTable, 4);
         // code point coverage cannot be determined if font does not contain a 'cmap' table
