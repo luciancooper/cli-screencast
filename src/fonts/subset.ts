@@ -1,6 +1,6 @@
 import path from 'path';
 import { promises as fs } from 'fs';
-import type { SystemFont, SfntHeader } from './types';
+import type { SystemFontData, SfntHeader } from './types';
 
 declare global {
     const WebAssembly: {
@@ -174,6 +174,12 @@ async function extractTtcFont(filePath: string, header: SfntHeader): Promise<Buf
     }
 }
 
+function* cpIterator(chars: string): IterableIterator<number> {
+    for (const c of chars) {
+        yield c.codePointAt(0)!;
+    }
+}
+
 function hb_tag(tag: string): number {
     return ((tag.charCodeAt(0) & 0xFF) << 24)
         | ((tag.charCodeAt(1) & 0xFF) << 16)
@@ -182,8 +188,8 @@ function hb_tag(tag: string): number {
 }
 
 export async function subsetFontFile(
-    { filePath, ttcSubfont, fvarInstance }: SystemFont,
-    coverage: Iterable<number>,
+    { filePath, fvar, ttcSubfont }: Pick<SystemFontData, 'filePath' | 'fvar' | 'ttcSubfont'>,
+    coverage: string,
 ): Promise<Buffer | null> {
     // read the original font file
     let originalFont: Buffer;
@@ -209,8 +215,8 @@ export async function subsetFontFile(
     // set input flags
     hb.hb_subset_input_set_flags(input, 1 /* HB_SUBSET_FLAGS_NO_HINTING  */);
     // pin axes to specific variation if this is a variable font
-    if (fvarInstance) {
-        for (const [tag, value] of Object.entries(fvarInstance.coords)) {
+    if (fvar) {
+        for (const [tag, value] of fvar) {
             hb.hb_subset_input_pin_axis_location(input, face, hb_tag(tag), value);
         }
     }
@@ -220,7 +226,7 @@ export async function subsetFontFile(
     hb.hb_set_invert(layoutFeatures);
     // Add unicodes indices
     const inputUnicodes = hb.hb_subset_input_unicode_set(input);
-    for (const cp of coverage) hb.hb_set_add(inputUnicodes, cp);
+    for (const cp of cpIterator(coverage)) hb.hb_set_add(inputUnicodes, cp);
     let subset;
     try {
         subset = hb.hb_subset_or_fail(face, input);

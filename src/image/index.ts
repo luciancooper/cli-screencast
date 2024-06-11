@@ -12,8 +12,6 @@ function createBrowser(): Promise<puppeteer.Browser> {
 async function createImageRenderer({ width, height }: Size, deviceScaleFactor: number) {
     const browser = await createBrowser(),
         page = await browser.newPage();
-    // prevent HTTP requests over the network
-    await page.setOfflineMode(true);
     // set viewport
     await page.setViewport({ width: Math.ceil(width), height: Math.ceil(height), deviceScaleFactor });
     // create render function

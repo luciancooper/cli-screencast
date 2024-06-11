@@ -267,6 +267,10 @@ export class MeasuredGraphemeSet implements Iterable<number> {
         return this.chars.length === 0;
     }
 
+    string(): string {
+        return this.chars.map(([char]) => char).join('');
+    }
+
     /**
      * Iterate over the code points of each character in the set
      */

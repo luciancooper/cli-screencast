@@ -5,7 +5,7 @@ import type { FunctionComponent } from 'react';
 import type { TerminalOptions } from '../src/types';
 import { applyDefRenderOptions, applyDefTerminalOptions } from '../src/options';
 import { resolveTitle } from '../src/parser/title';
-import createFontCss from '../src/fonts';
+import { resolveFonts, embedFontCss } from '../src/fonts';
 import Context from '../src/render/Context';
 import Window from '../src/render/Window';
 import { resolveContext, type RenderOptions } from '../src/render';
@@ -115,8 +115,9 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
     const termProps = applyDefTerminalOptions({ columns: 50, rows: 10, ...options }, { cursorHidden: true }),
         renderProps = applyDefRenderOptions(options),
         title = resolveTitle(termProps.windowTitle, termProps.windowIcon),
-        font = await createFontCss({ title, lines: [] }, renderProps.theme.fontFamily),
-        [context, windowOptions] = resolveContext({ ...renderProps, ...font }, termProps),
+        { fontFamilies, fontColumnWidth } = await resolveFonts({ title, lines: [] }, renderProps.theme.fontFamily),
+        font = await embedFontCss(fontFamilies),
+        [context, windowOptions] = resolveContext({ ...renderProps, ...font, fontColumnWidth }, termProps),
         { columns, rows, grid: [dx, dy] } = context,
         { paddingX, paddingY } = windowOptions,
         top = windowOptions.decorations ? windowOptions.insetMajor : (title.icon || title.text) ? dy * 1.5 : 0,
@@ -259,14 +260,11 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
         }
     }
     // create embedded label font css
-    const { css, fontFamily: labelFontFamily, fontColumnWidth: labelColumnWidth } = {
-        fontFamily: labelFontProps.fontFamily,
-        fontColumnWidth: undefined,
-        ...await createFontCss(
-            labels.map(({ text }) => text).join(''),
-            labelFontProps.fontFamily,
-        ),
-    };
+    const labelFont = await resolveFonts(labels.map(({ text }) => text).join(''), labelFontProps.fontFamily),
+        { css, fontFamily: labelFontFamily } = {
+            fontFamily: labelFontProps.fontFamily,
+            ...await embedFontCss(labelFont.fontFamilies),
+        };
     return renderToStaticMarkup(
         <svg
             xmlns='http://www.w3.org/2000/svg'
@@ -286,7 +284,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
                 <g fontSize={labelFontProps.fontSize} fontFamily={labelFontFamily}>
                     {css ? <style dangerouslySetInnerHTML={{ __html: css }}/> : null}
                     {labels.map((labelProps, i) => (
-                        <DiagramLabel key={`label-${i}`} labelColumnWidth={labelColumnWidth} {...labelProps}/>
+                        <DiagramLabel key={`label-${i}`} labelColumnWidth={labelFont.fontColumnWidth} {...labelProps}/>
                     ))}
                 </g>
             </g>

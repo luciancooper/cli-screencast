@@ -1,4 +1,6 @@
-import type { CaptureData, ScreenData, ParsedCaptureData, OutputOptions, TerminalOptions } from './types';
+import type {
+    CaptureData, ScreenData, ParsedCaptureData, ParsedScreenData, OutputOptions, TerminalOptions,
+} from './types';
 import { applyDefTerminalOptions, applyDefOutputOptions, applyDefRenderOptions } from './options';
 import { applyLoggingOptions, type LoggingOptions } from './logger';
 import { parseScreen, parseCapture } from './parser';
@@ -7,7 +9,7 @@ import readableSpawn, { type SpawnOptions } from './spawn';
 import NodeRecordingStream, { type CallbackOptions, type RunCallback } from './node';
 import captureSource, { type CaptureOptions } from './capture';
 import extractCaptureFrames from './frames';
-import createFontCss from './fonts';
+import { resolveFonts, embedFontCss, type ResolvedFontData } from './fonts';
 import { renderScreenSvg, renderCaptureSvg, renderCaptureFrames, type RenderOptions } from './render';
 import { createPng, createAnimatedPng } from './image';
 import { dataToJson, dataToYaml, dataFromFile } from './data';
@@ -24,7 +26,9 @@ async function renderScreenData(screen: ScreenData, options: OutputOptions & Ren
     const { outputs, scaleFactor, embedFonts } = applyDefOutputOptions(options),
         props = applyDefRenderOptions(options),
         cache: OutputCache = {};
-    let output: string | Buffer;
+    let parsed: ParsedScreenData | null = null,
+        fonts: ResolvedFontData | null = null,
+        output: string | Buffer;
     for (const { type, path } of outputs) {
         if (!cache[type]) {
             if (type === 'json') {
@@ -32,10 +36,11 @@ async function renderScreenData(screen: ScreenData, options: OutputOptions & Ren
             } else if (type === 'yaml') {
                 cache[type] = dataToYaml('screen', screen);
             } else {
-                const parsed = parseScreen(screen),
-                    font = (type === 'png' || embedFonts)
-                        ? await createFontCss(parsed, props.theme.fontFamily) : null,
-                    rendered = renderScreenSvg(parsed, { ...props, ...font });
+                parsed ??= parseScreen(screen);
+                fonts ??= await resolveFonts(parsed, props.theme.fontFamily);
+                const { fontFamilies, fontColumnWidth } = fonts,
+                    css = (type === 'png' || embedFonts) ? await embedFontCss(fontFamilies, type === 'png') : null,
+                    rendered = renderScreenSvg(parsed, { ...props, fontColumnWidth, ...css });
                 if (type === 'svg') cache[type] = rendered.svg;
                 else cache[type] = await createPng(rendered, scaleFactor);
             }
@@ -51,6 +56,7 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
         props = applyDefRenderOptions(options),
         cache: OutputCache = {};
     let parsed: ParsedCaptureData | null = null,
+        fonts: ResolvedFontData | null = null,
         output: string | Buffer;
     for (const { type, path } of outputs) {
         if (!cache[type]) {
@@ -60,18 +66,16 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
                 cache[type] = dataToYaml('capture', capture);
             } else {
                 parsed ??= parseCapture(capture);
+                fonts ??= await resolveFonts(parsed, props.theme.fontFamily);
+                const { fontFamilies, fontColumnWidth } = fonts;
                 if (type === 'png') {
                     const frames = extractCaptureFrames(parsed),
-                        svgFrames = renderCaptureFrames(frames, {
-                            ...props,
-                            ...await createFontCss(frames, props.theme.fontFamily),
-                        });
+                        css = await embedFontCss(fontFamilies, true),
+                        svgFrames = renderCaptureFrames(frames, { ...props, fontColumnWidth, ...css });
                     cache[type] = await createAnimatedPng(svgFrames, scaleFactor);
                 } else {
-                    cache[type] = renderCaptureSvg(parsed, {
-                        ...props,
-                        ...(embedFonts ? await createFontCss(parsed, props.theme.fontFamily) : null),
-                    });
+                    const css = embedFonts ? await embedFontCss(fontFamilies) : null;
+                    cache[type] = renderCaptureSvg(parsed, { ...props, fontColumnWidth, ...css });
                 }
             }
         }

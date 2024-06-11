@@ -1,20 +1,21 @@
 import path from 'path';
-import type { FontData } from '@src/fonts/types';
+import type { FontData, SystemFont, SystemFontData } from '@src/fonts/types';
 import { CodePointRange } from '@src/fonts/range';
 import FontDecoder from '@src/fonts/decoder';
 import { subsetFontFile } from '@src/fonts/subset';
 
-function* cpIterator(chars: string): IterableIterator<number> {
-    for (const c of chars) {
-        yield c.codePointAt(0)!;
-    }
+function fontData(font: SystemFont) {
+    const data: Pick<SystemFontData, 'filePath' | 'fvar' | 'ttcSubfont'> = { filePath: font.filePath };
+    if (font.fvarInstance) data.fvar = [...Object.entries(font.fvarInstance.coords)];
+    if (font.ttcSubfont) data.ttcSubfont = font.ttcSubfont;
+    return data;
 }
 
 test('subsets font files', async () => {
     const decoder = new FontDecoder(),
         fonts = await decoder.decodeFileFonts(path.resolve(__dirname, './fonts/Monaco.ttf'));
     expect(fonts).toHaveLength(1);
-    const subset = await subsetFontFile(fonts[0]!, cpIterator('abc'));
+    const subset = await subsetFontFile(fontData(fonts[0]!), 'abc');
     expect(Buffer.isBuffer(subset)).toBe(true);
     const subsetFonts = await decoder.decodeBufferFonts(subset!);
     expect(subsetFonts).toStrictEqual<FontData[]>([{
@@ -30,8 +31,8 @@ test('subsets fonts with font variations', async () => {
         fonts = await decoder.decodeFileFonts(path.resolve(__dirname, './fonts/CascadiaCode.ttf'));
     expect(fonts).toHaveLength(6);
     const subset = await subsetFontFile(
-        fonts.find(({ style }) => style.weight === 400)!,
-        cpIterator('abc'),
+        fontData(fonts.find(({ style }) => style.weight === 400)!),
+        'abc',
     );
     expect(Buffer.isBuffer(subset)).toBe(true);
     const subsetFonts = await decoder.decodeBufferFonts(subset!);
@@ -48,8 +49,8 @@ test('subsets ttc subfonts', async () => {
         fonts = await decoder.decodeFileFonts(path.resolve(__dirname, './fonts/Menlo.ttc'));
     expect(fonts).toHaveLength(4);
     const subset = await subsetFontFile(
-        fonts.find(({ style }) => style.weight === 400 && style.slant === 0)!,
-        cpIterator('abc'),
+        fontData(fonts.find(({ style }) => style.weight === 400 && style.slant === 0)!),
+        'abc',
     );
     expect(Buffer.isBuffer(subset)).toBe(true);
     const subsetFonts = await decoder.decodeBufferFonts(subset!);

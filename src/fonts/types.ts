@@ -77,6 +77,24 @@ export interface SystemFont extends FontData {
     filePath: string
 }
 
+export interface SystemFontData {
+    filePath: string
+    style: 'italic' | 'normal'
+    weight: FontStyle['weight']
+    fvar?: [string, number][]
+    ttcSubfont?: SfntHeader
+}
+
+export type ResolvedFontFamily = { name: string } & ({
+    type: 'system'
+    fonts: { data: SystemFontData, chars: string }[]
+} | {
+    type: 'google'
+    fonts: { params: string, chars: string }[]
+} | {
+    type: 'generic'
+});
+
 /**
  * Font 'name' table record
  * @see {@link https://learn.microsoft.com/en-us/typography/opentype/spec/name}

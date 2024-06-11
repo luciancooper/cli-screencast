@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type { FunctionComponent, SVGProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import createFontCss from '../src/fonts';
+import { resolveFonts, embedFontCss } from '../src/fonts';
 import icons from '../src/render/icons.json';
 import log, { setLogLevel } from '../src/logger';
 
@@ -13,7 +13,7 @@ interface IconsPreviewProps extends SVGProps<SVGElement> {
     cols: number
     colspan: number
     fontFamily?: string
-    css?: string | null
+    css?: string
     fontColumnWidth?: number | undefined
     spacing: number
     indent?: number
@@ -79,14 +79,16 @@ const IconsPreview: FunctionComponent<IconsPreviewProps> = ({
 
 async function render() {
     // create embedded font
-    const font = await createFontCss(
-        Object.keys(icons).map((k) => `'${k}'`).join(''),
-        "'Cascadia Code', 'CaskaydiaCove NF Mono'",
-    );
+    const { fontFamilies, fontColumnWidth } = await resolveFonts(
+            Object.keys(icons).map((k) => `'${k}'`).join(''),
+            "'Cascadia Code', 'CaskaydiaCove NF Mono'",
+        ),
+        font = await embedFontCss(fontFamilies);
     return renderToStaticMarkup(
         <IconsPreview
             fontSize={16}
             lineHeight={1.4}
+            fontColumnWidth={fontColumnWidth}
             iconColumnWidth={1.6}
             cols={3}
             colspan={150}

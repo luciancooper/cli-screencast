@@ -1,7 +1,7 @@
 import systemFontPaths from 'system-font-paths';
 import { compress as woff2Compress } from 'wawoff2';
 import type { ContentSubsets } from './content';
-import type { SystemFont } from './types';
+import type { SystemFont, SystemFontData, ResolvedFontFamily } from './types';
 import FontDecoder from './decoder';
 import { CodePointRange, type MeasuredGraphemeSet } from './range';
 import { styleAnsiMatchPriority } from './style';
@@ -27,11 +27,12 @@ export async function getSystemFonts(match?: string[]) {
     return families;
 }
 
-export async function cssFromSystemFont(
-    embeddedFamily: string,
-    embedded: { css: string[], family: string[], columnWidth: [number, number | undefined][] },
+type ResolvedSystemFonts = Extract<ResolvedFontFamily, { type: 'system' }>['fonts'];
+
+export async function resolveSystemFont(
+    { families, columnWidth }: { families: ResolvedFontFamily[], columnWidth: [number, number | undefined][] },
     content: ContentSubsets,
-    fonts: SystemFont[],
+    { name, fonts }: { name: string, fonts: SystemFont[] },
 ): Promise<ContentSubsets> {
     // accumulated code point coverage for this font family
     const fontCoverage = CodePointRange.merge(...fonts.map(({ coverage }) => coverage)),
@@ -39,8 +40,9 @@ export async function cssFromSystemFont(
         coverage = content.coverage.intersect(fontCoverage);
     // stop if no chars are covered by this font
     if (coverage.intersection.empty()) return content;
+    // create map of applied font families
     const contentDifference: ContentSubsets = { coverage: coverage.difference, subsets: [] },
-        fontMap = new Map<number, MeasuredGraphemeSet>();
+        map = new Map<number, MeasuredGraphemeSet>();
     // break down covereage by ansi style
     for (const [ansi, chars] of content.subsets) {
         // subset of these ansi styled chars covered by this font
@@ -51,20 +53,46 @@ export async function cssFromSystemFont(
         for (const i of styleAnsiMatchPriority(fonts, ansi)) {
             const fontset = intersection.measuredIntersection(fonts[i]!.coverage);
             if (fontset.intersection.empty()) continue;
-            fontMap.set(i, fontMap.has(i) ? fontMap.get(i)!.union(fontset.intersection) : fontset.intersection);
+            map.set(i, map.has(i) ? map.get(i)!.union(fontset.intersection) : fontset.intersection);
             intersection = fontset.difference;
             if (intersection.empty()) break;
         }
     }
+    // create font family data object
+    const resolved: ResolvedSystemFonts = [];
+    // now, create css blocks from each font variant spec
+    for (const [index, chars] of map.entries()) {
+        const font = fonts[index]!;
+        // add to columnWidth array
+        columnWidth.push(...chars.widthDistribution());
+        // create font data object
+        const data: SystemFontData = {
+            filePath: font.filePath,
+            style: font.style.slant ? 'italic' : 'normal',
+            weight: font.style.weight,
+        };
+        if (font.fvarInstance) data.fvar = [...Object.entries(font.fvarInstance.coords)];
+        if (font.ttcSubfont) data.ttcSubfont = font.ttcSubfont;
+        // add this font to accumulated family object
+        resolved.push({ data, chars: chars.string() });
+    }
+    // add family to resolved families array
+    families.push({ name, type: 'system', fonts: resolved });
+    return contentDifference;
+}
+
+export async function embedSystemFont(
+    embedded: { css: string[], family: string[] },
+    fonts: ResolvedSystemFonts,
+    embeddedFamily: string,
+) {
     // boolean to track whether a subset actually gets embedded
     let fontEmbedded = false;
     // now, create css blocks from each font variant spec
-    for (const [index, chars] of fontMap.entries()) {
-        const font = fonts[index]!,
-            fontSubsetBuffer = await subsetFontFile(font, chars);
+    for (const { data, chars } of fonts) {
+        // subset font file
+        const fontSubsetBuffer = await subsetFontFile(data, chars);
         if (!fontSubsetBuffer) continue;
-        // add to columnWidth array
-        embedded.columnWidth.push(...chars.widthDistribution());
         // apply woff2 compression to font subset buffer
         let src: string;
         try {
@@ -80,8 +108,8 @@ export async function cssFromSystemFont(
         embedded.css.push(
             '@font-face {'
             + `font-family:'${embeddedFamily}';`
-            + `font-style:${font.style.slant ? 'italic' : 'normal'};`
-            + `font-weight:${font.style.weight};`
+            + `font-style:${data.style};`
+            + `font-weight:${data.weight};`
             + `src:${src}}`,
         );
         // add embedded family id to the font-family list if this is the first css block
@@ -89,5 +117,4 @@ export async function cssFromSystemFont(
         // update font embedded status
         fontEmbedded = true;
     }
-    return contentDifference;
 }
