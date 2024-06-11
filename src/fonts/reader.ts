@@ -29,6 +29,19 @@ export default class FontReader {
         this.buf = Buffer.alloc(0);
     }
 
+    protected setBuffer(source: Buffer) {
+        this.buf = source;
+        // reset position
+        this.buf_pos = 0;
+        // set the length of the buffer
+        this.buf_bytes = Buffer.byteLength(source);
+        // reset file position
+        this.fd_pos = 0;
+        this.fd_eof = false;
+        // reset pointer offset
+        this.fd_offset = 0;
+    }
+
     /**
      * Get the file handle, opening one if it does not currently exist
      */
@@ -50,6 +63,7 @@ export default class FontReader {
      */
     protected close(): Promise<void> {
         if (!this._handle) {
+            this.reset();
             return Promise.resolve();
         }
         return this._handle.close().then(() => {

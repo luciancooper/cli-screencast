@@ -60,15 +60,21 @@ export interface SfntHeader {
 }
 
 /**
- * Information about a single system font style
+ * Information about a single font style
  */
-export interface SystemFont {
-    filePath: string
+export interface FontData {
     family: string
     style: FontStyle
     coverage: CodePointRange
     fvarInstance?: { coords: Record<string, number>, defscore: number }
     ttcSubfont?: SfntHeader
+}
+
+/**
+ * Information about a single system font style
+ */
+export interface SystemFont extends FontData {
+    filePath: string
 }
 
 /**

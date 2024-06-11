@@ -164,9 +164,9 @@ async function extractTtcFont(filePath: string, header: SfntHeader): Promise<Buf
             }
             // encode table record
             buf.writeUInt32BE(table.tag, 12 + i * 16);
-            buf.writeUInt32BE(table.checksum, 14 + i * 16);
-            buf.writeUInt32BE(offset, 16 + i * 16);
-            buf.writeUInt32BE(table.bytes, 18 + i * 16);
+            buf.writeUInt32BE(table.checksum, 16 + i * 16);
+            buf.writeUInt32BE(offset, 20 + i * 16);
+            buf.writeUInt32BE(table.bytes, 24 + i * 16);
         }
         return buf;
     } finally {

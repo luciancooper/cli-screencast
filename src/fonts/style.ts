@@ -112,8 +112,8 @@ export function getFontStyle(
     os2: Os2Table | null,
     head: Pick<HeadTable, 'macStyle'> | null,
 ): { family: string, style: FontStyle } {
-    let family = names[16] ?? names[1]!,
-        subfamily = names[17] ?? names[2]!;
+    let family = names[16] ?? names[1] ?? '',
+        subfamily = names[17] ?? names[2] ?? '';
     // do not use wss names if OS/2 table version is >= 4 & fsSelection bit 8 is set
     if (!(os2 && os2.version >= 4 && (os2.fsSelection & 0b100000000))) {
         family = names[21] ?? family;

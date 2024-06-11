@@ -1,6 +1,6 @@
 import type { Optionalize } from '../types';
 import type {
-    NameRecord, FvarTable, Os2Table, HeadTable, MaxpTable, CmapTable, SfntHeader, SystemFont,
+    NameRecord, FvarTable, Os2Table, HeadTable, MaxpTable, CmapTable, SfntHeader, FontData, SystemFont,
 } from './types';
 import FontReader from './reader';
 import { getEncoding } from './encoding';
@@ -454,7 +454,7 @@ export default class FontDecoder extends FontReader {
         return fontHeaders;
     }
 
-    private async* decodeSfntSystemFonts(header: SfntHeader) {
+    private async* decodeSfntSystemFonts(header: SfntHeader, checkName: boolean) {
         // decode localized 'name' table
         const names = await this.decodeLocalizedNames(header),
             // decode 'OS/2' table
@@ -464,7 +464,7 @@ export default class FontDecoder extends FontReader {
             // determine font family name and font style
             { family, style } = getFontStyle(names, os2, head);
         // apply family name filter if provided
-        if (!family || (this.match && !this.match.includes(family))) return;
+        if (checkName && (!family || (this.match && !this.match.includes(family)))) return;
         // decode 'cmap' table
         const cmap = await this.decodeSfntTable(header, 'cmap', this.cmapTable, 4);
         // code point coverage cannot be determined if font does not contain a 'cmap' table
@@ -515,18 +515,11 @@ export default class FontDecoder extends FontReader {
         }
     }
 
-    /**
-     * Decode the font file and extract system font info
-     * @param match - optional array of font family names to match
-     */
-    async decodeFileFonts(filePath: string): Promise<SystemFont[]> {
+    private async* decodeFonts(checkName: boolean): AsyncGenerator<FontData> {
         try {
-            this.filePath = filePath;
-            // create array to store system font data
-            const fonts: SystemFont[] = [];
             // read first 4 bytes of the font file
             await this.read(4);
-            const type = this.buf.readUInt32BE(this.buf_pos); // this.uint32();
+            const type = this.buf.readUInt32BE(this.buf_pos);
             switch (type) {
                 case 0x4F54544F: // 'OTTO' -> open type with CFF data (version 1 or 2)
                 case 0x74727565: // 'true'
@@ -535,9 +528,7 @@ export default class FontDecoder extends FontReader {
                     // decode sfnt font header
                     const header = await this.sfntHeader();
                     // extract system font info
-                    for await (const font of this.decodeSfntSystemFonts(header)) {
-                        fonts.push({ filePath, ...font });
-                    }
+                    yield* this.decodeSfntSystemFonts(header, checkName);
                     break;
                 }
                 // 'ttcf'
@@ -549,8 +540,8 @@ export default class FontDecoder extends FontReader {
                     // loop through ttc subfonts
                     for (const header of headers) {
                         // extract system font info from the subfont
-                        for await (const font of this.decodeSfntSystemFonts(header)) {
-                            fonts.push({ filePath, ...font, ttcSubfont: header });
+                        for await (const font of this.decodeSfntSystemFonts(header, checkName)) {
+                            yield { ...font, ttcSubfont: header };
                         }
                     }
                     break;
@@ -562,10 +553,39 @@ export default class FontDecoder extends FontReader {
                 default:
                     throw new Error(`Invalid font signature ${type}`);
             }
-            return fonts;
         } finally {
             await this.close();
         }
+    }
+
+    /**
+     * Decode a font buffer and extract font info
+     * @param buffer - font buffer to decode
+     */
+    async decodeBufferFonts(buffer: Buffer): Promise<FontData[]> {
+        this.setBuffer(buffer);
+        // create array to store font data
+        const fonts: FontData[] = [];
+        // decode fonts
+        for await (const font of this.decodeFonts(false)) {
+            fonts.push(font);
+        }
+        return fonts;
+    }
+
+    /**
+     * Decode a font file and extract system font info
+     * @param filePath - file path string
+     */
+    async decodeFileFonts(filePath: string): Promise<SystemFont[]> {
+        this.filePath = filePath;
+        // create array to store system font data
+        const fonts: SystemFont[] = [];
+        // decode fonts
+        for await (const font of this.decodeFonts(true)) {
+            fonts.push({ filePath, ...font });
+        }
+        return fonts;
     }
 
     /**
