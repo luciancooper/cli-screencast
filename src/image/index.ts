@@ -1,10 +1,11 @@
-import puppeteer from 'puppeteer';
+import { launch, type Browser } from 'puppeteer';
 import { Size, SVGData, SVGCaptureData } from '../types';
 import PNG from './png';
 import log from '../logger';
 
-function createBrowser(): Promise<puppeteer.Browser> {
-    return puppeteer.launch({
+function createBrowser(): Promise<Browser> {
+    return launch({
+        headless: 'shell',
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
 }
@@ -23,7 +24,7 @@ async function createImageRenderer({ width, height }: Size, deviceScaleFactor: n
         // load svg content
         await page.setContent(html);
         // render screenshot
-        const buffer = await page.screenshot({ type: 'png', omitBackground: true }) as Buffer;
+        const buffer = await page.screenshot({ type: 'png', omitBackground: true });
         return buffer;
     };
     render.close = async () => {

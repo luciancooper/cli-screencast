@@ -60,7 +60,7 @@
     "@types/node": "*",
     "ansi-regex": "^5.0.0",
     "node-pty": "^1.0.0",
-    "puppeteer": "^10.4.0",
+    "puppeteer": "^22.11.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "signal-exit": "^3.0.3",
