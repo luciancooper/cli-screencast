@@ -2,7 +2,7 @@ import { resolve } from 'path';
 import { writeFile, readFile } from 'fs/promises';
 import YAML from 'yaml';
 import type { SourceFrame } from '@src/source';
-import { renderScreen, renderFrames, renderSpawn, renderCallback, renderData } from '../src';
+import { renderScreen, captureFrames, captureSpawn, captureCallback, renderData } from '../src';
 
 const dimensions = { columns: 50, rows: 10 };
 
@@ -67,7 +67,7 @@ describe('renderScreen', () => {
     });
 });
 
-describe('renderFrames', () => {
+describe('captureFrames', () => {
     const frames: SourceFrame[] = [
         { content: 'line 1', duration: 500 },
         { content: 'line 2', duration: 500 },
@@ -75,7 +75,7 @@ describe('renderFrames', () => {
     ];
 
     test('promises a string when output type is `json`', async () => {
-        await expect(renderFrames(frames, {
+        await expect(captureFrames(frames, {
             ...dimensions,
             output: 'json',
             outputPath: [outputPaths.json, outputPaths.yaml],
@@ -86,7 +86,7 @@ describe('renderFrames', () => {
     });
 
     test('promises a string when output type is `svg`', async () => {
-        const svg = await renderFrames(frames, {
+        const svg = await captureFrames(frames, {
             ...dimensions,
             embedFonts: false,
             outputPath: [outputPaths.json, outputPaths.svg],
@@ -98,15 +98,15 @@ describe('renderFrames', () => {
     });
 });
 
-describe('renderSpawn', () => {
+describe('captureSpawn', () => {
     test('promises a string when output type is `svg`', async () => {
         await expect(
-            renderSpawn('node', ['-e', "process.stdout.write('Hello World!');"], dimensions),
+            captureSpawn('node', ['-e', "process.stdout.write('Hello World!');"], dimensions),
         ).resolves.toBeString();
     });
 
     test('promises a buffer when output type is `png`', async () => {
-        await expect(renderSpawn('node', ['-e', "process.stdout.write('Hello World!');"], {
+        await expect(captureSpawn('node', ['-e', "process.stdout.write('Hello World!');"], {
             ...dimensions,
             logLevel: 'silent',
             output: 'png',
@@ -116,9 +116,9 @@ describe('renderSpawn', () => {
     });
 });
 
-describe('renderCallback', () => {
+describe('captureCallback', () => {
     test('promises a string when output type is `svg`', async () => {
-        const svg = await renderCallback((source) => {
+        const svg = await captureCallback((source) => {
             source.write('captured write');
         }, { ...dimensions, outputPath: outputPaths.svg });
         expect(svg).toBeString();
@@ -127,7 +127,7 @@ describe('renderCallback', () => {
     });
 
     test('promises a buffer when output type is `png`', async () => {
-        const png = await renderCallback((source) => {
+        const png = await captureCallback((source) => {
             source.write('captured write');
         }, {
             ...dimensions,

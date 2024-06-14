@@ -30,7 +30,7 @@ All methods are asynchronous and return a `string` or `Buffer` depending on the 
 
 ### `renderScreen(content, options)`
 
-Render a single terminal frame to svg or png.
+Render a single terminal frame (screenshot) to svg or png, or to a data storage format (json or yaml).
 
 > #### *Arguments:*
 
@@ -42,9 +42,9 @@ Screen content to render
 
 Options config object to specify [configuration options](#options).
 
-### `renderFrames(frames, options)`
+### `captureFrames(frames, options)`
 
-Render an animated terminal screen capture from an array of content frames.
+Create an animated terminal screen capture from an array of content frames.
 
 > #### *Arguments:*
 
@@ -56,9 +56,9 @@ Array of content frames in the form of `{ content: string, duration: number }`.
 
 Options config object to specify [configuration options](#options).
 
-### `renderSpawn(command, args, options)`
+### `captureSpawn(command, args, options)`
 
-Record and render the terminal output of a spawned sub process. Signature mimics that of [`child_process.spawn`](https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options).
+Capture the terminal output of a spawned subprocess. Signature mimics that of [`child_process.spawn`](https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options).
 
 > #### *Arguments:*
 
@@ -116,9 +116,9 @@ The maximum amount of time the process is allowed to run in milliseconds. If gre
 
 The signal to be used when the spawned process is killed by `timeout`. Default is `'SIGTERM'`.
 
-### `renderCallback(fn, options)`
+### `captureCallback(fn, options)`
 
-Capture and render all writes to stdout that occur within a callback function.
+Captures all writes to stdout that occur within a callback function.
 
 > #### *Arguments:*
 

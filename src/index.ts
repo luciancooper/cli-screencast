@@ -86,10 +86,10 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
 }
 
 /**
- * Render a terminal screen shot to SVG
+ * Render a terminal screenshot to svg or png, or to a data storage format (json or yaml)
  * @param content - screen content to render
  * @param options - render options
- * @returns static screenshot svg
+ * @returns screenshot string (if output is svg, json, or yaml) or png buffer
  */
 export async function renderScreen(
     content: string,
@@ -100,12 +100,12 @@ export async function renderScreen(
 }
 
 /**
- * Render an animated terminal screen capture from an array of content frames.
+ * Create an animated terminal screen capture from an array of content frames.
  * @param frames - array of content frames
  * @param options - render options
- * @returns animated screen capture svg or png
+ * @returns animated screen capture string (if output is svg, json, or yaml) or png buffer
  */
-export async function renderFrames(
+export async function captureFrames(
     frames: SourceFrame[],
     options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & RenderOptions,
 ): Promise<string | Buffer> {
@@ -116,13 +116,13 @@ export async function renderFrames(
 }
 
 /**
- * Record the terminal output of a command and render it as an animated SVG
+ * Capture the terminal output of a spawned command
  * @param command - the command to run
  * @param args - list of string arguments
  * @param options - render options
- * @returns animated screen capture svg
+ * @returns animated screen capture string (if output is svg, json, or yaml) or png buffer
  */
-export async function renderSpawn(
+export async function captureSpawn(
     command: string,
     args: string[],
     options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & SpawnOptions & RenderOptions,
@@ -134,15 +134,15 @@ export async function renderSpawn(
 }
 
 /**
- * Capture any terminal output that occurs within a callback function and render it as an animated SVG.
+ * Capture any terminal output that occurs within a callback function.
  * @remarks
  * Within the provided callback function `fn`, all writes to `process.stdout` and `process.stderr`, (and by extension
- * calls to `console.log` and `console.error`) will be captured and included in the returned SVG screencast.
+ * calls to `console.log` and `console.error`) will be captured and included in the returned screencast.
  * @param fn - callback function in which terminal output is captured
  * @param options - render options
- * @returns animated screen capture svg
+ * @returns animated screen capture string (if output is svg, json, or yaml) or png buffer
  */
-export async function renderCallback(
+export async function captureCallback(
     fn: RunCallback<any>,
     options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & CallbackOptions & RenderOptions,
 ): Promise<string | Buffer> {
