@@ -1,8 +1,10 @@
 import { resolve } from 'path';
 import { writeFile, readFile } from 'fs/promises';
 import YAML from 'yaml';
+import { stdin as mockStdin } from 'mock-stdin';
 import type { SourceFrame } from '@src/source';
-import { renderScreen, captureFrames, captureSpawn, captureCallback, renderData } from '../src';
+import { renderScreen, captureFrames, captureSpawn, captureShell, captureCallback, renderData } from '../src';
+import mockStdout, { type MockStdout } from './helpers/mockStdout';
 
 const dimensions = { columns: 50, rows: 10 };
 
@@ -113,6 +115,35 @@ describe('captureSpawn', () => {
             scaleFactor: 1,
             captureCommand: false,
         }).then((value) => Buffer.isBuffer(value))).resolves.toBe(true);
+    });
+});
+
+describe('captureShell', () => {
+    let stdout: MockStdout,
+        stdin: ReturnType<typeof mockStdin>;
+
+    beforeAll(() => {
+        stdout = mockStdout();
+        stdin = mockStdin();
+    });
+
+    afterEach(() => {
+        stdout.reset();
+    });
+
+    afterAll(() => {
+        stdout.restore();
+        stdin.restore();
+    });
+
+    test('promises a string when output type is `yaml`', async () => {
+        const shell = captureShell({ ...dimensions, output: 'yaml' });
+        // send mocks stdin after first write to stdout
+        await stdout.nextWrite().then(() => {
+            stdin.send('\x04');
+        });
+        // await rendering of shell
+        await expect(shell).resolves.toBeString();
     });
 });
 

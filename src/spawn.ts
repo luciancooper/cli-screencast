@@ -1,4 +1,4 @@
-import * as pty from 'node-pty';
+import { spawn, type IPty, type IDisposable } from 'node-pty';
 import { constants } from 'os';
 import path from 'path';
 import which from 'which';
@@ -11,24 +11,14 @@ const signals = Object.entries(constants.signals) as (readonly [NodeJS.Signals, 
 
 type Env = Record<string, string | undefined>;
 
-export interface SpawnResult {
+export interface PtyResult {
     exitCode: number
     timedOut: boolean
-    failed: boolean
     signal?: NodeJS.Signals | number | undefined
     error?: Error | undefined
 }
 
-export interface SpawnOptions {
-    /**
-     * If true, runs the command inside of a shell. Unix will try to use the current shell (`process.env.SHELL`),
-     * falling back to `/bin/sh` if that fails. Windows will try to use `process.env.ComSpec`, falling back to
-     * `cmd.exe` if that fails. Different shells can be specified using a string. The shell should understand
-     * the `-c` switch, or if the shell is `cmd.exe`, it should understand the `/d /s /c` switches.
-     * @defaultValue `false`
-     */
-    shell?: boolean | string
-
+interface PtyOptions {
     /**
      * Working directory to be set for the child process.
      * @defaultValue `process.cwd()`
@@ -47,6 +37,24 @@ export interface SpawnOptions {
      * @defaultValue `true`
      */
     extendEnv?: boolean
+
+    /**
+     * Windows only passed to `node-pty` concerning whether to use ConPTY over WinPTY.
+     * Added as a workaround until {@link https://github.com/microsoft/node-pty/issues/437} is resolved
+     * @defaultValue `false`
+     */
+    useConpty?: boolean
+}
+
+export interface SpawnOptions extends PtyOptions {
+    /**
+     * If true, runs the command inside of a shell. Unix will try to use the current shell (`process.env.SHELL`),
+     * falling back to `/bin/sh` if that fails. Windows will try to use `process.env.ComSpec`, falling back to
+     * `cmd.exe` if that fails. Different shells can be specified using a string. The shell should understand
+     * the `-c` switch, or if the shell is `cmd.exe`, it should understand the `/d /s /c` switches.
+     * @defaultValue `false`
+     */
+    shell?: boolean | string
 
     /**
      * Silently capture the spawned process' stdout and stderr output. If set to `false`, the output of
@@ -75,13 +83,15 @@ export interface SpawnOptions {
      * @defaultValue `'SIGTERM'`
      */
     killSignal?: NodeJS.Signals
+}
 
+export interface ShellOptions extends PtyOptions {
     /**
-     * Windows only passed to `node-pty` concerning whether to use ConPTY over WinPTY.
-     * Added as a workaround until {@link https://github.com/microsoft/node-pty/issues/437} is resolved
-     * @defaultValue `false`
+     * The shell to run. If unspecified, Unix will try to use the current shell (`process.env.SHELL`),
+     * falling back to `/bin/sh` if that fails. Windows will try to use `process.env.ComSpec`, falling back to
+     * `cmd.exe` if that fails.
      */
-    useConpty?: boolean
+    shell?: string
 }
 
 export const colorEnv = {
@@ -128,15 +138,15 @@ export function resolveEnv(envOpt: Env, extendEnv: boolean): Env {
     return env;
 }
 
-class SpawnRecordingStream extends RecordingStream {
-    cwd: string;
-
+class PtyRecordingStream extends RecordingStream {
     env: Env;
 
-    constructor(options: TerminalOptions, cwd: string, env: Env) {
+    shell: string | undefined;
+
+    constructor(options: TerminalOptions, env: Env, shell?: string) {
         super(options);
-        this.cwd = cwd;
         this.env = env;
+        this.shell = shell;
     }
 }
 
@@ -180,7 +190,69 @@ export function resolveCommand(command: string, cwd: string, env: Env) {
     return resolved ?? command;
 }
 
-export default function readableSpawn(command: string, args: string[], {
+function hookStdin(handler: (chunk: Buffer) => void) {
+    // enable raw mode
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    // add data event handler
+    process.stdin.on('data', handler);
+    // resume stdin
+    process.stdin.resume();
+    // return cleanup handler
+    return () => {
+        // pause stdin
+        process.stdin.pause();
+        // disable raw mode
+        if (process.stdin.isTTY) process.stdin.setRawMode(false);
+        // remove data event handler
+        process.stdin.off('data', handler);
+    };
+}
+
+interface PtyState {
+    killed: boolean
+    exitCode: number | undefined
+    signal: NodeJS.Signals | number | undefined
+}
+
+function createSpawnPromise(spawned: IPty, dataHook: IDisposable, state: PtyState, kill: (sig?: string) => void) {
+    return new Promise<PtyResult>((resolve) => {
+        const exitHook = spawned.onExit((event) => {
+            // dispose of hooks
+            dataHook.dispose();
+            exitHook.dispose();
+            // kill spawned process to prevent hanging on windows
+            if (!state.killed) kill();
+            // update exit code & signal
+            state.exitCode ??= event.exitCode;
+            state.signal ??= ((event.signal && signals.find(([, n]) => n === event.signal)) || [])[0] ?? event.signal;
+            // resolve spawn result
+            resolve({
+                exitCode: state.exitCode,
+                signal: state.signal,
+                timedOut: false,
+            });
+        });
+    });
+}
+
+function addSignalExitHandler(promise: Promise<PtyResult>, state: PtyState, kill: (sig?: string) => void) {
+    // add signal-exit handler
+    const cleanupExitHandler = onExit((code, sig) => {
+        if (!state.killed) {
+            // set exit code & signal
+            state.exitCode ??= code ?? 1;
+            if (sig) state.signal ??= sig as NodeJS.Signals;
+            // kill spawned shell using SIGKILL to prevent hang on unix
+            kill(process.platform !== 'win32' ? 'SIGKILL' : undefined);
+        }
+    });
+    // cleanup exit handler
+    return promise.finally(() => {
+        cleanupExitHandler();
+    });
+}
+
+export function readableSpawn(command: string, args: string[], {
     shell = false,
     cwd = process.cwd(),
     env: envOption,
@@ -208,7 +280,7 @@ export default function readableSpawn(command: string, args: string[], {
         throw new Error("'silent' option must be false if 'connectStdin' is true");
     }
     // indicate start of the capture
-    if (!silent) process.stdout.write(SpawnRecordingStream.kCaptureStartLine);
+    if (!silent) process.stdout.write(PtyRecordingStream.kCaptureStartLine);
     // resolve env
     const env = resolveEnv(envOption ?? {}, extendEnv);
     // resolve file & args
@@ -229,79 +301,47 @@ export default function readableSpawn(command: string, args: string[], {
         file = resolveCommand(command, cwd, env);
     }
     // create recording source stream
-    const stream = new SpawnRecordingStream(opts, cwd, env),
+    const stream = new PtyRecordingStream(opts, env, shell ? file : undefined),
         // create pty child process
-        spawned = pty.spawn(file, _args, {
+        spawned = spawn(file, _args, {
             name: env['TERM']!,
             cols: opts.columns,
             rows: opts.rows,
             env,
             cwd,
             useConpty,
-        });
+        }),
+        // track pty state
+        state: PtyState = { killed: false, exitCode: undefined, signal: undefined };
     // emit stream start event
     stream.start([command, ...args].join(' '));
     // attach data listener
     const dataHook = spawned.onData((chunk: string) => {
         if (!silent) process.stdout.write(chunk);
-        stream.write(chunk.replace(/\r\n/g, '\n'));
+        stream.write(chunk);
     });
-    // track if child process has been killed
-    let killed = false,
-        // kill spawn handler
-        kill = (sig?: string) => {
-            killed = true;
-            spawned.kill(sig);
-        },
-        // exit code for spawn result
-        exitCode: number | undefined,
-        // signal for spawn result
-        signal: NodeJS.Signals | number | undefined;
+    // kill spawn handler
+    let kill = (sig?: string) => {
+        state.killed = true;
+        spawned.kill(sig);
+    };
     // connect stdin
     if (connectStdin) {
-        // enable raw mode
-        if (process.stdin.isTTY) process.stdin.setRawMode(true);
-        // stdin data handler
-        const handler = (chunk: Buffer) => {
-            spawned.write(chunk.toString());
-        };
-        // add data event handler
-        process.stdin.on('data', handler);
+        // hook stdin data handler
+        const cleanupStdin = hookStdin((chunk: Buffer) => {
+                spawned.write(chunk.toString());
+            }),
+            wrapped = kill;
         // wrap kill method with cleanup handler
-        const wrapped = kill;
         kill = (sig?: string) => {
-            // pause stdin
-            process.stdin.pause();
-            // disable raw mode
-            if (process.stdin.isTTY) process.stdin.setRawMode(false);
-            // remove data event handler
-            process.stdin.off('data', handler);
+            // disconnect stdin
+            cleanupStdin();
             // call wrapped kill method
             wrapped(sig);
         };
-        // resume stdin
-        process.stdin.resume();
     }
     // create spawn promise
-    const spawnPromise = new Promise<SpawnResult>((resolve) => {
-        const exitHook = spawned.onExit((event) => {
-            // dispose of hooks
-            dataHook.dispose();
-            exitHook.dispose();
-            // kill spawned process to prevent hanging on windows
-            if (!killed) kill();
-            // update exit code & signal
-            exitCode ??= event.exitCode;
-            signal ??= ((event.signal && signals.find(([, n]) => n === event.signal)) || [])[0] ?? event.signal;
-            // resolve spawn result
-            resolve({
-                exitCode,
-                signal,
-                timedOut: false,
-                failed: exitCode !== 0 || !!signal,
-            });
-        });
-    });
+    const spawnPromise = createSpawnPromise(spawned, dataHook, state, kill);
     // start a promise chain
     let promise = spawnPromise;
     // setup timeout
@@ -312,10 +352,10 @@ export default function readableSpawn(command: string, args: string[], {
             new Promise<never>((resolve, reject) => {
                 timeoutId = setTimeout(() => {
                     // kill the spawned process
-                    if (!killed) {
+                    if (!state.killed) {
                         // set exit code & signal
-                        exitCode = 1;
-                        signal = killSignal;
+                        state.exitCode = 1;
+                        state.signal = killSignal;
                         // kill spawned process
                         kill(process.platform !== 'win32' ? killSignal : undefined);
                     }
@@ -326,30 +366,99 @@ export default function readableSpawn(command: string, args: string[], {
             promise.finally(() => {
                 clearTimeout(timeoutId);
             }),
-        ]).catch<SpawnResult>((error: Error) => spawnPromise.then((result) => ({
+        ]).catch<PtyResult>((error: Error) => spawnPromise.then((result) => ({
             ...result,
             timedOut: true,
             error,
         })));
     }
     // add signal-exit handler
-    const cleanupExitHandler = onExit((code, sig) => {
-        if (!killed) {
-            // set exit code & signal
-            exitCode ??= code ?? 1;
-            if (sig) signal ??= sig as NodeJS.Signals;
-            // kill spawned process using SIGKILL to prevent hang on unix
-            kill(process.platform !== 'win32' ? 'SIGKILL' : undefined);
-        }
-    });
-    // cleanup exit handler
-    promise = promise.finally(() => {
-        cleanupExitHandler();
-    });
+    promise = addSignalExitHandler(promise, state, kill);
     // finally, invoke stream.finish
     promise = promise.then((result) => {
         // indicate end of the capture
-        if (!silent) process.stdout.write(SpawnRecordingStream.kCaptureEndLine);
+        if (!silent) process.stdout.write(PtyRecordingStream.kCaptureEndLine);
+        // push finish event
+        stream.finish({ result });
+        return result;
+    });
+    // merge source stream and promise chain
+    return mergePromise(stream, promise);
+}
+
+export function readableShell({
+    shell,
+    cwd = process.cwd(),
+    env: envOption,
+    extendEnv = true,
+    useConpty = false,
+    ...opts
+}: TerminalOptions & ShellOptions) {
+    // resolve env
+    const env = resolveEnv(envOption ?? {}, extendEnv),
+        // resolve shell
+        file = typeof shell === 'string' ? shell : process.platform === 'win32'
+            ? (env['ComSpec'] ?? process.env['ComSpec'] ?? 'cmd.exe')
+            : (env['SHELL'] ?? process.env['SHELL'] ?? '/bin/sh'),
+        // create recording source stream
+        stream = new PtyRecordingStream(opts, env, file),
+        // create pty child process
+        spawned = spawn(file, [], {
+            name: env['TERM']!,
+            cols: opts.columns,
+            rows: opts.rows,
+            env,
+            cwd,
+            useConpty,
+        }),
+        // track pty state
+        state: PtyState = { killed: false, exitCode: undefined, signal: undefined };
+    // indicate start of the capture
+    process.stdout.write(PtyRecordingStream.kCaptureStartLine);
+    // emit stream start event
+    stream.start();
+    // attach data listener
+    const dataHook = spawned.onData((chunk: string) => {
+        process.stdout.write(chunk);
+        stream.write(chunk);
+    });
+    // kill method
+    let kill: (sig?: string) => void;
+    // connect stdin
+    const cleanupStdin = hookStdin((chunk: Buffer) => {
+        const str = chunk.toString();
+        // check for ctrl-D
+        if (str === '\x04') {
+            if (!stream.finishQueued) {
+                stream.queueFinish();
+                // indicate end of the capture
+                process.stdout.write(`\n${PtyRecordingStream.kCaptureEndLine}`);
+            }
+            if (!state.killed) {
+                kill(process.platform !== 'win32' ? 'SIGKILL' : undefined);
+            }
+        } else spawned.write(str);
+    });
+    // kill spawn handler
+    kill = (sig?: string) => {
+        // disconnect stdin
+        cleanupStdin();
+        // kill the spawn
+        state.killed = true;
+        spawned.kill(sig);
+    };
+    // create spawn promise chain
+    let promise = createSpawnPromise(spawned, dataHook, state, kill);
+    // add signal-exit handler
+    promise = addSignalExitHandler(promise, state, kill);
+    // finally, invoke stream.finish
+    promise = promise.then((result) => {
+        // check if finish has been queued
+        if (!stream.finishQueued) {
+            // indicate end of the capture
+            process.stdout.write(`\n${PtyRecordingStream.kCaptureEndLine}`);
+        }
+        // push finish event
         stream.finish({ result });
         return result;
     });

@@ -3,12 +3,12 @@ import signalExit from 'signal-exit';
 import { stdin as mockStdin } from 'mock-stdin';
 import { stripAnsi } from 'tty-strings';
 import type { SourceEvent } from '@src/source';
-import readableSpawn, { resolveEnv, resolveCommand, colorEnv, type SpawnResult } from '@src/spawn';
-import mockStdout from './helpers/mockStdout';
-import { consume } from './helpers/streams';
+import { readableSpawn, readableShell, resolveEnv, resolveCommand, colorEnv, type PtyResult } from '@src/spawn';
+import mockStdout, { type MockStdout } from './helpers/mockStdout';
+import { consumePromise } from './helpers/streams';
 
-const stdout = mockStdout(),
-    stdin = mockStdin();
+let stdout: MockStdout,
+    stdin: ReturnType<typeof mockStdin>;
 
 type SignalExitHandler = (code: number | null, signal: NodeJS.Signals | null) => void;
 
@@ -43,6 +43,11 @@ jest.mock('signal-exit', () => {
         },
     });
     return mocked;
+});
+
+beforeAll(() => {
+    stdout = mockStdout();
+    stdin = mockStdin();
 });
 
 afterEach(() => {
@@ -118,25 +123,26 @@ describe('readableSpawn', () => {
 
     test('creates readable source events from subprocess writes to stdout', async () => {
         const source = readableSpawn('echo', ['log message'], { ...dimensions, shell: true }),
-            events = await consume<SourceEvent>(source);
+            [result, events] = await consumePromise<PtyResult, SourceEvent>(source);
+        // check the result
+        expect(result.exitCode).toBe(0);
+        expect(result.signal).toBeFalsy();
         // check start event
         expect(events[0]).toMatchObject<Partial<SourceEvent>>(
             { type: 'start', command: 'echo log message', ...dimensions },
         );
         // check finish event
-        expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({
-            type: 'finish',
-            result: { exitCode: 0, failed: false },
-        });
+        expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({ type: 'finish' });
         // check write events
         expect(events.slice(1, -1)).toEachMatchObject<SourceEvent>({
             content: expect.toBeString(),
             time: expect.toBeNumber(),
         });
         // concat all write events
-        expect(stripAnsi(
-            (events.slice(1, -1) as Extract<SourceEvent, { type?: never }>[]).map((e) => e.content).join(''),
-        )).toBe('log message\n');
+        expect(
+            stripAnsi((events.slice(1, -1) as Extract<SourceEvent, { type?: never }>[]).map((e) => e.content).join(''))
+                .replace(/\r+\n/g, '\n'),
+        ).toBe('log message\n');
     });
 
     test('kills spawned subprocess if parent process exits', async () => {
@@ -147,7 +153,7 @@ describe('readableSpawn', () => {
         // mock the process exiting
         await (signalExit as MockSignalExit).flushAfter(250, 1, 'SIGINT');
         // result should have exit code 1 & signal 'SIGINT'
-        await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({
+        await expect(source).resolves.toMatchObject<Partial<PtyResult>>({
             exitCode: 1,
             signal: 'SIGINT',
             timedOut: false,
@@ -165,14 +171,14 @@ describe('readableSpawn', () => {
             stdin.send('Response\n');
         });
         // consume events
-        const events = await consume<SourceEvent>(source);
+        const [result, events] = await consumePromise<PtyResult, SourceEvent>(source);
+        // check result
+        expect(result.exitCode).toBe(0);
+        expect(result.signal).toBeFalsy();
         // check start event
         expect(events[0]).toMatchObject<Partial<SourceEvent>>({ type: 'start', ...dimensions });
         // check finish event
-        expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({
-            type: 'finish',
-            result: { exitCode: 0, failed: false },
-        });
+        expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({ type: 'finish' });
         // check write events
         expect(events.slice(1, -1)).toEachMatchObject<SourceEvent>({
             content: expect.toBeString(),
@@ -194,13 +200,17 @@ describe('readableSpawn', () => {
 
     test('subprocess env will not extend process.env if `extendEnv` is false', async () => {
         const source = readableSpawn('echo', ['message'], {
-            ...dimensions,
-            shell: true,
-            env: {},
-            extendEnv: false,
-        });
-        await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({ exitCode: 0, failed: false });
+                ...dimensions,
+                shell: true,
+                env: {},
+                extendEnv: false,
+            }),
+            result = await source;
+        // check env
         expect(source.env).toEqual(resolveEnv({}, false));
+        // check result
+        expect(result.exitCode).toBe(0);
+        expect(result.signal).toBeFalsy();
     });
 
     describe('validation', () => {
@@ -236,7 +246,7 @@ describe('readableSpawn', () => {
                 shell: process.platform === 'win32' ? 'powershell.exe' : true,
                 timeout: 500,
                 killSignal: 'SIGKILL',
-            })).resolves.toMatchObject<Partial<SpawnResult>>({
+            })).resolves.toMatchObject<Partial<PtyResult>>({
                 exitCode: 1,
                 signal: 'SIGKILL',
                 timedOut: true,
@@ -244,15 +254,89 @@ describe('readableSpawn', () => {
         });
 
         test('timeout is cleared if process completes before it is reached', async () => {
-            const source = readableSpawn('sleep', ['1'], {
+            const result = await readableSpawn('sleep', ['1'], {
                 ...dimensions,
                 shell: process.platform === 'win32' ? 'powershell.exe' : true,
                 timeout: 4000,
             });
-            await expect(source).resolves.toMatchObject<Partial<SpawnResult>>({
-                timedOut: false,
-                failed: false,
-            });
+            expect(result.exitCode).toBe(0);
+            expect(result.signal).toBeFalsy();
+            expect(result.timedOut).toBe(false);
         });
+    });
+});
+
+describe('readableShell', () => {
+    const dimensions = { columns: 40, rows: 10 };
+
+    test('shell can be specified as an option', async () => {
+        const shell = process.platform === 'win32' ? 'powershell.exe' : '/bin/bash',
+            source = readableShell({ shell, ...dimensions });
+        // send mocks stdin after first write to stdout
+        await stdout.nextWrite().then(() => {
+            stdin.send('exit\r\n');
+        });
+        // consume events
+        const [result, events] = await consumePromise<PtyResult, SourceEvent>(source);
+        // check shell
+        expect(source.shell).toBe(shell);
+        // check result
+        expect(result.exitCode).toBe(0);
+        expect(result.signal).toBeFalsy();
+        // check start event
+        expect(events[0]).toMatchObject<Partial<SourceEvent>>({ type: 'start', ...dimensions });
+        // check finish event
+        expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({ type: 'finish' });
+        // check write events
+        expect(events.slice(1, -1)).toEachMatchObject<SourceEvent>({
+            content: expect.toBeString(),
+            time: expect.toBeNumber(),
+        });
+    });
+
+    test('stops recording on ctrl-d', async () => {
+        const source = readableShell(dimensions);
+        // send mocks stdin after first write to stdout
+        await stdout.nextWrite().then(() => {
+            stdin.send('\x04');
+        });
+        // consume events
+        const [result, events] = await consumePromise<PtyResult, SourceEvent>(source);
+        // check result
+        expect(result.exitCode).toBe(0);
+        // check start event
+        expect(events[0]).toMatchObject<Partial<SourceEvent>>({ type: 'start', ...dimensions });
+        // check finish event
+        expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({ type: 'finish' });
+        // check write events
+        expect(events.slice(1, -1)).toEachMatchObject<SourceEvent>({
+            content: expect.toBeString(),
+            time: expect.toBeNumber(),
+        });
+    });
+
+    test('kills shell if parent process exits', async () => {
+        const source = readableShell(dimensions);
+        // mock the process exiting
+        await (signalExit as MockSignalExit).flushAfter(250, 1, 'SIGINT');
+        // result should have exit code 1 & signal 'SIGINT'
+        await expect(source).resolves.toMatchObject<Partial<PtyResult>>({
+            exitCode: 1,
+            signal: 'SIGINT',
+        });
+    });
+
+    test('subprocess shell env will not extend process.env if `extendEnv` is false', async () => {
+        const source = readableShell({ ...dimensions, env: {}, extendEnv: false });
+        // send mocks stdin after first write to stdout
+        await stdout.nextWrite().then(() => {
+            stdin.send('exit\r\n');
+        });
+        const result = await source;
+        // check env
+        expect(source.env).toEqual(resolveEnv({}, false));
+        // check result
+        expect(result.exitCode).toBe(0);
+        expect(result.signal).toBeFalsy();
     });
 });

@@ -57,6 +57,8 @@ export default class RecordingStream extends DuplexConstructor {
 
     private startTime = NaN;
 
+    private queuedFinish: number | null = null;
+
     private timeAdjustment = 0;
 
     constructor(options: TerminalOptions) {
@@ -96,6 +98,10 @@ export default class RecordingStream extends DuplexConstructor {
         return ((this as { _readableState?: { ended: boolean } })._readableState!).ended;
     }
 
+    get finishQueued(): boolean {
+        return this.queuedFinish !== null;
+    }
+
     private pushWrite(content: string) {
         this.push({
             content,
@@ -113,13 +119,15 @@ export default class RecordingStream extends DuplexConstructor {
             cb(new Error('Source stream is closed'));
             return;
         }
-        const content = Buffer.isBuffer(chunk) ? chunk.toString('utf-8') : chunk;
-        // only push non-empty writes
-        if (content) {
-            // push a start event if the source is inactive
-            if (!this.started) this.start();
-            // push write event
-            this.pushWrite(content);
+        if (!this.finishQueued) {
+            const content = Buffer.isBuffer(chunk) ? chunk.toString('utf-8') : chunk;
+            // only push non-empty writes
+            if (content) {
+                // push a start event if the source is inactive
+                if (!this.started) this.start();
+                // push write event
+                this.pushWrite(content);
+            }
         }
         cb();
     }
@@ -133,6 +141,8 @@ export default class RecordingStream extends DuplexConstructor {
         if (this.ended) {
             throw new Error('Source stream is closed');
         }
+        // check if finish has been queued
+        if (this.finishQueued) return;
         // push an initial start event to the readable stream if necessary
         if (!this.started) this.start();
         // add to accumulated time adjustment
@@ -151,11 +161,23 @@ export default class RecordingStream extends DuplexConstructor {
         this.emit('recording-start', this.startTime);
     }
 
+    queueFinish() {
+        if (this.ended) {
+            throw new Error('Source stream is closed');
+        }
+        // check if finish has been queued
+        if (this.finishQueued) return;
+        // set queued finish time
+        this.queuedFinish = this.started ? Date.now() - this.startTime : 0;
+        // push an initial start event to the readable stream if necessary
+        if (!this.started) this.start();
+    }
+
     finish({ result, error }: { result?: unknown, error?: unknown } = {}): void {
         if (this.ended) {
             throw new Error('Source stream is closed');
         }
-        const time = this.started ? Date.now() - this.startTime : 0;
+        const time = this.queuedFinish ?? (this.started ? Date.now() - this.startTime : 0);
         // emit start event if stream has not started
         if (!this.started) this.start();
         // push finish event
@@ -178,6 +200,8 @@ export default class RecordingStream extends DuplexConstructor {
         }
         // push an initial start event to the readable stream if necessary
         if (!this.started) this.start();
+        // check if finish has been queued
+        if (this.finishQueued) return;
         // push write event
         this.pushWrite(
             typeof icon === 'string'

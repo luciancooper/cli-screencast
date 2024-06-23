@@ -5,7 +5,7 @@ import { applyDefTerminalOptions, applyDefOutputOptions, applyDefRenderOptions }
 import { applyLoggingOptions, type LoggingOptions } from './logger';
 import { parseScreen, parseCapture } from './parser';
 import RecordingStream, { type SourceFrame } from './source';
-import readableSpawn, { type SpawnOptions } from './spawn';
+import { readableSpawn, readableShell, type SpawnOptions, type ShellOptions } from './spawn';
 import NodeRecordingStream, { type CallbackOptions, type RunCallback } from './node';
 import captureSource, { type CaptureOptions } from './capture';
 import extractCaptureFrames from './frames';
@@ -129,6 +129,21 @@ export async function captureSpawn(
 ): Promise<string | Buffer> {
     applyLoggingOptions(options);
     const source = readableSpawn(command, args, options),
+        capture = await captureSource(source, options);
+    return renderCaptureData(capture, options);
+}
+
+/**
+ * Capture a pty shell session. A new shell session will be spawned and piped to `process.stdout` and `process.stdin`.
+ * The shell session recording can be stopped with `Ctrl+D`.
+ * @param options - options spec
+ * @returns animated screen capture string (if output is svg, json, or yaml) or png buffer
+ */
+export async function captureShell(
+    options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & ShellOptions & RenderOptions,
+): Promise<string | Buffer> {
+    applyLoggingOptions(options);
+    const source = readableShell(options),
         capture = await captureSource(source, options);
     return renderCaptureData(capture, options);
 }

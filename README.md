@@ -116,6 +116,38 @@ The maximum amount of time the process is allowed to run in milliseconds. If gre
 
 The signal to be used when the spawned process is killed by `timeout`. Default is `'SIGTERM'`.
 
+### `captureShell(options)`
+
+Capture a shell session. A new shell session will be spawned and piped to `process.stdout` and `process.stdin`. The shell session recording can be stopped with `Ctrl+D`.
+
+> #### *Arguments:*
+
+› &nbsp; **options** &nbsp;•&nbsp; `Object`
+
+Options config object to specify [configuration options](#options) as well as the additional options listed below.
+
+> #### *Additional Options:*
+
+<a name='options.shell.shell'></a>
+› &nbsp; **shell** &nbsp;•&nbsp; `string`
+
+The shell to run. If unspecified, Unix will try to use the current shell (`process.env.SHELL`), falling back to `/bin/sh` if that fails. Windows will try to use `process.env.ComSpec`, falling back to `cmd.exe` if that fails.
+
+<a name='options.shell.cwd'></a>
+› &nbsp; **cwd** &nbsp;•&nbsp; `string`
+
+Working directory to be set for the shell process. Default is `process.cwd()`.
+
+<a name='options.shell.env'></a>
+› &nbsp; **env** &nbsp;•&nbsp; `Object`
+
+Environment key-value pairs to be set for the shell process. Automatically extends from `process.env`, which can be changed by setting `extendEnv` to `false`. Default is `undefined`.
+
+<a name='options.shell.extendEnv'></a>
+› &nbsp; **extendEnv** &nbsp;•&nbsp; `boolean`
+
+The shell process environment extends from `process.env`. Defaults to `true`.
+
 ### `captureCallback(fn, options)`
 
 Captures all writes to stdout that occur within a callback function.

@@ -7,6 +7,10 @@ const defOptions: TerminalOptions = {
     rows: 10,
 };
 
+afterEach(() => {
+    jest.restoreAllMocks();
+});
+
 describe('RecordingStream', () => {
     describe('write', () => {
         test('emits write events', async () => {
@@ -89,6 +93,62 @@ describe('RecordingStream', () => {
         });
     });
 
+    describe('queueFinish', () => {
+        test('writes are ignored after finish is queued', async () => {
+            const spy = jest.spyOn(Date, 'now');
+            spy.mockImplementationOnce(() => 5);
+            spy.mockImplementationOnce(() => 5);
+            const source = new RecordingStream(defOptions);
+            source.write('first write');
+            spy.mockImplementationOnce(() => 10);
+            source.queueFinish();
+            source.write('ignored write');
+            source.end('ignored end write');
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+                { type: 'start', ...source.termOptions },
+                { content: 'first write', time: 0 },
+                { type: 'finish', time: 5 },
+            ]);
+        });
+
+        test('extra calls are ignored', async () => {
+            const spy = jest.spyOn(Date, 'now');
+            spy.mockImplementationOnce(() => 5);
+            const source = new RecordingStream(defOptions);
+            source.start();
+            spy.mockImplementationOnce(() => 10);
+            source.queueFinish();
+            spy.mockImplementationOnce(() => 15);
+            source.queueFinish();
+            source.finish();
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+                { type: 'start', ...source.termOptions },
+                { type: 'finish', time: 5 },
+            ]);
+        });
+
+        test('activates stream when called before start', async () => {
+            const spy = jest.spyOn(Date, 'now');
+            spy.mockImplementationOnce(() => 5);
+            spy.mockImplementationOnce(() => 5);
+            const source = new RecordingStream(defOptions);
+            source.queueFinish();
+            source.finish();
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+                { type: 'start', ...source.termOptions },
+                { type: 'finish', time: 0 },
+            ]);
+        });
+
+        test('throws error if called after stream has closed', () => {
+            const source = new RecordingStream(defOptions);
+            source.finish();
+            expect(() => {
+                source.queueFinish();
+            }).toThrow('Source stream is closed');
+        });
+    });
+
     describe('wait', () => {
         test('increments the time adjustment of the next emitted event', async () => {
             const source = new RecordingStream(defOptions);
@@ -112,6 +172,18 @@ describe('RecordingStream', () => {
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
                 { type: 'finish', adjustment: 500 },
+            ]);
+        });
+
+        test('ignored if finish has been queued', async () => {
+            const source = new RecordingStream(defOptions);
+            source.start();
+            source.queueFinish();
+            source.wait(500);
+            source.finish();
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+                { type: 'start', ...source.termOptions },
+                { type: 'finish', adjustment: 0 },
             ]);
         });
 
@@ -146,6 +218,18 @@ describe('RecordingStream', () => {
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
                 { content: '\x1b]2;window title\x07' },
+                { type: 'finish' },
+            ]);
+        });
+
+        test('ignored if finish has been queued', async () => {
+            const source = new RecordingStream(defOptions);
+            source.start();
+            source.queueFinish();
+            source.setTitle('ignored window title');
+            source.finish();
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+                { type: 'start', ...source.termOptions },
                 { type: 'finish' },
             ]);
         });
