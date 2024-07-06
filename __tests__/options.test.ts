@@ -1,8 +1,29 @@
 import path from 'path';
-import { applyDefaults, applyDefOutputOptions } from '@src/options';
+import { validateOptions, applyDefaults, applyDefOutputOptions } from '@src/options';
+import type { Dimensions } from '@src/types';
 import { setLogLevel } from '@src/logger';
 
 setLogLevel('error');
+
+describe('validateOptions', () => {
+    test('throws error if columns and rows options are not specified', () => {
+        expect(() => {
+            validateOptions({} as unknown as Dimensions);
+        }).toThrow("Invalid options spec, 'columns' and 'rows' options must be provided");
+    });
+
+    test('throws error if columns and rows options are the wrong type', () => {
+        expect(() => {
+            validateOptions({ columns: '50', rows: '30' } as unknown as Dimensions);
+        }).toThrow("Invalid options spec, 'columns' and 'rows' options must be provided");
+    });
+
+    test('does not throw if columns and rows options are valid', () => {
+        expect(() => {
+            validateOptions({ columns: 50, rows: 30 } as unknown as Dimensions);
+        }).not.toThrow("Invalid options spec, 'columns' and 'rows' options must be provided");
+    });
+});
 
 describe('applyDefaults', () => {
     test('applys default values to options object', () => {

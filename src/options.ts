@@ -1,8 +1,14 @@
-import type { PickOptional, OutputOptions, OutputType, TerminalOptions } from './types';
+import type { PickOptional, Dimensions, OutputOptions, OutputType, TerminalOptions } from './types';
 import type { RenderOptions } from './render';
 import { resolveTheme } from './theme';
 import { resolveFilePath } from './utils';
 import log from './logger';
+
+export function validateOptions<T extends Dimensions>(options: T) {
+    if (typeof options.columns !== 'number' || typeof options.rows !== 'number') {
+        throw new Error("Invalid options spec, 'columns' and 'rows' options must be provided");
+    }
+}
 
 export function applyDefaults<D extends {}, O extends Partial<D> = Partial<D>>(def: D, options: O): D {
     return {

@@ -1,7 +1,7 @@
 import type {
     CaptureData, ScreenData, ParsedCaptureData, ParsedScreenData, OutputOptions, TerminalOptions,
 } from './types';
-import { applyDefTerminalOptions, applyDefOutputOptions, applyDefRenderOptions } from './options';
+import { validateOptions, applyDefTerminalOptions, applyDefOutputOptions, applyDefRenderOptions } from './options';
 import { applyLoggingOptions, type LoggingOptions } from './logger';
 import { parseScreen, parseCapture } from './parser';
 import RecordingStream, { type SourceFrame } from './source';
@@ -95,7 +95,11 @@ export async function renderScreen(
     content: string,
     options: LoggingOptions & TerminalOptions & OutputOptions & RenderOptions,
 ): Promise<string | Buffer> {
+    // ensure required options are specified
+    validateOptions(options);
+    // apply log level options
     applyLoggingOptions(options);
+    // render screenshot
     return renderScreenData({ ...applyDefTerminalOptions(options, { cursorHidden: true }), content }, options);
 }
 
@@ -109,9 +113,15 @@ export async function captureFrames(
     frames: SourceFrame[],
     options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & RenderOptions,
 ): Promise<string | Buffer> {
+    // ensure required options are specified
+    validateOptions(options);
+    // apply log level options
     applyLoggingOptions(options);
+    // create source stream from frames
     const source = RecordingStream.fromFrames(applyDefTerminalOptions(options), frames),
+        // capture the source stream
         capture = await captureSource(source, options);
+    // render the captured frames
     return renderCaptureData(capture, options);
 }
 
@@ -127,9 +137,15 @@ export async function captureSpawn(
     args: string[],
     options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & SpawnOptions & RenderOptions,
 ): Promise<string | Buffer> {
+    // ensure required options are specified
+    validateOptions(options);
+    // apply log level options
     applyLoggingOptions(options);
+    // launch spawn source stream
     const source = readableSpawn(command, args, options),
+        // capture the source stream
         capture = await captureSource(source, options);
+    // render the captured source data
     return renderCaptureData(capture, options);
 }
 
@@ -142,9 +158,15 @@ export async function captureSpawn(
 export async function captureShell(
     options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & ShellOptions & RenderOptions,
 ): Promise<string | Buffer> {
+    // ensure required options are specified
+    validateOptions(options);
+    // apply log level options
     applyLoggingOptions(options);
+    // launch shell source stream
     const source = readableShell(options),
+        // capture the source stream
         capture = await captureSource(source, options);
+    // render the captured source data
     return renderCaptureData(capture, options);
 }
 
@@ -161,10 +183,16 @@ export async function captureCallback(
     fn: RunCallback<any>,
     options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & CallbackOptions & RenderOptions,
 ): Promise<string | Buffer> {
+    // ensure required options are specified
+    validateOptions(options);
+    // apply log level options
     applyLoggingOptions(options);
+    // create a recording stream and run the provided callback function
     const source = new NodeRecordingStream(options);
     await source.run(fn);
+    // capture the source stream
     const capture = await captureSource(source, options);
+    // render the captured source data
     return renderCaptureData(capture, options);
 }
 
@@ -175,8 +203,11 @@ export async function captureCallback(
  * @returns rendered screencast svg string or png buffer
  */
 export async function renderData(path: string, options: LoggingOptions & OutputOptions & RenderOptions = {}) {
+    // apply log level options
     applyLoggingOptions(options);
+    // read data from provided source file
     const data = await dataFromFile(path);
+    // render the data from the provided file
     return ('writes' in data) ? renderCaptureData(data, options) : renderScreenData(data, options);
 }
 
