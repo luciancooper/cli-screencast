@@ -42,6 +42,18 @@ export interface WindowOptions {
      * @defaultValue `5`
      */
     paddingY?: number
+
+    /**
+     * Window horizontal offset
+     * @defaultValue `8`
+     */
+    offsetX?: number
+
+    /**
+     * Window vertical offset
+     * @defaultValue `8`
+     */
+    offsetY?: number
 }
 
 interface WindowProps extends Required<WindowOptions>, SVGProps<SVGSVGElement> {
@@ -63,6 +75,8 @@ const Window = forwardRef<Size, WindowProps>(({
     insetMinor,
     paddingY,
     paddingX,
+    offsetY,
+    offsetX,
 }, ref) => {
     const {
             columns,
@@ -77,10 +91,10 @@ const Window = forwardRef<Size, WindowProps>(({
         top = decorations ? insetMajor : (title || forceTitleInset) ? dy * 1.5 : 0,
         side = decorations ? insetMinor : 0,
         titleInset = decorations ? Math.ceil((50 - paddingX) / dx) : 0,
-        size = {
-            width: columns * dx + paddingX * 2 + side * 2,
-            height: rows * dy + paddingY * 2 + side + top,
-        };
+        // size of the terminal window
+        winSize = { width: columns * dx + paddingX * 2 + side * 2, height: rows * dy + paddingY * 2 + side + top },
+        // size of the image (window size & offsets)
+        size = { width: winSize.width + offsetX * 2, height: winSize.height + offsetY * 2 };
     // set ref value
     if (typeof ref === 'function') ref(size);
     return (
@@ -103,17 +117,18 @@ const Window = forwardRef<Size, WindowProps>(({
             )}
             <rect
                 className='window-background'
-                width='100%'
-                height='100%'
+                x={offsetX}
+                y={offsetY}
                 rx={borderRadius}
                 ry={borderRadius}
                 fill={theme.background}
+                {...winSize}
             />
             {title ? (
                 <svg
                     className='window-title'
-                    x={paddingX + side}
-                    y={paddingY + (top - dy) / 2}
+                    x={offsetX + paddingX + side}
+                    y={offsetY + paddingY + (top - dy) / 2}
                     width={columns * dx}
                     height={dy}
                 >
@@ -125,7 +140,7 @@ const Window = forwardRef<Size, WindowProps>(({
                 </svg>
             ) : null}
             {decorations ? (
-                <g transform={`translate(${paddingX + side * 0.4},${paddingY + top * 0.2})`}>
+                <g transform={`translate(${offsetX + paddingX + side * 0.4},${offsetY + paddingY + top * 0.2})`}>
                     <circle cx={6} cy={6} r={6} fill='#ff5f58'/>
                     <circle cx={26} cy={6} r={6} fill='#ffbd2e'/>
                     <circle cx={46} cy={6} r={6} fill='#18c132'/>
@@ -133,8 +148,8 @@ const Window = forwardRef<Size, WindowProps>(({
             ) : null}
             <svg
                 className='terminal-content'
-                x={paddingX + side}
-                y={paddingY + top}
+                x={offsetX + paddingX + side}
+                y={offsetY + paddingY + top}
                 width={columns * dx}
                 height={rows * dy}
             >

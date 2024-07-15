@@ -74,6 +74,8 @@ const defaultRenderOptions: Required<Omit<RenderOptions, 'theme'>> = {
     insetMinor: 20,
     paddingY: 5,
     paddingX: 5,
+    offsetY: 8,
+    offsetX: 8,
 };
 
 export function applyDefRenderOptions({ theme, ...options }: RenderOptions) {

@@ -328,6 +328,16 @@ The column span of title icons in the rendered terminal output. Default is `1.6`
 
 Border radius of the rendered terminal window frame. Default is `5`.
 
+<a name='options.offsetX'></a>
+› &nbsp; **offsetX** &nbsp;•&nbsp; `number`
+
+Space in pixels between the rendered terminal window frame and the left and right edges of the image. Default is `8`.
+
+<a name='options.offsetY'></a>
+› &nbsp; **offsetY** &nbsp;•&nbsp; `number`
+
+Space in pixels between the rendered terminal window frame and the top and bottom edges of the image. Default is `8`.
+
 <a name='options.paddingX'></a>
 › &nbsp; **paddingX** &nbsp;•&nbsp; `number`
 
