@@ -357,6 +357,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
             insets: [1, 1],
             offsetX: 30,
             offsetY: 20,
+            boxShadow: true,
             decorations: true,
             windowIcon: 'shell',
             windowTitle: 'Title',

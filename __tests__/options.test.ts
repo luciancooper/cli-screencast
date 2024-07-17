@@ -1,5 +1,6 @@
 import path from 'path';
-import { validateOptions, applyDefaults, applyDefOutputOptions } from '@src/options';
+import { validateOptions, applyDefaults, applyDefOutputOptions, applyDefRenderOptions } from '@src/options';
+import { defaultBoxShadow } from '@src/render';
 import type { Dimensions } from '@src/types';
 import { setLogLevel } from '@src/logger';
 
@@ -30,7 +31,7 @@ describe('applyDefaults', () => {
         expect(applyDefaults({ a: 2, b: 3 }, { a: 1 })).toStrictEqual({ a: 1, b: 3 });
     });
 
-    test('returns object with only  the keys from the defaults spec', () => {
+    test('returns object with only the keys from the defaults spec', () => {
         expect(applyDefaults({ a: 2, b: 3 }, { a: 1, c: 4 })).toStrictEqual({ a: 1, b: 3 });
     });
 });
@@ -71,5 +72,16 @@ describe('applyDefOutputOptions', () => {
             { type: 'png', path: path.resolve('./file') },
             { type: 'png', path: path.resolve('./file.jpg') },
         ]);
+    });
+});
+
+describe('applyDefRenderOptions', () => {
+    test('returns default box shadow spec if boxShadow is `true`', () => {
+        expect(applyDefRenderOptions({ boxShadow: true }).boxShadow).toStrictEqual(defaultBoxShadow);
+    });
+
+    test('applies defaults to missing fields if a partial box shadow config is specified', () => {
+        expect(applyDefRenderOptions({ boxShadow: { dx: 2, dy: 3 } }).boxShadow)
+            .toStrictEqual({ ...defaultBoxShadow, dx: 2, dy: 3 });
     });
 });

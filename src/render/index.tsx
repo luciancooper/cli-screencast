@@ -5,8 +5,11 @@ import type {
 import type { Theme } from '../theme';
 import Context, { type RenderContext } from './Context';
 import Window, { type WindowOptions } from './Window';
+import type { BoxShadowOptions } from './BoxShadow';
 import Frame from './Frame';
 import { Cursor, CursorFrames } from './Cursor';
+
+export { defaultBoxShadow } from './BoxShadow';
 
 export interface RenderOptions extends WindowOptions {
     /**
@@ -35,8 +38,9 @@ export interface RenderOptions extends WindowOptions {
     iconColumnWidth?: number
 }
 
-export interface RenderProps extends Required<RenderOptions> {
+interface RenderProps extends Required<RenderOptions> {
     theme: Theme<string>
+    boxShadow: false | Required<BoxShadowOptions>
     fontFamily?: string
     fontColumnWidth?: number | undefined
     css?: string | null

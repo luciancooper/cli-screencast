@@ -328,15 +328,20 @@ The column span of title icons in the rendered terminal output. Default is `1.6`
 
 Border radius of the rendered terminal window frame. Default is `5`.
 
+<a name='options.boxShadow'></a>
+› &nbsp; **boxShadow** &nbsp;•&nbsp; `boolean | Object`
+
+Render a box shadow around the window frame. Default is `false`. If set to `true`, a default shadow effect will be rendered. Otherwise a box shadow options object can be specified to customize the shadow effect; see the [window box shadow](#window-box-shadow) section below for details on the supported customization options.
+
 <a name='options.offsetX'></a>
 › &nbsp; **offsetX** &nbsp;•&nbsp; `number`
 
-Space in pixels between the rendered terminal window frame and the left and right edges of the image. Default is `8`.
+Space in pixels between the rendered terminal window frame and the left and right edges of the image. Default is `12`.
 
 <a name='options.offsetY'></a>
 › &nbsp; **offsetY** &nbsp;•&nbsp; `number`
 
-Space in pixels between the rendered terminal window frame and the top and bottom edges of the image. Default is `8`.
+Space in pixels between the rendered terminal window frame and the top and bottom edges of the image. Default is `12`.
 
 <a name='options.paddingX'></a>
 › &nbsp; **paddingX** &nbsp;•&nbsp; `number`
@@ -382,34 +387,47 @@ The following diagram shows how various window rendering related options functio
 
 The terminal theme can be specified by passing a theme configuration object to the [`theme`](#options.theme) option. One or more of the properties in the table below can be specified, and any unspecified properties will be inherited from the default theme.
 
-> Color values can be a hexadecimal color `string` or a `[number, number ,number]` rgb color triplet.
+> Color values can be a hexadecimal color `string` or a `[number, number, number]` rgb color triplet.
 
 |Property|Description|Default|
 |:-------|:----------|:------|
-| black | SGR foreground code `30` and background code `40` | `#000000`&nbsp;<a href='#'><img valign='middle' alt='#000000' src='https://readme-swatches.vercel.app/000000?style=circle'/></a> |
-| red | SGR foreground code `31` and background code `41` | `#ff5c57`&nbsp;<a href='#'><img valign='middle' alt='#ff5c57' src='https://readme-swatches.vercel.app/ff5c57?style=circle'/></a> |
-| green | SGR foreground code `32` and background code `42` | `#5af78e`&nbsp;<a href='#'><img valign='middle' alt='#5af78e' src='https://readme-swatches.vercel.app/5af78e?style=circle'/></a> |
-| yellow | SGR foreground code `33` and background code `43` | `#f3f99d`&nbsp;<a href='#'><img valign='middle' alt='#f3f99d' src='https://readme-swatches.vercel.app/f3f99d?style=circle'/></a> |
-| blue | SGR foreground code `34` and background code `44` | `#57c7ff`&nbsp;<a href='#'><img valign='middle' alt='#57c7ff' src='https://readme-swatches.vercel.app/57c7ff?style=circle'/></a> |
-| magenta | SGR foreground code `35` and background code `45` | `#d76aff`&nbsp;<a href='#'><img valign='middle' alt='#d76aff' src='https://readme-swatches.vercel.app/d76aff?style=circle'/></a> |
-| cyan | SGR foreground code `36` and background code `46` | `#9aedfe`&nbsp;<a href='#'><img valign='middle' alt='#9aedfe' src='https://readme-swatches.vercel.app/9aedfe?style=circle'/></a> |
-| white | SGR foreground code `37` and background code `47` | `#f1f1f0`&nbsp;<a href='#'><img valign='middle' alt='#f1f1f0' src='https://readme-swatches.vercel.app/f1f1f0?style=circle'/></a> |
-| brightBlack | SGR foreground code `90` and background code `100` | `#686868`&nbsp;<a href='#'><img valign='middle' alt='#686868' src='https://readme-swatches.vercel.app/686868?style=circle'/></a> |
-| brightRed | SGR foreground code `91` and background code `101` | `#ff5c57`&nbsp;<a href='#'><img valign='middle' alt='#ff5c57' src='https://readme-swatches.vercel.app/ff5c57?style=circle'/></a> |
-| brightGreen | SGR foreground code `92` and background code `102` | `#5af78e`&nbsp;<a href='#'><img valign='middle' alt='#5af78e' src='https://readme-swatches.vercel.app/5af78e?style=circle'/></a> |
-| brightYellow | SGR foreground code `93` and background code `103` | `#f3f99d`&nbsp;<a href='#'><img valign='middle' alt='#f3f99d' src='https://readme-swatches.vercel.app/f3f99d?style=circle'/></a> |
-| brightBlue | SGR foreground code `94` and background code `104` | `#57c7ff`&nbsp;<a href='#'><img valign='middle' alt='#57c7ff' src='https://readme-swatches.vercel.app/57c7ff?style=circle'/></a> |
-| brightMagenta | SGR foreground code `95` and background code `105` | `#d76aff`&nbsp;<a href='#'><img valign='middle' alt='#d76aff' src='https://readme-swatches.vercel.app/d76aff?style=circle'/></a> |
-| brightCyan | SGR foreground code `96` and background code `106` | `#9aedfe`&nbsp;<a href='#'><img valign='middle' alt='#9aedfe' src='https://readme-swatches.vercel.app/9aedfe?style=circle'/></a> |
-| brightWhite | SGR foreground code `97` and background code `107` | `#f1f1f0`&nbsp;<a href='#'><img valign='middle' alt='#f1f1f0' src='https://readme-swatches.vercel.app/f1f1f0?style=circle'/></a> |
-| background | Terminal window background color | `#282a36`&nbsp;<a href='#'><img valign='middle' alt='#282a36' src='https://readme-swatches.vercel.app/282a36?style=circle'/></a> |
-| iconColor | Terminal window title icon color | `#d3d7de`&nbsp;<a href='#'><img valign='middle' alt='#d3d7de' src='https://readme-swatches.vercel.app/d3d7de?style=circle'/></a> |
-| text | Default text color | `#b9c0cb`&nbsp;<a href='#'><img valign='middle' alt='#b9c0cb' src='https://readme-swatches.vercel.app/b9c0cb?style=circle'/></a> |
-| cursorColor | Cursor color | `#d7d5c9`&nbsp;<a href='#'><img valign='middle' alt='#d7d5c9' src='https://readme-swatches.vercel.app/d7d5c9?style=circle'/></a> |
-| cursorType | Cursor style, either `'beam'`,  `'block'`, or `'underline'` | `'beam'` |
-| cursorBlink | Enable cursor blinking | `false` |
-| dim | Opacity of dim text (styled with SGR code `2`)  | `0.5` |
-| fontFamily | Font family name | `"'Monaco', 'Cascadia Code', 'Courier New'"` |
+| **black** | SGR foreground code `30` and background code `40` | `#000000`&nbsp;<a href='#'><img valign='middle' alt='#000000' src='https://readme-swatches.vercel.app/000000?style=circle'/></a> |
+| **red** | SGR foreground code `31` and background code `41` | `#ff5c57`&nbsp;<a href='#'><img valign='middle' alt='#ff5c57' src='https://readme-swatches.vercel.app/ff5c57?style=circle'/></a> |
+| **green** | SGR foreground code `32` and background code `42` | `#5af78e`&nbsp;<a href='#'><img valign='middle' alt='#5af78e' src='https://readme-swatches.vercel.app/5af78e?style=circle'/></a> |
+| **yellow** | SGR foreground code `33` and background code `43` | `#f3f99d`&nbsp;<a href='#'><img valign='middle' alt='#f3f99d' src='https://readme-swatches.vercel.app/f3f99d?style=circle'/></a> |
+| **blue** | SGR foreground code `34` and background code `44` | `#57c7ff`&nbsp;<a href='#'><img valign='middle' alt='#57c7ff' src='https://readme-swatches.vercel.app/57c7ff?style=circle'/></a> |
+| **magenta** | SGR foreground code `35` and background code `45` | `#d76aff`&nbsp;<a href='#'><img valign='middle' alt='#d76aff' src='https://readme-swatches.vercel.app/d76aff?style=circle'/></a> |
+| **cyan** | SGR foreground code `36` and background code `46` | `#9aedfe`&nbsp;<a href='#'><img valign='middle' alt='#9aedfe' src='https://readme-swatches.vercel.app/9aedfe?style=circle'/></a> |
+| **white** | SGR foreground code `37` and background code `47` | `#f1f1f0`&nbsp;<a href='#'><img valign='middle' alt='#f1f1f0' src='https://readme-swatches.vercel.app/f1f1f0?style=circle'/></a> |
+| **brightBlack** | SGR foreground code `90` and background code `100` | `#686868`&nbsp;<a href='#'><img valign='middle' alt='#686868' src='https://readme-swatches.vercel.app/686868?style=circle'/></a> |
+| **brightRed** | SGR foreground code `91` and background code `101` | `#ff5c57`&nbsp;<a href='#'><img valign='middle' alt='#ff5c57' src='https://readme-swatches.vercel.app/ff5c57?style=circle'/></a> |
+| **brightGreen** | SGR foreground code `92` and background code `102` | `#5af78e`&nbsp;<a href='#'><img valign='middle' alt='#5af78e' src='https://readme-swatches.vercel.app/5af78e?style=circle'/></a> |
+| **brightYellow** | SGR foreground code `93` and background code `103` | `#f3f99d`&nbsp;<a href='#'><img valign='middle' alt='#f3f99d' src='https://readme-swatches.vercel.app/f3f99d?style=circle'/></a> |
+| **brightBlue** | SGR foreground code `94` and background code `104` | `#57c7ff`&nbsp;<a href='#'><img valign='middle' alt='#57c7ff' src='https://readme-swatches.vercel.app/57c7ff?style=circle'/></a> |
+| **brightMagenta** | SGR foreground code `95` and background code `105` | `#d76aff`&nbsp;<a href='#'><img valign='middle' alt='#d76aff' src='https://readme-swatches.vercel.app/d76aff?style=circle'/></a> |
+| **brightCyan** | SGR foreground code `96` and background code `106` | `#9aedfe`&nbsp;<a href='#'><img valign='middle' alt='#9aedfe' src='https://readme-swatches.vercel.app/9aedfe?style=circle'/></a> |
+| **brightWhite** | SGR foreground code `97` and background code `107` | `#f1f1f0`&nbsp;<a href='#'><img valign='middle' alt='#f1f1f0' src='https://readme-swatches.vercel.app/f1f1f0?style=circle'/></a> |
+| **background** | Terminal window background color | `#282a36`&nbsp;<a href='#'><img valign='middle' alt='#282a36' src='https://readme-swatches.vercel.app/282a36?style=circle'/></a> |
+| **iconColor** | Terminal window title icon color | `#d3d7de`&nbsp;<a href='#'><img valign='middle' alt='#d3d7de' src='https://readme-swatches.vercel.app/d3d7de?style=circle'/></a> |
+| **text** | Default text color | `#b9c0cb`&nbsp;<a href='#'><img valign='middle' alt='#b9c0cb' src='https://readme-swatches.vercel.app/b9c0cb?style=circle'/></a> |
+| **cursorColor** | Cursor color | `#d7d5c9`&nbsp;<a href='#'><img valign='middle' alt='#d7d5c9' src='https://readme-swatches.vercel.app/d7d5c9?style=circle'/></a> |
+| **cursorType** | Cursor style, either `'beam'`,  `'block'`, or `'underline'` | `'beam'` |
+| **cursorBlink** | Enable cursor blinking | `false` |
+| **dim** | Opacity of dim text (styled with SGR code `2`)  | `0.5` |
+| **fontFamily** | Font family name | `"'Monaco', 'Cascadia Code', 'Courier New'"` |
+
+## Window Box Shadow
+
+The rendered window box shadow can be configured by passing a configuration object to the [`boxShadow`](#options.boxShadow) option. Any of the options in the table below can be specified, and any unspecified options will assume their default values.
+
+|Option|Description|Default|
+|:-----|:----------|:------|
+| **dx** | The horizontal offset of the shadow, in pixels. Positive values will offset the shadow to the right of the window, while negative values will offset the shadow to the left. | `0` |
+| **dy** | The vertical offset of the shadow, in pixels. Positive values will offset the shadow down under the window, while negative values will offset the shadow up. | `0` |
+| **spread** | The spread radius of the shadow. If two numbers are provided in a `[number, number]` array pair, the first number will represent the x-radius of the spread and the second will represent the y-radius. If one `number` is provided, it is used for both the x and y. Positive values will cause the shadow to expand, and negative values will cause the shadow to contract. | `2` |
+| **blurRadius** | Blur radius of the shadow. This is the standard deviation value for the blur function, and must be a `number` ≥ 0 | `4` |
+| **color** | Color of the shadow. This can be configured with a hexadecimal color `string` or a rgb color triplet array.  | `#000000` |
+| **opacity** | Opacity of the shadow. Must be a number between 0 - 1. | `0.5` |
 
 ## Window Icons
 

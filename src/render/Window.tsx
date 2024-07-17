@@ -2,6 +2,7 @@ import { useContext, forwardRef, type SVGProps } from 'react';
 import type { IconID, Size, Title, TitleKeyFrame } from '../types';
 import iconPaths from './icons.json';
 import Context from './Context';
+import BoxShadow, { type BoxShadowOptions } from './BoxShadow';
 import WindowTitle from './WindowTitle';
 
 export interface WindowOptions {
@@ -10,6 +11,13 @@ export interface WindowOptions {
      * @defaultValue `5`
      */
     borderRadius?: number
+
+    /**
+     * Render a box shadow around the window frame. A box shadow options object can be specified to customize
+     * the shadow effect, or if set to `true`, the default box shadow effect will be rendered.
+     * @defaultValue `false`
+     */
+    boxShadow?: boolean | BoxShadowOptions
 
     /**
      * Render top stoplight buttons
@@ -45,18 +53,19 @@ export interface WindowOptions {
 
     /**
      * Window horizontal offset
-     * @defaultValue `8`
+     * @defaultValue `12`
      */
     offsetX?: number
 
     /**
      * Window vertical offset
-     * @defaultValue `8`
+     * @defaultValue `12`
      */
     offsetY?: number
 }
 
 interface WindowProps extends Required<WindowOptions>, SVGProps<SVGSVGElement> {
+    boxShadow: false | Required<BoxShadowOptions>
     title?: Title | TitleKeyFrame[] | null
     forceTitleInset?: boolean
     fontFamily?: string
@@ -70,6 +79,7 @@ const Window = forwardRef<Size, WindowProps>(({
     fontFamily,
     css,
     borderRadius,
+    boxShadow,
     decorations,
     insetMajor,
     insetMinor,
@@ -115,6 +125,7 @@ const Window = forwardRef<Size, WindowProps>(({
                     ))}
                 </defs>
             )}
+            {boxShadow ? <BoxShadow id='box-shadow' {...boxShadow}/> : null}
             <rect
                 className='window-background'
                 x={offsetX}
@@ -122,6 +133,7 @@ const Window = forwardRef<Size, WindowProps>(({
                 rx={borderRadius}
                 ry={borderRadius}
                 fill={theme.background}
+                filter={boxShadow ? 'url(#box-shadow)' : undefined}
                 {...winSize}
             />
             {title ? (

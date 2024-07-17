@@ -1,5 +1,5 @@
 import type { PickOptional, Dimensions, OutputOptions, OutputType, TerminalOptions } from './types';
-import type { RenderOptions } from './render';
+import { defaultBoxShadow, type RenderOptions } from './render';
 import { resolveTheme } from './theme';
 import { resolveFilePath } from './utils';
 import log from './logger';
@@ -74,10 +74,16 @@ const defaultRenderOptions: Required<Omit<RenderOptions, 'theme'>> = {
     insetMinor: 20,
     paddingY: 5,
     paddingX: 5,
-    offsetY: 8,
-    offsetX: 8,
+    offsetY: 12,
+    offsetX: 12,
+    boxShadow: false,
 };
 
 export function applyDefRenderOptions({ theme, ...options }: RenderOptions) {
-    return { ...applyDefaults(defaultRenderOptions, options), theme: resolveTheme(theme) };
+    const { boxShadow, ...defaultsApplied } = applyDefaults(defaultRenderOptions, options);
+    return {
+        ...defaultsApplied,
+        theme: resolveTheme(theme),
+        boxShadow: boxShadow ? applyDefaults(defaultBoxShadow, boxShadow !== true ? boxShadow : {}) : false as const,
+    };
 }
