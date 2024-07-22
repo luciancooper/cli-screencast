@@ -1,5 +1,6 @@
 import { useContext, type FunctionComponent, type SVGProps } from 'react';
 import type { CursorLocation, CursorKeyFrame } from '../types';
+import { hexString, alphaValue } from '../color';
 import Context from './Context';
 import { Animation, TransformAnimation, KeyTime } from './Animation';
 
@@ -17,7 +18,15 @@ export const Cursor: FunctionComponent<CursorProps> = ({
         [cy, h] = cursorType === 'underline' ? [lh * 0.9, lh * 0.1] : [0, lh],
         y = line * dy + (dy - lh) / 2 + cy;
     return (
-        <rect x={column * dx} y={y} width={w} height={h} fill={cursorColor} {...props}>
+        <rect
+            x={column * dx}
+            y={y}
+            width={w}
+            height={h}
+            fill={hexString(cursorColor)}
+            fillOpacity={alphaValue(cursorColor, true)}
+            {...props}
+        >
             {cursorBlink ? (
                 <Animation
                     attribute='opacity'

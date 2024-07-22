@@ -1,5 +1,6 @@
 import { useContext, forwardRef, type SVGProps } from 'react';
 import type { IconID, Size, Title, TitleKeyFrame } from '../types';
+import { hexString, alphaValue } from '../color';
 import iconPaths from './icons.json';
 import Context from './Context';
 import BoxShadow, { type BoxShadowOptions } from './BoxShadow';
@@ -132,7 +133,8 @@ const Window = forwardRef<Size, WindowProps>(({
                 y={offsetY}
                 rx={borderRadius}
                 ry={borderRadius}
-                fill={theme.background}
+                fill={hexString(theme.background)}
+                fillOpacity={alphaValue(theme.background, true)}
                 filter={boxShadow ? 'url(#box-shadow)' : undefined}
                 {...winSize}
             />

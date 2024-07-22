@@ -211,7 +211,7 @@ export async function renderData(path: string, options: LoggingOptions & OutputO
     return ('writes' in data) ? renderCaptureData(data, options) : renderScreenData(data, options);
 }
 
-export type { RGB } from './types';
+export type { RGBA } from './types';
 export type { Theme } from './theme';
 
 export type {

@@ -9,7 +9,12 @@ export type OmitStrict<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
  * A recursive version of the built-in `Partial` type that makes all keys and nested keys optional.
  */
 export type DeepPartial<T> = T extends (...args: any[]) => any ? T
-    : T extends readonly (infer E)[] ? (E extends Record<string, any> ? DeepPartial<E>[] : T)
+    : T extends readonly (infer E)[]
+        ? T extends (T extends readonly any[] ? (any[] extends T ? never : T) : never)
+            ? { [K in keyof T]: DeepPartial<T[K]> }
+            : T extends E[]
+                ? (DeepPartial<E> | undefined)[]
+                : readonly (DeepPartial<E> | undefined)[]
         : T extends Record<string, any> ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
 /**
@@ -102,7 +107,7 @@ export interface OutputOptions {
     embedFonts?: boolean
 }
 
-export type RGB = readonly [number, number, number];
+export type RGBA = readonly [number, number, number, number?];
 
 export interface AnsiStyle {
     /**
@@ -112,11 +117,11 @@ export interface AnsiStyle {
     /**
      * Foreground color
      */
-    fg?: number | string | undefined
+    fg?: number | RGBA | undefined
     /**
      * Background color
      */
-    bg?: number | string | undefined
+    bg?: number | RGBA | undefined
     /**
      * Hyperlink
      */

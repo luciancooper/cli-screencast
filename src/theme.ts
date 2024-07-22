@@ -1,9 +1,9 @@
-import type { Entries, RGB } from './types';
-import { toHex } from './color';
+import type { Entries, RGBA } from './types';
+import { resolveColor } from './color';
 
 type CursorType = 'beam' | 'block' | 'underline';
 
-export interface Theme<Color = RGB | string> {
+export interface Theme<Color = RGBA | string> {
     // colors
     black: Color
     red: Color
@@ -69,10 +69,14 @@ export const defaultTheme: Theme = {
     fontFamily: "'Monaco', 'Cascadia Code', 'Courier New'",
 };
 
+type ThemeNonColorKeys = { [K in keyof Theme]: Theme<never>[K] extends never ? never : K }[keyof Theme];
+
+const nonColorThemeKeys: ThemeNonColorKeys[] = ['cursorType', 'cursorBlink', 'dim', 'fontFamily'] as const;
+
 export function resolveTheme(spec: Partial<Theme> = {}) {
     return (Object.entries({ ...defaultTheme, ...spec }) as Entries<Theme>)
-        .reduce<Record<string, any>>((acc, [key, value]) => {
-        acc[key] = typeof value === 'object' ? toHex(value) : value;
+        .reduce<Record<string, any>>((acc, [k, v]) => {
+        acc[k] = nonColorThemeKeys.includes(k as ThemeNonColorKeys) ? v : resolveColor(v as RGBA | string);
         return acc;
-    }, {}) as Theme<string>;
+    }, {}) as Theme<RGBA>;
 }

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import type {
-    Dimensions, ParsedCaptureData, ParsedScreenData, ParsedCaptureFrames, Size, SVGData, SVGCaptureData,
+    RGBA, Dimensions, ParsedCaptureData, ParsedScreenData, ParsedCaptureFrames, Size, SVGData, SVGCaptureData,
 } from '../types';
 import type { Theme } from '../theme';
 import Context, { type RenderContext } from './Context';
@@ -39,7 +39,7 @@ export interface RenderOptions extends WindowOptions {
 }
 
 interface RenderProps extends Required<RenderOptions> {
-    theme: Theme<string>
+    theme: Theme<RGBA>
     boxShadow: false | Required<BoxShadowOptions>
     fontFamily?: string
     fontColumnWidth?: number | undefined

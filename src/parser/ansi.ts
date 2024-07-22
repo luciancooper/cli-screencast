@@ -1,6 +1,6 @@
 import ansiRegex from 'ansi-regex';
 import type { AnsiStyle, AnsiStyleProps } from '../types';
-import { toHex, color8Bit } from '../color';
+import { color8Bit } from '../color';
 import { regexChunks } from './utils';
 
 export function expandAnsiProps(props: number): AnsiStyleProps {
@@ -42,7 +42,7 @@ function parseEscape(style: AnsiStyle, sequence: string) {
             if (bit === 2) {
                 // true color (24 bit color)
                 const [r = 0, g = 0, b = 0] = args;
-                style[attr] = toHex([r, g, b]);
+                style[attr] = [r, g, b];
             } else if (bit === 5) {
                 // xterm 256 color (8 bit color)
                 style[attr] = color8Bit(Math.min(args[0] ?? 0, 0xFF));

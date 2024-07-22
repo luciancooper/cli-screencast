@@ -1,6 +1,6 @@
 import { useContext, type FunctionComponent, type SVGProps } from 'react';
 import type { OmitStrict, AnsiStyle, AnsiStyleProps } from '../types';
-import { themeColor } from '../color';
+import { themeColor, hexString, alphaValue } from '../color';
 import Context from './Context';
 
 interface TextProps extends OmitStrict<AnsiStyle, 'props'>, Partial<AnsiStyleProps>, SVGProps<SVGTextElement> {
@@ -34,7 +34,8 @@ const Text: FunctionComponent<TextProps> = ({
             ...textProps,
             x: x * dx,
             y: y * dy + dy / 2,
-            fill: color,
+            fill: hexString(color),
+            fillOpacity: alphaValue(color, true),
             textDecoration: decoration || undefined,
             fontWeight: bold ? 'bold' : undefined,
             fontStyle: italic ? 'italic' : undefined,
@@ -43,7 +44,16 @@ const Text: FunctionComponent<TextProps> = ({
         element = <text {...props}>{children}</text>;
     return (
         <>
-            {bgColor ? <rect fill={bgColor} x={x * dx} y={y * dy} width={span * dx} height={dy}/> : null}
+            {bgColor ? (
+                <rect
+                    x={x * dx}
+                    y={y * dy}
+                    width={span * dx}
+                    height={dy}
+                    fill={hexString(bgColor)}
+                    fillOpacity={alphaValue(bgColor, true)}
+                />
+            ) : null}
             {link ? <a href={link}>{element}</a> : element}
         </>
     );

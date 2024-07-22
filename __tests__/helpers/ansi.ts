@@ -1,4 +1,4 @@
-import type { RGB } from '@src/types';
+import type { RGBA } from '@src/types';
 
 export const link = (text: string, url: string) => `\u001b]8;;${url}\u0007${text}\u001b]8;;\u0007`;
 
@@ -26,9 +26,9 @@ export const fg8Bit = (color: number, text: string) => sgr(38, 5, color) + text 
 
 export const bg8Bit = (color: number, text: string) => sgr(48, 5, color) + text + sgr(49);
 
-export const fgRGB = (rgb: RGB, text: string) => sgr(38, 2, ...rgb) + text + sgr(39);
+export const fgRGB = ([r, g, b]: RGBA, text: string) => sgr(38, 2, r, g, b) + text + sgr(39);
 
-export const bgRGB = (rgb: RGB, text: string) => sgr(48, 2, ...rgb) + text + sgr(49);
+export const bgRGB = ([r, g, b]: RGBA, text: string) => sgr(48, 2, r, g, b) + text + sgr(49);
 
 export const sgrReset = sgr(0);
 

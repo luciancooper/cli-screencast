@@ -1,36 +1,42 @@
-import type { RGB } from './types';
+import { colord, extend } from 'colord';
+import namesPlugin from 'colord/plugins/names';
+import type { RGBA } from './types';
 import type { Theme } from './theme';
 
+extend([namesPlugin]);
+
 /**
- * Convert RGB array to a hex triplet string, or normalize a hex triplet string.
- * Normalized hex triplets have six digits, are lower case, and have a leading '#'.
- * @param color - an RGB array to convert or hex string to normalize
+ * Resolve a color argument.
+ * @param color - a color string to parse or an RGBA array
+ * @returns an rgba value array
+ */
+export function resolveColor(color: RGBA | string): RGBA {
+    if (typeof color === 'string') {
+        const rgb = colord(color).toRgb();
+        return [rgb.r, rgb.g, rgb.b, rgb.a];
+    }
+    const [r, g, b, a = 1] = color;
+    return [r, g, b, a];
+}
+
+/**
+ * Convert RGBA array to a hex triplet string. Hex triplets have six digits, are lower case, and have a leading '#'.
+ * @param color - an RGB array to convert
  * @returns a hex triplet string (six-digit, lower case, leading '#')
  */
-export function toHex(color: RGB | string) {
-    if (typeof color === 'string') {
-        if (!/^#?(?:[0-9a-f]{6}|[0-9a-f]{3})$/i.test(color)) {
-            throw new Error(`invalid hex color string '${color}'`);
-        }
-        let digits = color.replace(/^#?/, '').toLowerCase();
-        if (digits.length === 3) digits = [...digits].map((h) => h + h).join('');
-        return `#${digits}`;
-    }
-    const [r, g, b] = color;
+export function hexString([r, g, b]: RGBA) {
     return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
 /**
- * Convert hex triplet string to RGB array
- * @param color - hex triplet string
- * @returns rgb value array
+ * Extract the alpha value from an RGBA array.
+ * @param color - an RGBA array
+ * @param nullify - whether or not to return undefined if alpha value is 1
+ * @returns alpha value
  */
-export function fromHex(color: string): RGB {
-    const m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec(color);
-    if (!m) throw new Error(`invalid hex color string '${color}'`);
-    const hex = m[1]!;
-    return (hex.length === 3 ? [...hex].map((h) => parseInt(h + h, 16))
-        : hex.match(/.{2}/g)!.map((h) => parseInt(h, 16))) as [number, number, number];
+export function alphaValue([,,, a]: RGBA, nullify = false) {
+    const alpha = Math.max(Math.min(1, (a ?? 1)), 0);
+    return (nullify && alpha === 1) ? undefined : alpha;
 }
 
 /**
@@ -39,7 +45,7 @@ export function fromHex(color: string): RGB {
  * @param color - 8 bit color value (0 - 255)
  * @returns 4 bit color if between 0 - 15, otherwise a hex color string
  */
-export function color8Bit(color: number): number | string {
+export function color8Bit(color: number): number | RGBA {
     if (color > 0xFF || color < 0) {
         throw new Error(`${color} is not a valid 8 bit color value`);
     }
@@ -47,15 +53,15 @@ export function color8Bit(color: number): number | string {
     if (color < 16) return color;
     // 16 - 231 : 6 × 6 × 6 cube (216 colors)
     if (color < 232) {
-        return toHex([
+        return [
             Math.floor((color - 16) / 36),
             Math.floor(((color - 16) % 36) / 6),
             (color - 16) % 6,
-        ].map((i) => i && (95 + (i - 1) * 40)) as unknown as RGB);
+        ].map((i) => i && (95 + (i - 1) * 40)) as [number, number, number];
     }
     // 232 - 255 : grayscale (24 colors)
     const gray = (color - 232) * 10 + 8;
-    return toHex([gray, gray, gray]);
+    return [gray, gray, gray];
 }
 
 type ThemeColorKeys = { [K in keyof Theme]: Theme<never>[K] extends never ? K : never }[keyof Theme];
@@ -79,7 +85,7 @@ const color4BitKeys: ThemeColorKeys[] = [
     'brightWhite',
 ];
 
-export function themeColor<T extends RGB | string = string>(
+export function themeColor<T extends RGBA | string = string>(
     color: number | T | undefined,
     theme: Theme<T>,
 ): T | undefined {

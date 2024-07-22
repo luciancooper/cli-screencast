@@ -1,6 +1,6 @@
 import { cloneElement, type FunctionComponent } from 'react';
-import type { RGB } from '../types';
-import { toHex } from '../color';
+import type { RGBA } from '../types';
+import { resolveColor, hexString, alphaValue } from '../color';
 
 export interface BoxShadowOptions {
     /**
@@ -34,15 +34,9 @@ export interface BoxShadowOptions {
 
     /**
      * Color of the box shadow.
-     * @defaultValue `#000`
+     * @defaultValue `rgba(0, 0, 0, 0.5)`
      */
-    color?: RGB | string
-
-    /**
-     * Opacity of the box shadow.
-     * @defaultValue `0.5`
-     */
-    opacity?: number
+    color?: RGBA | string
 }
 
 export const defaultBoxShadow: Required<BoxShadowOptions> = {
@@ -50,8 +44,7 @@ export const defaultBoxShadow: Required<BoxShadowOptions> = {
     dy: 0,
     spread: 2,
     blurRadius: 4,
-    color: [0, 0, 0],
-    opacity: 0.5,
+    color: [0, 0, 0, 0.5],
 };
 
 const BoxShadow: FunctionComponent<{ id: string } & Required<BoxShadowOptions>> = ({
@@ -61,7 +54,6 @@ const BoxShadow: FunctionComponent<{ id: string } & Required<BoxShadowOptions>> 
     spread,
     blurRadius,
     color,
-    opacity,
 }) => {
     const primitives: JSX.Element[] = [];
     let props: { in?: 'SourceAlpha' } = { in: 'SourceAlpha' };
@@ -110,14 +102,12 @@ const BoxShadow: FunctionComponent<{ id: string } & Required<BoxShadowOptions>> 
     if (!primitives.length) return null;
     // set result of last filter primitive
     primitives[primitives.length - 1] = cloneElement(primitives[primitives.length - 1]!, { result: 'Shadow' });
+    // resolve shadow color
+    const rgba = resolveColor(color);
     // add remaining filter primitives
     primitives.push(
         // create flood color
-        <feFlood
-            key='flood'
-            floodColor={typeof color === 'object' ? toHex(color) : color}
-            floodOpacity={opacity}
-        />,
+        <feFlood key='flood' floodColor={hexString(rgba)} floodOpacity={alphaValue(rgba, false)}/>,
         // composite flood color with shadow alpha
         <feComposite key='composite' in2='Shadow' operator='in'/>,
         // overlay source graphic over the box shadow

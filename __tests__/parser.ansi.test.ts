@@ -1,4 +1,4 @@
-import { color8Bit, toHex } from '@src/color';
+import { color8Bit } from '@src/color';
 import parseAnsi, { type AnsiChunk } from '@src/parser/ansi';
 import * as ansi from './helpers/ansi';
 import { makeStyle, StylePartial } from './helpers/objects';
@@ -52,9 +52,9 @@ describe('parseAnsi', () => {
             bg = ansi.bgRGB([95, 135, 0], 'background');
         expect(parse(`24 bit ${fg} and ${bg}`)).toEqual<AnsiChunk[]>([
             chunk('24 bit '),
-            chunk('foreground', { fg: toHex([215, 215, 135]) }),
+            chunk('foreground', { fg: [215, 215, 135] }),
             chunk(' and '),
-            chunk('background', { bg: toHex([95, 135, 0]) }),
+            chunk('background', { bg: [95, 135, 0] }),
         ]);
     });
 
@@ -133,7 +133,7 @@ describe('parseAnsi', () => {
         test('24 bit color missing arguments default to 0', () => {
             // 24 bit - default to 0 when color args are missing
             expect(parse(`${ansi.sgr(38, 2, 255)}bad escape${ansi.sgr(39)}`)).toEqual<AnsiChunk[]>([
-                chunk('bad escape', { fg: toHex([255, 0, 0]) }),
+                chunk('bad escape', { fg: [255, 0, 0] }),
             ]);
         });
 
@@ -147,14 +147,14 @@ describe('parseAnsi', () => {
         test('24 bit color with omitted parameters', () => {
             // 24 bit - fill missing r, g, b values
             expect(parse(`${ansi.sgr(48, 2, '', 128, '')}R & G missing${ansi.sgr(49)}`)).toEqual<AnsiChunk[]>([
-                chunk('R & G missing', { bg: toHex([0, 128, 0]) }),
+                chunk('R & G missing', { bg: [0, 128, 0] }),
             ]);
         });
 
         test('compound 24 bit color with omitted parameters', () => {
             // 24 bit - fill missing r, g, b values
             expect(parse(`${ansi.sgr(48, 2, 128, '', '', 38, 2, '', '', 150)}omitted args${ansi.sgr(49, 39)}`))
-                .toEqual<AnsiChunk[]>([chunk('omitted args', { bg: toHex([128, 0, 0]), fg: toHex([0, 0, 150]) })]);
+                .toEqual<AnsiChunk[]>([chunk('omitted args', { bg: [128, 0, 0], fg: [0, 0, 150] })]);
         });
     });
 

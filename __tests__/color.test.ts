@@ -1,43 +1,59 @@
 import { resolveTheme } from '@src/theme';
-import { toHex, fromHex, themeColor, color8Bit } from '@src/color';
+import { resolveColor, hexString, alphaValue, themeColor, color8Bit } from '@src/color';
 
 const theme = resolveTheme();
 
-describe('toHex', () => {
-    test('converts rgb arrays to hex triplet strings', () => {
-        expect(toHex([255, 0, 255])).toBe('#ff00ff');
-    });
-
-    test('normalizes hex triplet strings', () => {
-        expect(toHex('#efe')).toBe('#eeffee');
-        expect(toHex('ff00ff')).toBe('#ff00ff');
-        expect(toHex('#FFeeFF')).toBe('#ffeeff');
-    });
-
-    test('throws error if input hex string is invalid', () => {
-        expect(() => toHex('xxyyzz')).toThrow("invalid hex color string 'xxyyzz'");
-    });
-});
-
-describe('fromHex', () => {
+describe('resolveColor', () => {
     test('converts hex string to rgb', () => {
-        expect(fromHex('ff00ff')).toEqual([255, 0, 255]);
-        expect(fromHex('#5a70b4')).toEqual([90, 112, 180]);
+        expect(resolveColor('#ff00ff')).toStrictEqual([255, 0, 255, 1]);
+        expect(resolveColor('#5a70b4')).toStrictEqual([90, 112, 180, 1]);
+        expect(resolveColor('#FFeeFF')).toStrictEqual([255, 238, 255, 1]);
     });
 
     test('handles shorted hex strings', () => {
-        expect(fromHex('f0f')).toEqual([255, 0, 255]);
-        expect(fromHex('#eee')).toEqual([238, 238, 238]);
+        expect(resolveColor('#f0f')).toStrictEqual([255, 0, 255, 1]);
+        expect(resolveColor('#eee')).toStrictEqual([238, 238, 238, 1]);
     });
 
-    test('throws error if input hex color is invalid', () => {
-        expect(() => fromHex('f00ff')).toThrow("invalid hex color string 'f00ff'");
+    test('parses rgba strings', () => {
+        expect(resolveColor('rgba(150, 0, 255, 0.5)')).toStrictEqual([150, 0, 255, 0.5]);
+    });
+
+    test('parses hsla strings', () => {
+        expect(resolveColor('hsla(0, 50%, 50%, 25%)')).toStrictEqual([191, 64, 64, 0.25]);
+    });
+
+    test('resolves rgb arrays', () => {
+        expect(resolveColor([255, 150, 100])).toStrictEqual([255, 150, 100, 1]);
+    });
+});
+
+describe('hexString', () => {
+    test('converts rgb arrays to hex triplet strings', () => {
+        expect(hexString([255, 0, 255])).toBe('#ff00ff');
+    });
+
+    test('ignores alpha values', () => {
+        expect(hexString([255, 0, 255, 0.5])).toBe('#ff00ff');
+    });
+});
+
+describe('alphaValue', () => {
+    test('extracts alpha value from an rgba array', () => {
+        expect(alphaValue([255, 0, 255, 0.25])).toBe(0.25);
+        expect(alphaValue([255, 155, 155])).toBe(1);
+    });
+
+    test('returns undefined on full alpha values if `nullify` is true', () => {
+        expect(alphaValue([255, 155, 155, 0.5], true)).toBe(0.5);
+        expect(alphaValue([255, 155, 155, 1], true)).toBeUndefined();
+        expect(alphaValue([255, 155, 155], true)).toBeUndefined();
     });
 });
 
 describe('themeColor', () => {
-    test('does nothing if color is a string or undefined', () => {
-        expect(themeColor('#fefefe', theme)).toBe('#fefefe');
+    test('does nothing if color is an rgba tuple or undefined', () => {
+        expect(themeColor([254, 254, 254], theme)).toStrictEqual([254, 254, 254]);
         expect(themeColor(undefined, theme)).toBeUndefined();
     });
 
@@ -69,14 +85,14 @@ describe('color8Bit', () => {
     });
 
     test('16-231 6 × 6 × 6 cube (216 colors)', () => {
-        expect(color8Bit(16)).toBe(toHex([0, 0, 0])); // 0 × 0 × 0
-        expect(color8Bit(188)).toBe(toHex([215, 215, 215])); // 4 × 4 × 4
-        expect(color8Bit(212)).toBe(toHex([255, 135, 215])); // 5 × 2 × 4
+        expect(color8Bit(16)).toStrictEqual([0, 0, 0]); // 0 × 0 × 0
+        expect(color8Bit(188)).toStrictEqual([215, 215, 215]); // 4 × 4 × 4
+        expect(color8Bit(212)).toStrictEqual([255, 135, 215]); // 5 × 2 × 4
     });
 
     test('232-255 - grayscale from black to white in 24 steps', () => {
-        expect(color8Bit(232)).toBe(toHex([8, 8, 8])); // 0xe8
-        expect(color8Bit(245)).toBe(toHex([138, 138, 138])); // 0xf5
-        expect(color8Bit(255)).toBe(toHex([238, 238, 238])); // 0xff
+        expect(color8Bit(232)).toStrictEqual([8, 8, 8]); // 0xe8
+        expect(color8Bit(245)).toStrictEqual([138, 138, 138]); // 0xf5
+        expect(color8Bit(255)).toStrictEqual([238, 238, 238]); // 0xff
     });
 });

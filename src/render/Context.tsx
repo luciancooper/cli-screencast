@@ -1,9 +1,9 @@
 import { createContext } from 'react';
-import type { Dimensions } from '../types';
+import type { Dimensions, RGBA } from '../types';
 import type { Theme } from '../theme';
 
 export interface RenderContext extends Dimensions {
-    theme: Theme<string>
+    theme: Theme<RGBA>
     fontSize: number
     grid: readonly [number, number]
     iconColumnWidth: number

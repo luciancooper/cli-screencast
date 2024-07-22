@@ -387,7 +387,7 @@ The following diagram shows how various window rendering related options functio
 
 The terminal theme can be specified by passing a theme configuration object to the [`theme`](#options.theme) option. One or more of the properties in the table below can be specified, and any unspecified properties will be inherited from the default theme.
 
-> Color values can be a hexadecimal color `string` or a `[number, number, number]` rgb color triplet.
+> Color values can be configured with any color `string` or a `[number, number, number, number?]` rgba color tuple.
 
 |Property|Description|Default|
 |:-------|:----------|:------|
@@ -426,8 +426,7 @@ The rendered window box shadow can be configured by passing a configuration obje
 | **dy** | The vertical offset of the shadow, in pixels. Positive values will offset the shadow down under the window, while negative values will offset the shadow up. | `0` |
 | **spread** | The spread radius of the shadow. If two numbers are provided in a `[number, number]` array pair, the first number will represent the x-radius of the spread and the second will represent the y-radius. If one `number` is provided, it is used for both the x and y. Positive values will cause the shadow to expand, and negative values will cause the shadow to contract. | `2` |
 | **blurRadius** | Blur radius of the shadow. This is the standard deviation value for the blur function, and must be a `number` ≥ 0 | `4` |
-| **color** | Color of the shadow. This can be configured with a hexadecimal color `string` or a rgb color triplet array.  | `#000000` |
-| **opacity** | Opacity of the shadow. Must be a number between 0 - 1. | `0.5` |
+| **color** | Color of the shadow. This can be configured with any color `string` or a rgba color array. | `rgba(0, 0, 0, 0.5)` |
 
 ## Window Icons
 

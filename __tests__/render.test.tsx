@@ -2,6 +2,7 @@ import { create } from 'react-test-renderer';
 import { applyDefRenderOptions } from '@src/options';
 import { resolveTheme } from '@src/theme';
 import { resolveTitle } from '@src/parser';
+import { hexString } from '@src/color';
 import type { CursorKeyFrame } from '@src/types';
 import type { KeyTime } from '@src/render/Animation';
 import Context, { RenderContext } from '@src/render/Context';
@@ -136,8 +137,7 @@ describe('<BoxShadow/>', () => {
         dy: 0,
         spread: 0,
         blurRadius: 0,
-        color: [0, 0, 0],
-        opacity: 0.5,
+        color: [0, 0, 0, 0.5],
     };
 
     test('correctly chains filter primitives', () => {
@@ -170,9 +170,9 @@ describe('<BoxShadow/>', () => {
         expect(render(<BoxShadow id='shadow' {...baseOptions}/>)).toBeNull();
     });
 
-    test('specified color can be a hex string or rgb array', () => {
+    test('specified color can be an rgba string', () => {
         expect(render(
-            <BoxShadow id='shadow' {...baseOptions} blurRadius={3} color='#ff0000'/>,
+            <BoxShadow id='shadow' {...baseOptions} blurRadius={3} color='rgba(255, 0, 0, 0.5)'/>,
         )).toMatchObject({
             type: 'filter',
             children: [
@@ -319,7 +319,7 @@ describe('<Text/>', () => {
 
     test('renders a <rect> sibling element when `background` is styled', () => {
         expect(render(
-            <Text x={0} y={0} span={10} bg='#ff00ff'>background</Text>,
+            <Text x={0} y={0} span={10} bg={[255, 0, 255]}>background</Text>,
         )).toMatchObject([
             { type: 'rect', props: { fill: '#ff00ff' } },
             { type: 'text', children: ['background'] },
@@ -330,14 +330,14 @@ describe('<Text/>', () => {
         expect(render(
             <Text x={0} y={0} span={8} inverted>inverted</Text>,
         )).toMatchObject([
-            { type: 'rect', props: { fill: defTheme.text } },
-            { type: 'text', props: { fill: defTheme.background }, children: ['inverted'] },
+            { type: 'rect', props: { fill: hexString(defTheme.text) } },
+            { type: 'text', props: { fill: hexString(defTheme.background) }, children: ['inverted'] },
         ]);
         expect(render(
             <Text x={0} y={0} span={8} fg={1} bg={3} inverted>inverted</Text>,
         )).toMatchObject([
-            { type: 'rect', props: { fill: defTheme.red } },
-            { type: 'text', props: { fill: defTheme.yellow }, children: ['inverted'] },
+            { type: 'rect', props: { fill: hexString(defTheme.red) } },
+            { type: 'text', props: { fill: hexString(defTheme.yellow) }, children: ['inverted'] },
         ]);
     });
 
