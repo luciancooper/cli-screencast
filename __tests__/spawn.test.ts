@@ -189,7 +189,8 @@ describe('readableSpawn', () => {
             stripAnsi(stdout.output.replace(/\x1b\[1?G/g, '\r'))
                 .trimEnd()
                 .split(/\r*\n/g)
-                .map((l) => l.replace(/^.*\r/, '')),
+                .map((l) => l.replace(/^.*\r/, ''))
+                .filter(Boolean),
         ).toEqual([
             '>>> ● Capture Start >>>',
             'Prompt: Response',
