@@ -1,3 +1,4 @@
+import { charWidths } from 'tty-strings';
 import { useContext, type FunctionComponent, type SVGProps } from 'react';
 import type { OmitStrict, AnsiStyle, AnsiStyleProps } from '../types';
 import { themeColor, hexString, alphaValue } from '../color';
@@ -7,6 +8,7 @@ interface TextProps extends OmitStrict<AnsiStyle, 'props'>, Partial<AnsiStylePro
     x: number
     y: number
     span: number
+    children: string
 }
 
 const Text: FunctionComponent<TextProps> = ({
@@ -30,10 +32,8 @@ const Text: FunctionComponent<TextProps> = ({
         [fgc, bgc] = [themeColor(fg, theme), themeColor(bg, theme)],
         bgColor = inverted ? fgc ?? theme.text : bgc,
         color = inverted ? bgc ?? theme.background : fgc ?? theme.text,
-        props: SVGProps<SVGTextElement> = {
+        styleProps: SVGProps<SVGTextElement> = {
             ...textProps,
-            x: x * dx,
-            y: y * dy + dy / 2,
             fill: hexString(color),
             fillOpacity: alphaValue(color, true),
             textDecoration: decoration || undefined,
@@ -41,7 +41,26 @@ const Text: FunctionComponent<TextProps> = ({
             fontStyle: italic ? 'italic' : undefined,
             opacity: dim ? theme.dim : undefined,
         },
-        element = <text {...props}>{children}</text>;
+        ty = y * dy + dy / 2;
+    // split text at any full width grapheme clusters
+    let [str, col, n] = ['', 0, 0];
+    const chunks: [number, string][] = [];
+    for (const [char, width] of charWidths(children)) {
+        str += char;
+        n += width;
+        if (width === 2) {
+            chunks.push([col, str]);
+            [col, str, n] = [col + n, '', 0];
+        }
+    }
+    if (str) chunks.push([col, str]);
+    // create text element - if there are full width graphemes, column align each chunk
+    const element = chunks.length > 1 ? (
+        <g {...styleProps}>
+            {chunks.map(([i, chunk]) => <text key={i} x={(x + i) * dx} y={ty}>{chunk}</text>)}
+        </g>
+    ) : <text {...styleProps} x={x * dx} y={ty}>{children}</text>;
+    // return react fragment
     return (
         <>
             {bgColor ? (

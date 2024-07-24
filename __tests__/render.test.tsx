@@ -310,10 +310,11 @@ describe('<Text/>', () => {
 
     test('handles overlap of the `underline` and `strikeThrough` props', () => {
         expect(render(
-            <Text x={0} y={0} span={0} underline strikeThrough/>,
+            <Text x={0} y={0} span={15} underline strikeThrough>text decoration</Text>,
         )).toMatchObject({
             type: 'text',
             props: { textDecoration: 'underline line-through' },
+            children: ['text decoration'],
         });
     });
 
@@ -324,6 +325,20 @@ describe('<Text/>', () => {
             { type: 'rect', props: { fill: '#ff00ff' } },
             { type: 'text', children: ['background'] },
         ]);
+    });
+
+    test('renders multiple column aligned <text> elements when content contains full width chars', () => {
+        expect(render(
+            <Text x={0} y={0} span={33}>kiss: 👨‍❤️‍💋‍👨 family: 👨‍👩‍👧‍👧 astronaut: 🧑🏾‍🚀</Text>,
+        )).toMatchObject({
+            type: 'g',
+            props: { fill: hexString(defTheme.text) },
+            children: [
+                { type: 'text', props: { x: 0, y: 1 }, children: ['kiss: 👨‍❤️‍💋‍👨'] },
+                { type: 'text', props: { x: 8, y: 1 }, children: [' family: 👨‍👩‍👧‍👧'] },
+                { type: 'text', props: { x: 19, y: 1 }, children: [' astronaut: 🧑🏾‍🚀'] },
+            ],
+        });
     });
 
     test('swaps foreground and background when the `inverted` prop is passed', () => {
