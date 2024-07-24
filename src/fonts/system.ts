@@ -6,6 +6,7 @@ import FontDecoder from './decoder';
 import { CodePointRange, type MeasuredGraphemeSet } from './range';
 import { styleAnsiMatchPriority } from './style';
 import { subsetFontFile } from './subset';
+import log from '../logger';
 
 export async function getSystemFonts(match?: string[]) {
     // create a map of system font families
@@ -34,6 +35,13 @@ export async function resolveSystemFont(
     content: ContentSubsets,
     { name, fonts }: { name: string, fonts: SystemFont[] },
 ): Promise<ContentSubsets> {
+    // create array of resolved fonts
+    const resolved: ResolvedSystemFonts = [];
+    // add resolved family object to the resolved families array
+    families.push({ name, type: 'system', fonts: resolved });
+    // stop if content coverage is empty
+    if (content.coverage.empty()) return content;
+    log.debug('resolving font coverage from locally installed font family %s', name);
     // accumulated code point coverage for this font family
     const fontCoverage = CodePointRange.merge(...fonts.map(({ coverage }) => coverage)),
         // total subset of chars covered by this font
@@ -58,8 +66,6 @@ export async function resolveSystemFont(
             if (intersection.empty()) break;
         }
     }
-    // create font family data object
-    const resolved: ResolvedSystemFonts = [];
     // now, create css blocks from each font variant spec
     for (const [index, chars] of map.entries()) {
         const font = fonts[index]!;
@@ -76,18 +82,20 @@ export async function resolveSystemFont(
         // add this font to accumulated family object
         resolved.push({ data, chars: chars.string() });
     }
-    // add family to resolved families array
-    families.push({ name, type: 'system', fonts: resolved });
+    // return remaining char coverage difference
     return contentDifference;
 }
 
 export async function embedSystemFont(
     embedded: { css: string[], family: string[] },
-    fonts: ResolvedSystemFonts,
-    embeddedFamily: string,
+    { name, fonts }: Omit<Extract<ResolvedFontFamily, { type: 'system' }>, 'type'>,
+    { forPng, fullCoverage }: { forPng: boolean, fullCoverage: boolean },
 ) {
-    // boolean to track whether a subset actually gets embedded
-    let fontEmbedded = false;
+    if (!forPng && fonts.length) log.debug('embedding font subset from locally installed font family %s', name);
+    // add family name to the font-family list
+    if (fonts.length || !fullCoverage) embedded.family.push(name);
+    // stop if embedding for png
+    if (forPng) return;
     // now, create css blocks from each font variant spec
     for (const { data, chars } of fonts) {
         // subset font file
@@ -100,21 +108,17 @@ export async function embedSystemFont(
                 Buffer.from(await woff2Compress(fontSubsetBuffer)).toString('base64')
             }) format(woff2)`;
         } catch (e) {
-            src = `src:url(data:font/ttf;charset=utf-8;base64,${
+            src = `url(data:font/ttf;charset=utf-8;base64,${
                 fontSubsetBuffer.toString('base64')
             }) format(truetype)`;
         }
         // add css block to array
         embedded.css.push(
             '@font-face {'
-            + `font-family:'${embeddedFamily}';`
+            + `font-family:'${name}';`
             + `font-style:${data.style};`
             + `font-weight:${data.weight};`
             + `src:${src}}`,
         );
-        // add embedded family id to the font-family list if this is the first css block
-        if (!fontEmbedded) embedded.family.push(embeddedFamily);
-        // update font embedded status
-        fontEmbedded = true;
     }
 }

@@ -38,8 +38,8 @@ async function renderScreenData(screen: ScreenData, options: OutputOptions & Ren
             } else {
                 parsed ??= parseScreen(screen);
                 fonts ??= await resolveFonts(parsed, props.theme.fontFamily);
-                const { fontFamilies, fontColumnWidth } = fonts,
-                    css = (type === 'png' || embedFonts) ? await embedFontCss(fontFamilies, type === 'png') : null,
+                const { fontColumnWidth, ...resolvedFonts } = fonts,
+                    css = (type === 'png' || embedFonts) ? await embedFontCss(resolvedFonts, type === 'png') : null,
                     rendered = renderScreenSvg(parsed, { ...props, fontColumnWidth, ...css });
                 if (type === 'svg') cache[type] = rendered.svg;
                 else cache[type] = await createPng(rendered, scaleFactor);
@@ -67,14 +67,14 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
             } else {
                 parsed ??= parseCapture(capture);
                 fonts ??= await resolveFonts(parsed, props.theme.fontFamily);
-                const { fontFamilies, fontColumnWidth } = fonts;
+                const { fontColumnWidth, ...resolvedFonts } = fonts;
                 if (type === 'png') {
                     const frames = extractCaptureFrames(parsed),
-                        css = await embedFontCss(fontFamilies, true),
+                        css = await embedFontCss(resolvedFonts, true),
                         svgFrames = renderCaptureFrames(frames, { ...props, fontColumnWidth, ...css });
                     cache[type] = await createAnimatedPng(svgFrames, scaleFactor);
                 } else {
-                    const css = embedFonts ? await embedFontCss(fontFamilies) : null;
+                    const css = embedFonts ? await embedFontCss(resolvedFonts) : null;
                     cache[type] = renderCaptureSvg(parsed, { ...props, fontColumnWidth, ...css });
                 }
             }

@@ -115,8 +115,8 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
     const termProps = applyDefTerminalOptions({ columns: 50, rows: 10, ...options }, { cursorHidden: true }),
         renderProps = applyDefRenderOptions(options),
         title = resolveTitle(termProps.windowTitle, termProps.windowIcon),
-        { fontFamilies, fontColumnWidth } = await resolveFonts({ title, lines: [] }, renderProps.theme.fontFamily),
-        font = await embedFontCss(fontFamilies),
+        { fontColumnWidth, ...windowFont } = await resolveFonts({ title, lines: [] }, renderProps.theme.fontFamily),
+        font = await embedFontCss(windowFont),
         [context, windowOptions] = resolveContext({ ...renderProps, ...font, fontColumnWidth }, termProps),
         { columns, rows, grid: [dx, dy] } = context,
         {
@@ -308,11 +308,11 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
         }
     }
     // create embedded label font css
-    const labelFont = await resolveFonts(labels.map(({ text }) => text).join(''), labelFontProps.fontFamily),
-        { css, fontFamily: labelFontFamily } = {
-            fontFamily: labelFontProps.fontFamily,
-            ...await embedFontCss(labelFont.fontFamilies),
-        };
+    const { fontColumnWidth: labelFontColumnWidth, ...labelFont } = await resolveFonts(
+            labels.map(({ text }) => text).join(''),
+            labelFontProps.fontFamily,
+        ),
+        { css, fontFamily: labelFontFamily } = await embedFontCss(labelFont);
     return renderToStaticMarkup(
         <svg
             xmlns='http://www.w3.org/2000/svg'
@@ -333,7 +333,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
                 <g fontSize={labelFontProps.fontSize} fontFamily={labelFontFamily}>
                     {css ? <style dangerouslySetInnerHTML={{ __html: css }}/> : null}
                     {labels.map((labelProps, i) => (
-                        <DiagramLabel key={`label-${i}`} labelColumnWidth={labelFont.fontColumnWidth} {...labelProps}/>
+                        <DiagramLabel key={`label-${i}`} labelColumnWidth={labelFontColumnWidth} {...labelProps}/>
                     ))}
                 </g>
             </g>

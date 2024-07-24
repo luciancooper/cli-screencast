@@ -2,6 +2,7 @@ import https from 'https';
 import type { AnsiCode, ContentSubsets } from './content';
 import { CodePointRange, type GraphemeSet } from './range';
 import type { ResolvedFontFamily } from './types';
+import log from '../logger';
 
 const StyleID = ['400', '700', '400i', '700i'] as const;
 
@@ -41,9 +42,6 @@ interface FetchResponse {
 export function fetchData(req: string | https.RequestOptions): Promise<FetchResponse> {
     return new Promise((resolve, reject) => {
         https.get(typeof req === 'string' ? encodeURI(req) : req, (res) => {
-            res.on('error', (err) => {
-                reject(err);
-            });
             const status = res.statusCode!;
             if (status >= 400) {
                 res.on('end', () => {
@@ -123,8 +121,16 @@ export async function resolveGoogleFont(
     content: ContentSubsets,
     meta: GoogleFontMetadata,
 ): Promise<ContentSubsets> {
+    // create array of resolved fonts
+    const resolved: ResolvedGoogleFonts = [];
+    // add resolved family object to the resolved families array
+    families.push({ name: meta.family, type: 'google', fonts: resolved });
+    // calculate intersection between content and family coverage
     const coverage = content.coverage.intersect(meta.coverage);
+    // stop if no chars are covered by this font
     if (coverage.intersection.empty()) return content;
+    log.debug('resolving font coverage from google font family %s', meta.family);
+    // determine content coverage for each ansi style subset
     const subsets: [AnsiCode, GraphemeSet][] = [],
         contentDifference: ContentSubsets = { coverage: coverage.difference, subsets: [] };
     for (const [ansi, chars] of content.subsets) {
@@ -145,9 +151,8 @@ export async function resolveGoogleFont(
         }
         variants[key] = variants[key] ? variants[key]!.union(chars) : chars;
     }
-    const resolved: ResolvedGoogleFonts = [],
-        // font family base url params
-        baseParams = `family=${meta.family.replace(/ /g, '+')}`;
+    // font family base url params
+    const baseParams = `family=${meta.family.replace(/ /g, '+')}`;
     // fetch font style character subsets
     for (const [key, chars] of Object.entries(variants)) {
         // create url params
@@ -157,20 +162,18 @@ export async function resolveGoogleFont(
         // add to columnWidth array
         columnWidth.push([chars.length, undefined]);
     }
-    // add family to resolved families array
-    families.push({ name: meta.family, type: 'google', fonts: resolved });
-    // return content difference
+    // return remaining content difference
     return contentDifference;
 }
 
 export async function embedGoogleFont(
     embedded: { css: string[], family: string[] },
-    fonts: ResolvedGoogleFonts,
-    embeddedFamily: string,
-    forPng: boolean,
+    { name, fonts }: Omit<Extract<ResolvedFontFamily, { type: 'google' }>, 'type'>,
+    { forPng, fullCoverage }: { forPng: boolean, fullCoverage: boolean },
 ) {
-    // boolean to track whether a fetched font actually gets embedded
-    let fontEmbedded = false;
+    if (fonts.length) log.debug(`embedding font ${forPng ? 'css for' : 'subset from'} google font family %s`, name);
+    // add family name to the font-family list
+    if (fonts.length || !fullCoverage) embedded.family.push(name);
     // fetch font style character subsets
     for (const { params, chars } of fonts) {
         // fetch css from google fonts api
@@ -187,7 +190,7 @@ export async function embedGoogleFont(
             continue;
         }
         // replace @font-face family name with embedded font family
-        css = css.replace(/font-family: ?'[^']+'(?=;)/g, `font-family:'${embeddedFamily}'`);
+        css = css.replace(/font-family: ?'[^']+'(?=;)/g, `font-family:'${name}'`);
         // remove any comments returned by the google fonts api
         css = css.replace(/^\/\* .+\*\/\n/gm, '').trim();
         // remove newlines & extra whitespace from each @font-face declaration
@@ -199,21 +202,23 @@ export async function embedGoogleFont(
             for (let regex = /url\((https?:\/\/.+?)\)/g, m = regex.exec(css); m; m = regex.exec(css)) {
                 // add preceeding css & the src descriptor
                 base64 += css.slice(idx, m.index);
-                // fetch font from the source url
-                const fontData = await fetchData(m[1]!);
-                // replace the url in the css source code with fetched data base64 encoded
-                base64 += `url(data:${fontData.type!};charset=utf-8;base64,${fontData.data!.toString('base64')})`;
                 // update index within the css source
                 idx = m.index + m[0].length;
+                // fetch font from the source url
+                let fontData = m[0];
+                try {
+                    const res = await fetchData(m[1]!);
+                    if (res.status === 200) {
+                        fontData = `url(data:${res.type!};charset=utf-8;base64,${res.data!.toString('base64')})`;
+                    }
+                } catch {}
+                // replace the url in the css source code with fetched data base64 encoded
+                base64 += fontData;
             }
             // return css with font urls replace with base64 encoded versions
             css = base64 + css.slice(idx);
         }
         // add css block to embedded font data
         embedded.css.push(css);
-        // add embedded family id to the font-family list if this is the first css block
-        if (!fontEmbedded) embedded.family.push(embeddedFamily);
-        // update font embedded status
-        fontEmbedded = true;
     }
 }

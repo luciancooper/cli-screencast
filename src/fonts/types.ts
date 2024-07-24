@@ -92,7 +92,7 @@ export type ResolvedFontFamily = { name: string } & ({
     type: 'google'
     fonts: { params: string, chars: string }[]
 } | {
-    type: 'generic'
+    type: 'generic' | null
 });
 
 /**

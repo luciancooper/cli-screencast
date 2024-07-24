@@ -1,13 +1,28 @@
 /* eslint-disable @typescript-eslint/no-confusing-void-expression */
+import nock from 'nock';
+import { compress as woff2Compress } from 'wawoff2';
 import { resolve as resolvePath } from 'path';
 import { resolveTitle } from '@src/parser';
 import { GraphemeSet } from '@src/fonts/range';
 import extractContentSubsets, { createContentSubsets, type ContentSubsets } from '@src/fonts/content';
-import { getSystemFonts } from '@src/fonts/system';
-import { fetchGoogleFontMetadata } from '@src/fonts/google';
-import type { SfntHeader, SystemFont } from '@src/fonts/types';
+import { getSystemFonts, resolveSystemFont, embedSystemFont } from '@src/fonts/system';
+import { fetchGoogleFontMetadata, resolveGoogleFont, embedGoogleFont, type GoogleFontMetadata } from '@src/fonts/google';
+import type { ResolvedFontFamily, SfntHeader, SystemFont } from '@src/fonts/types';
 import { resolveFonts, embedFontCss, type ResolvedFontData } from '@src/fonts';
 import { makeLine } from './helpers/objects';
+
+jest.mock('wawoff2', () => {
+    const originalModule = jest.requireActual<typeof import('wawoff2')>('wawoff2');
+    return {
+        ...originalModule,
+        compress: jest.fn(originalModule.compress),
+    };
+});
+
+afterEach(() => {
+    jest.clearAllMocks();
+    nock.cleanAll();
+});
 
 const FontFiles = {
     CascadiaCode: resolvePath(__dirname, './fonts/CascadiaCode.ttf'),
@@ -85,8 +100,13 @@ describe('fetchGoogleFontMetadata', () => {
             .toMatchObject<{ family: string }>({ family: 'Fira Code' });
     });
 
-    test('returns null if font-family is not on google fonts', async () => {
+    test('returns null if font-family is not a google font', async () => {
         await expect(fetchGoogleFontMetadata('monospace')).resolves.toBeNull();
+    });
+
+    test('returns null on http errors', async () => {
+        nock('https://fonts.google.com').get(/^\/metadata\/fonts/).replyWithError('mocked network error');
+        await expect(fetchGoogleFontMetadata('Fira Code')).resolves.toBeNull();
     });
 });
 
@@ -126,88 +146,183 @@ describe('getSystemFonts', () => {
     });
 });
 
+describe('resolveGoogleFont', () => {
+    let meta: Record<string, GoogleFontMetadata | null>;
+
+    beforeAll(async () => {
+        meta = {
+            'Ubuntu Mono': await fetchGoogleFontMetadata('Ubuntu Mono'),
+            'Fira Code': await fetchGoogleFontMetadata('Fira Code'),
+        };
+    });
+
+    test('content coverage is empty', async () => {
+        const resolved: Parameters<typeof resolveGoogleFont>[0] = { families: [], columnWidth: [] },
+            subset = createContentSubsets(['']);
+        await resolveGoogleFont(resolved, subset, meta['Ubuntu Mono']!);
+        expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([
+            { name: 'Ubuntu Mono', type: 'google', fonts: [] },
+        ]);
+    });
+
+    test('google font family supports multiple styles', async () => {
+        const resolved: Parameters<typeof resolveGoogleFont>[0] = { families: [], columnWidth: [] };
+        let subset = createContentSubsets(['abc', 'cde', '', '']);
+        subset = await resolveGoogleFont(resolved, subset, meta['Ubuntu Mono']!);
+        expect(subset.coverage.empty()).toBe(true);
+        expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([{
+            name: 'Ubuntu Mono',
+            type: 'google',
+            fonts: [
+                { params: 'family=Ubuntu+Mono:ital,wght@0,400', chars: 'abc' },
+                { params: 'family=Ubuntu+Mono:ital,wght@0,700', chars: 'cde' },
+            ],
+        }]);
+    });
+
+    test('content coverage only partially overlaps with font coverage', async () => {
+        const resolved: Parameters<typeof resolveGoogleFont>[0] = { families: [], columnWidth: [] };
+        let subset = createContentSubsets(['abc', '∆∏∑', 'cde', '']);
+        subset = await resolveGoogleFont(resolved, subset, meta['Fira Code']!);
+        expect(subset.coverage.string()).toBe('∆∏∑');
+        expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([{
+            name: 'Fira Code',
+            type: 'google',
+            fonts: [{ params: 'family=Fira+Code:ital,wght@0,400', chars: 'abcde' }],
+        }]);
+    });
+});
+
+describe('resolveSystemFont', () => {
+    let systemFonts: Record<string, SystemFont[]>;
+
+    beforeAll(async () => {
+        systemFonts = await getSystemFonts();
+    });
+
+    test('content coverage is empty', async () => {
+        const resolved: Parameters<typeof resolveSystemFont>[0] = { families: [], columnWidth: [] },
+            subset = createContentSubsets(['']);
+        await resolveSystemFont(resolved, subset, { name: 'Monaco', fonts: systemFonts['Monaco']! });
+        expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([
+            { name: 'Monaco', type: 'system', fonts: [] },
+        ]);
+    });
+
+    test('content coverage does not overlap with font', async () => {
+        const resolved: Parameters<typeof resolveSystemFont>[0] = { families: [], columnWidth: [] };
+        let subset = createContentSubsets(['⊕⊖⊗⊘']);
+        subset = await resolveSystemFont(resolved, subset, { name: 'Monaco', fonts: systemFonts['Monaco']! });
+        expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([
+            { name: 'Monaco', type: 'system', fonts: [] },
+        ]);
+        expect(subset.coverage.string()).toBe('⊕⊖⊗⊘');
+    });
+
+    test('system font family only supports one style', async () => {
+        const resolved: Parameters<typeof resolveSystemFont>[0] = { families: [], columnWidth: [] };
+        let subset = createContentSubsets(['abc', 'cde']);
+        subset = await resolveSystemFont(resolved, subset, { name: 'Monaco', fonts: systemFonts['Monaco']! });
+        expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([{
+            name: 'Monaco',
+            type: 'system',
+            fonts: [{
+                data: {
+                    filePath: FontFiles.Monaco,
+                    style: 'normal',
+                    weight: 400,
+                },
+                chars: 'abcde',
+            }],
+        }]);
+        expect(subset.coverage.empty()).toBe(true);
+    });
+
+    test('content coverage only partially overlaps with font coverage', async () => {
+        const resolved: Parameters<typeof resolveSystemFont>[0] = { families: [], columnWidth: [] };
+        let subset = createContentSubsets(['abc⊕⊖', '⊗', 'cde⊘']);
+        subset = await resolveSystemFont(resolved, subset, {
+            name: 'Cascadia Code',
+            fonts: systemFonts['Cascadia Code']!,
+        });
+        expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([{
+            name: 'Cascadia Code',
+            type: 'system',
+            fonts: [{
+                data: {
+                    filePath: FontFiles.CascadiaCode,
+                    style: 'normal',
+                    weight: 400,
+                    fvar: [['wght', 400]],
+                },
+                chars: 'abc',
+            }, {
+                data: {
+                    filePath: FontFiles.CascadiaCodeItalic,
+                    style: 'italic',
+                    weight: 400,
+                    fvar: [['wght', 400]],
+                },
+                chars: 'cde',
+            }],
+        }]);
+        expect(subset.coverage.string()).toBe('⊕⊖⊗⊘');
+    });
+
+    test('system font family is a ttc font collection', async () => {
+        const resolved: Parameters<typeof resolveSystemFont>[0] = { families: [], columnWidth: [] },
+            subset = createContentSubsets(['abc', 'cde']);
+        await resolveSystemFont(resolved, subset, { name: 'Menlo', fonts: systemFonts['Menlo']! });
+        expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([{
+            name: 'Menlo',
+            type: 'system',
+            fonts: [{
+                data: {
+                    filePath: FontFiles.Menlo,
+                    style: 'normal',
+                    weight: 400,
+                    ttcSubfont: expect.any(Object) as SfntHeader,
+                },
+                chars: 'abc',
+            }, {
+                data: {
+                    filePath: FontFiles.Menlo,
+                    style: 'normal',
+                    weight: 700,
+                    ttcSubfont: expect.any(Object) as SfntHeader,
+                },
+                chars: 'cde',
+            }],
+        }]);
+    });
+});
+
 describe('resolveFonts', () => {
     test('returns empty set if content is empty', async () => {
         await expect(resolveFonts('', 'Cascadia Code')).resolves.toStrictEqual<ResolvedFontData>({
             fontFamilies: [],
+            fullCoverage: true,
             fontColumnWidth: expect.toBeUndefined(),
         });
     });
 
     test('handles generic families or families that are not installed or google fonts', async () => {
         await expect(resolveFonts(fixtures.frame, 'Courier,monospace')).resolves.toStrictEqual<ResolvedFontData>({
-            fontFamilies: [{ name: 'monospace', type: 'generic' }],
+            fontFamilies: [
+                { name: 'Courier', type: null },
+                { name: 'monospace', type: 'generic' },
+            ],
+            fullCoverage: false,
             fontColumnWidth: expect.toBeUndefined(),
         });
     });
 
-    test('resolves google fonts families', async () => {
-        const subset = createContentSubsets(['abc', 'cde', '', '']);
-        await expect(resolveFonts(subset, 'Fira Code')).resolves.toEqual<ResolvedFontData>({
+    test('resolves both google and system fonts', async () => {
+        const subset = createContentSubsets(['abcϕ', 'cdeβδλϖ', 'efgϖ', 'ghiλμσϷ']);
+        await expect(
+            resolveFonts(subset, 'monaco, "cascadia code", "Fira Code", MONOSPACE'),
+        ).resolves.toEqual<ResolvedFontData>({
             fontFamilies: [{
-                name: 'Fira Code',
-                type: 'google',
-                fonts: [
-                    { params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' },
-                    { params: 'family=Fira+Code:ital,wght@0,700', chars: 'cde' },
-                ],
-            }],
-            fontColumnWidth: expect.toBeUndefined(),
-        });
-    });
-
-    test('resolves system font families matching names case insensitively', async () => {
-        const subset = createContentSubsets(['abc', 'cde', 'efg', 'ghi']);
-        await expect(resolveFonts(subset, 'cascadia code')).resolves.toStrictEqual<ResolvedFontData>({
-            fontFamilies: [{
-                name: 'Cascadia Code',
-                type: 'system',
-                fonts: [{
-                    data: {
-                        filePath: FontFiles.CascadiaCode,
-                        style: 'normal',
-                        weight: 400,
-                        fvar: [['wght', 400]],
-                    },
-                    chars: 'abc',
-                }, {
-                    data: {
-                        filePath: FontFiles.CascadiaCode,
-                        style: 'normal',
-                        weight: 700,
-                        fvar: [['wght', 700]],
-                    },
-                    chars: 'cde',
-                }, {
-                    data: {
-                        filePath: FontFiles.CascadiaCodeItalic,
-                        style: 'italic',
-                        weight: 400,
-                        fvar: [['wght', 400]],
-                    },
-                    chars: 'efg',
-                }, {
-                    data: {
-                        filePath: FontFiles.CascadiaCodeItalic,
-                        style: 'italic',
-                        weight: 700,
-                        fvar: [['wght', 700]],
-                    },
-                    chars: 'ghi',
-                }],
-            }],
-            fontColumnWidth: expect.toBeNumber(),
-        });
-    });
-
-    test('uses fallbacks when font families do not support a style', async () => {
-        const subset = createContentSubsets(['abcʃ∂∆', '∆∏∑', 'cde', '']);
-        await expect(resolveFonts(subset, '"Fira Code", monaco, MONOSPACE')).resolves.toEqual<ResolvedFontData>({
-            fontFamilies: [{
-                name: 'Fira Code',
-                type: 'google',
-                fonts: [{ params: 'family=Fira+Code:ital,wght@0,400', chars: 'abcde' }],
-            }, {
                 name: 'Monaco',
                 type: 'system',
                 fonts: [{
@@ -216,38 +331,181 @@ describe('resolveFonts', () => {
                         style: 'normal',
                         weight: 400,
                     },
-                    chars: 'ʃ∂∆∏∑',
+                    chars: 'abcdefghi',
                 }],
-            }, { name: 'monospace', type: 'generic' }],
-            fontColumnWidth: expect.toBeNumber(),
-        });
-    });
-
-    test('resolves system font families that are ttc font collections', async () => {
-        const subset = createContentSubsets(['abc', 'cde', '', '']);
-        await expect(resolveFonts(subset, 'Menlo')).resolves.toStrictEqual<ResolvedFontData>({
-            fontFamilies: [{
-                name: 'Menlo',
+            }, {
+                name: 'Cascadia Code',
                 type: 'system',
                 fonts: [{
                     data: {
-                        filePath: FontFiles.Menlo,
-                        style: 'normal',
-                        weight: 400,
-                        ttcSubfont: expect.any(Object) as SfntHeader,
-                    },
-                    chars: 'abc',
-                }, {
-                    data: {
-                        filePath: FontFiles.Menlo,
+                        filePath: FontFiles.CascadiaCode,
                         style: 'normal',
                         weight: 700,
-                        ttcSubfont: expect.any(Object) as SfntHeader,
+                        fvar: [['wght', 700]],
                     },
-                    chars: 'cde',
+                    chars: 'βδλ',
+                }, {
+                    data: {
+                        filePath: FontFiles.CascadiaCodeItalic,
+                        style: 'italic',
+                        weight: 700,
+                        fvar: [['wght', 700]],
+                    },
+                    chars: 'λμσ',
                 }],
-            }],
+            }, {
+                name: 'Fira Code',
+                type: 'google',
+                fonts: [
+                    { params: 'family=Fira+Code:ital,wght@0,400', chars: 'ϕϖ' },
+                    { params: 'family=Fira+Code:ital,wght@0,700', chars: 'ϖϷ' },
+                ],
+            }, { name: 'monospace', type: 'generic' }],
+            fullCoverage: true,
             fontColumnWidth: expect.toBeNumber(),
+        });
+    });
+});
+
+describe('embedGoogleFont', () => {
+    test('does not add font family name if no fonts were resolved and full coverage is true', async () => {
+        const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+        await embedGoogleFont(embedded, { name: 'Fira Code', fonts: [] }, { forPng: false, fullCoverage: true });
+        expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: [] });
+    });
+
+    test('adds font family name if full coverage is false', async () => {
+        const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+        await embedGoogleFont(embedded, { name: 'Fira Code', fonts: [] }, { forPng: false, fullCoverage: false });
+        expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: ['Fira Code'] });
+    });
+
+    test('embedding for png returns @font-face css blocks with font url sources', async () => {
+        const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+        await embedGoogleFont(embedded, {
+            name: 'Fira Code',
+            fonts: [
+                { params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' },
+            ],
+        }, { forPng: true, fullCoverage: false });
+        expect(embedded).toStrictEqual<typeof embedded>({
+            css: [expect.stringMatching(/^@font-face ?\{.*?src: ?url\(https:\/\/.*?\}$/) as string],
+            family: ['Fira Code'],
+        });
+    });
+
+    test('embeding for svg returns @font-face css blocks with embedded woff2 sources', async () => {
+        const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+        await embedGoogleFont(embedded, {
+            name: 'Fira Code',
+            fonts: [
+                { params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' },
+            ],
+        }, { forPng: false, fullCoverage: false });
+        expect(embedded).toStrictEqual<typeof embedded>({
+            css: [expect.stringMatching(/^@font-face ?\{.*?src: ?url\(data:font\/woff2;.*?\}$/) as string],
+            family: ['Fira Code'],
+        });
+    });
+
+    describe('http errors', () => {
+        test('handles thrown errors when fetching css from google api', async () => {
+            nock('https://fonts.googleapis.com').get(/^\/css2/).replyWithError('mocked network error');
+            const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+            await embedGoogleFont(embedded, {
+                name: 'Fira Code',
+                fonts: [{ params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' }],
+            }, { forPng: true, fullCoverage: false });
+            expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: ['Fira Code'] });
+        });
+
+        test('handles status codes other than 200 when fetching css from google api', async () => {
+            nock('https://fonts.googleapis.com').get(/^\/css2/).reply(404);
+            const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+            await embedGoogleFont(embedded, {
+                name: 'Fira Code',
+                fonts: [{ params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' }],
+            }, { forPng: true, fullCoverage: false });
+            expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: ['Fira Code'] });
+        });
+
+        test('handles thrown errors when fetching static font files', async () => {
+            nock('https://fonts.gstatic.com').get(() => true).replyWithError('mocked network error');
+            const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+            await embedGoogleFont(embedded, {
+                name: 'Fira Code',
+                fonts: [{ params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' }],
+            }, { forPng: false, fullCoverage: false });
+            expect(embedded).toStrictEqual<typeof embedded>({
+                css: [expect.stringMatching(/^@font-face ?\{.*?src: ?url\(https:\/\/.*?\}$/) as string],
+                family: ['Fira Code'],
+            });
+        });
+
+        test('handles status codes other than 200 when fetching static font files', async () => {
+            nock('https://fonts.gstatic.com').get(() => true).reply(404);
+            const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+            await embedGoogleFont(embedded, {
+                name: 'Fira Code',
+                fonts: [{ params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' }],
+            }, { forPng: false, fullCoverage: false });
+            expect(embedded).toStrictEqual<typeof embedded>({
+                css: [expect.stringMatching(/^@font-face ?\{.*?src: ?url\(https:\/\/.*?\}$/) as string],
+                family: ['Fira Code'],
+            });
+        });
+    });
+});
+
+describe('embedSystemFont', () => {
+    const monacoTest: (chars: string) => Omit<Extract<ResolvedFontFamily, { type: 'system' }>, 'type'> = (chars) => ({
+        name: 'Monaco',
+        fonts: [{
+            data: { filePath: FontFiles.Monaco, style: 'normal', weight: 400 },
+            chars,
+        }],
+    });
+
+    test('does not add font family name if no fonts were resolved and full coverage is true', async () => {
+        const embedded: Parameters<typeof embedSystemFont>[0] = { css: [], family: [] };
+        await embedSystemFont(embedded, { name: 'Monaco', fonts: [] }, { forPng: false, fullCoverage: true });
+        expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: [] });
+    });
+
+    test('adds font family name if full coverage is false', async () => {
+        const embedded: Parameters<typeof embedSystemFont>[0] = { css: [], family: [] };
+        await embedSystemFont(embedded, { name: 'Monaco', fonts: [] }, { forPng: false, fullCoverage: false });
+        expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: ['Monaco'] });
+    });
+
+    test('embeding for svg returns @font-face css blocks', async () => {
+        const embedded: Parameters<typeof embedSystemFont>[0] = { css: [], family: [] };
+        await embedSystemFont(embedded, monacoTest('abc'), { forPng: false, fullCoverage: true });
+        expect(embedded).toStrictEqual<typeof embedded>({
+            css: [expect.stringMatching(/^@font-face \{.*?src:url\(data:font\/woff2;charset=utf-8;base64.*?\}$/) as string],
+            family: ['Monaco'],
+        });
+    });
+
+    test('embedding for png returns no css blocks', async () => {
+        const embedded: Parameters<typeof embedSystemFont>[0] = { css: [], family: [] };
+        await embedSystemFont(embedded, {
+            name: 'Monaco',
+            fonts: [{
+                data: { filePath: FontFiles.Monaco, style: 'normal', weight: 400 },
+                chars: 'abc',
+            }],
+        }, { forPng: true, fullCoverage: true });
+        expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: ['Monaco'] });
+    });
+
+    test('wawoff2 compression error', async () => {
+        (woff2Compress as jest.Mock).mockRejectedValueOnce(new Error('woff2 compression error'));
+        const embedded: Parameters<typeof embedSystemFont>[0] = { css: [], family: [] };
+        await embedSystemFont(embedded, monacoTest('abc'), { forPng: false, fullCoverage: true });
+        expect(embedded).toStrictEqual<typeof embedded>({
+            css: [expect.stringMatching(/^@font-face \{.*?src:url\(data:font\/ttf;charset=utf-8;base64.*?\}$/) as string],
+            family: ['Monaco'],
         });
     });
 });
@@ -263,39 +521,36 @@ describe('embedFontCss', () => {
     }, {
         name: 'Monaco',
         type: 'system',
-        fonts: [{
-            data: {
-                filePath: FontFiles.Monaco,
-                style: 'normal',
-                weight: 400,
-            },
-            chars: 'ʃ∆∑',
-        }],
-    }];
+        fonts: [
+            { data: { filePath: FontFiles.Monaco, style: 'normal', weight: 400 }, chars: 'ʃ∆∑' },
+        ],
+    }, { name: 'Courier', type: null }];
 
-    test('returns null if no fonts are provided', async () => {
-        await expect(embedFontCss([])).resolves.toBeNull();
+    test('returns font family monospace if no fonts are provided', async () => {
+        await expect(embedFontCss({ fontFamilies: [], fullCoverage: true })).resolves.toStrictEqual({
+            css: null,
+            fontFamily: 'monospace',
+        });
     });
 
-    test('returns null if only generic fonts are provided', async () => {
-        await expect(embedFontCss([{ name: 'monospace', type: 'generic' }])).resolves.toBeNull();
+    test('includes unresolved fonts if full coverage is false', async () => {
+        await expect(embedFontCss({
+            fontFamilies: [{ name: 'Courier', type: null }],
+            fullCoverage: false,
+        })).resolves.toStrictEqual({ css: null, fontFamily: 'Courier,monospace' });
     });
 
     test('embedding for png only returns @font-face css blocks for google fonts', async () => {
-        const embedded = (await embedFontCss(testData, true))!;
-        expect(embedded.css).toContainOccurrences('@font-face', 2);
-        expect(embedded.css).toContainOccurrences('url(https://', 2);
-        expect(embedded.fontFamily).toBe('"Fira Code",Monaco,monospace');
-    });
-
-    test('embedding for png returns null if only system fonts are present', async () => {
-        await expect(embedFontCss(testData.slice(1), true)).resolves.toBeNull();
+        await expect(embedFontCss({ fontFamilies: testData, fullCoverage: false }, true)).resolves.toStrictEqual({
+            css: expect.stringMatching(/^(?:@font-face ?\{.*?src: ?url\(https:\/\/.*?\}\n?){2}$/) as string,
+            fontFamily: '"Fira Code",Monaco,Courier,monospace',
+        });
     });
 
     test('embeding for svg returns @font-face css blocks for system & google fonts', async () => {
-        const embedded = (await embedFontCss(testData, false))!;
-        expect(embedded.css).toContainOccurrences('@font-face', 3);
-        expect(embedded.css).toContainOccurrences('url(data:font/woff2;charset=utf-8;base64', 3);
-        expect(embedded.fontFamily).toMatch(/^sc-[a-z]{12}-1,sc-[a-z]{12}-2,monospace$/);
+        await expect(embedFontCss({ fontFamilies: testData, fullCoverage: true }, false)).resolves.toStrictEqual({
+            css: expect.stringMatching(/^(?:@font-face ?\{.*?src: ?url\(data:font\/woff2;.*?\}\n?){3}$/) as string,
+            fontFamily: '"Fira Code",Monaco,monospace',
+        });
     });
 });

@@ -1,15 +1,8 @@
-import log from '../logger';
 import type { ResolvedFontFamily } from './types';
 import extractContentSubsets, { createContentSubsets, type FrameData, type ContentSubsets } from './content';
 import { caselessMatch } from './names';
 import { getSystemFonts, resolveSystemFont, embedSystemFont } from './system';
 import { fetchGoogleFontMetadata, resolveGoogleFont, embedGoogleFont } from './google';
-
-function uuid(length: number): string {
-    let id = '';
-    for (let i = 0; i < length; i += 1) id += String.fromCharCode(97 + Math.floor(Math.random() * 26));
-    return id;
-}
 
 const genericFamilies = [
     'serif', 'sans-serif', 'monospace', 'cursive', 'fantasy',
@@ -19,6 +12,7 @@ const genericFamilies = [
 
 export interface ResolvedFontData {
     fontFamilies: ResolvedFontFamily[]
+    fullCoverage: boolean
     fontColumnWidth: number | undefined
 }
 
@@ -36,7 +30,7 @@ export async function resolveFonts(
         : ('coverage' in data) ? data : extractContentSubsets(data);
     // stop if frame data has no text
     if (subsets.coverage.empty()) {
-        return { fontFamilies: [], fontColumnWidth: undefined };
+        return { fontFamilies: [], fullCoverage: true, fontColumnWidth: undefined };
     }
     // create array of specified font families
     const familyNames = fontFamily.split(',').map((f) => f.trim().replace(/(?:^["']|["']$)/g, '')),
@@ -50,8 +44,7 @@ export async function resolveFonts(
             columnWidth: [],
         };
     // iterate over specified font families
-    for (let i = 0; i < familyNames.length; i += 1) {
-        const name = familyNames[i]!;
+    for (const name of familyNames) {
         // if family is a generic key, add it to the embedded family spec and continue
         if (genericFamilies.includes(name.toLocaleLowerCase())) {
             resolved.families.push({ name: name.toLocaleLowerCase(), type: 'generic' });
@@ -62,65 +55,59 @@ export async function resolveFonts(
         if (sid) {
             // resolve from locally installed system font
             subsets = await resolveSystemFont(resolved, subsets, { name: sid, fonts: systemFonts[sid]! });
-        } else {
-            // check if specified font can be fetched from the google fonts api
-            const meta = await fetchGoogleFontMetadata(name);
-            if (meta) subsets = await resolveGoogleFont(resolved, subsets, meta);
+            continue;
         }
-        if (subsets.coverage.empty()) {
-            resolved.families.push(
-                ...familyNames.slice(i + 1)
-                    .filter((n) => genericFamilies.includes(n.toLocaleLowerCase()))
-                    .map((n) => ({ name: n.toLocaleLowerCase(), type: 'generic' } as const)),
-            );
-            break;
+        // check if specified font can be fetched from the google fonts api
+        const meta = await fetchGoogleFontMetadata(name);
+        if (meta) {
+            // resolve from google fonts api
+            subsets = await resolveGoogleFont(resolved, subsets, meta);
+            continue;
         }
+        // otherwise add null family to resolved list
+        resolved.families.push({ name, type: null });
     }
     // select column width
     const widthMap = new Map<number | undefined, number>();
     for (const [count, k] of resolved.columnWidth) widthMap.set(k, (widthMap.get(k) ?? 0) + count);
     const [fontColumnWidth] = [...widthMap.entries()].sort(([x, a], [y, b]) => (b - a || (y ?? 0) - (x ?? 0)))[0] ?? [];
     // return resolved fonts data
-    return { fontFamilies: resolved.families, fontColumnWidth };
+    return {
+        fontFamilies: resolved.families,
+        fullCoverage: subsets.coverage.empty(),
+        fontColumnWidth,
+    };
 }
 
 /**
- * Create css code with embedded font subsets.
- * @param fontFamilies - resolved font families array
- * @returns css code
+ * Create css code for embedded font subsets.
+ * @param fontData - resolved font families array and char coverage status
+ * @param forPng - whether the css is intended for content that is being rendered to png
+ * @returns font family string & embedded css code
  */
 export async function embedFontCss(
-    fontFamilies: ResolvedFontFamily[],
+    { fontFamilies, fullCoverage }: Omit<ResolvedFontData, 'fontColumnWidth'>,
     forPng = false,
-): Promise<{ css: string, fontFamily: string } | null> {
-    // create a unique id for this screencast
-    const id = uuid(12),
-        // create object to accumulate embedded font data
-        embedded: { css: string[], family: string[] } = { css: [], family: [] };
+): Promise<{ css: string | null, fontFamily: string }> {
+    // create object to accumulate embedded font data
+    const embedded: { css: string[], family: string[] } = { css: [], family: [] };
     // build font css
     for (const family of fontFamilies) {
-        // create a unique font family name for this family
-        const uuidName = `sc-${id}-${embedded.family.length + 1}`;
         if (family.type === 'system') {
-            if (!forPng) {
-                log.debug('embedding font subset from locally installed font %s', family.name);
-                await embedSystemFont(embedded, family.fonts, uuidName);
-            } else embedded.family.push(family.name);
+            await embedSystemFont(embedded, family, { forPng, fullCoverage });
         } else if (family.type === 'google') {
-            if (!forPng) log.debug('embedding font subset from google font family %s', family.name);
-            await embedGoogleFont(embedded, family.fonts, forPng ? family.name : uuidName, forPng);
-        } else {
+            await embedGoogleFont(embedded, family, { forPng, fullCoverage });
+        } else if (family.type === 'generic' || !fullCoverage) {
             embedded.family.push(family.name);
         }
     }
-    if (!embedded.css.length) return null;
     // append generic 'monospace' family to the end of the font-family spec
     if (!embedded.family.includes('monospace')) {
         embedded.family.push('monospace');
     }
-    // return embedded font info
+    // return embedded font css & font-family value
     return {
-        css: embedded.css.join('\n'),
+        css: embedded.css.join('\n') || null,
         fontFamily: embedded.family.map((family) => (family.includes(' ') ? `"${family}"` : family)).join(','),
     };
 }

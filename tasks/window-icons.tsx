@@ -13,7 +13,7 @@ interface IconsPreviewProps extends SVGProps<SVGElement> {
     cols: number
     colspan: number
     fontFamily?: string
-    css?: string
+    css?: string | null
     fontColumnWidth?: number | undefined
     spacing: number
     indent?: number
@@ -79,11 +79,11 @@ const IconsPreview: FunctionComponent<IconsPreviewProps> = ({
 
 async function render() {
     // create embedded font
-    const { fontFamilies, fontColumnWidth } = await resolveFonts(
+    const { fontColumnWidth, ...resolvedFonts } = await resolveFonts(
             Object.keys(icons).map((k) => `'${k}'`).join(''),
             "'Cascadia Code', 'CaskaydiaCove NF Mono'",
         ),
-        font = await embedFontCss(fontFamilies);
+        font = await embedFontCss(resolvedFonts);
     return renderToStaticMarkup(
         <IconsPreview
             fontSize={16}
