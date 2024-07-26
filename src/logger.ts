@@ -3,12 +3,27 @@ import { formatWithOptions, type InspectOptions } from 'util';
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'silent';
 
+// global log level
+let logLevel: LogLevel = 'info';
+
 const transport = new transports.Console({
-    level: 'info',
+    level: logLevel,
 });
 
+/**
+ * Set global log level
+ * @param level - global log level to set
+ */
 export function setLogLevel(level: LogLevel) {
-    transport.level = level;
+    logLevel = level;
+    transport.level = logLevel;
+}
+
+/**
+ * Resets back to the global log level
+ */
+export function resetLogLevel() {
+    transport.level = logLevel;
 }
 
 export interface LoggingOptions {
@@ -20,8 +35,9 @@ export interface LoggingOptions {
     logLevel?: LogLevel
 }
 
-export function applyLoggingOptions({ logLevel }: LoggingOptions) {
-    setLogLevel(logLevel ?? 'info');
+export function applyLoggingOptions({ logLevel: lvl }: LoggingOptions) {
+    // set log level
+    transport.level = lvl ?? logLevel;
 }
 
 const SPLAT = Symbol.for('splat');
