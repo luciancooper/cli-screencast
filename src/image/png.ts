@@ -36,7 +36,7 @@ interface PNGAnimationFrame {
     blend: 0 | 1
 }
 
-type Transparency = readonly [number, number, number];
+type Transparency = [number, number, number];
 
 interface PNGData {
     width: number
@@ -208,7 +208,7 @@ export default class PNG {
                 } else if (colorType === 2) {
                     transparency = [0, 2, 4].map((i) => (
                         rescaleSample(tRNS.readUInt16BE(i), bitDepth, 8)
-                    )) as unknown as Transparency;
+                    )) as Transparency;
                 } else {
                     throw new Error(`tRNS chunk not allowed for color type ${colorType}`);
                 }

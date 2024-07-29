@@ -44,7 +44,7 @@ const Text: FunctionComponent<TextProps> = ({
         ty = y * dy + dy / 2;
     // split text at any full width grapheme clusters
     let [str, col, n] = ['', 0, 0];
-    const chunks: [number, string][] = [];
+    const chunks: [idx: number, str: string][] = [];
     for (const [char, width] of charWidths(children)) {
         str += char;
         n += width;

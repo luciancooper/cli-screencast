@@ -402,7 +402,7 @@ describe('<Cursor/>', () => {
 });
 
 describe('<CursorFrames/>', () => {
-    const makeFrames = (stages: ([number, number] | null)[], stageDuration = 500) => [
+    const makeFrames = (stages: ([line: number, col: number] | null)[], stageDuration = 500) => [
         stages.map<CursorKeyFrame | null>((stage, i) => (stage ? {
             time: i * stageDuration,
             endTime: (i + 1) * stageDuration,

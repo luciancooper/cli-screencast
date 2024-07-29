@@ -36,7 +36,7 @@ export type PickOptional<T> = { [K in keyof T as {} extends Pick<T, K> ? K : nev
 /**
  * Create a type that represents the type of an objects `[key, value]` entry pairs.
  */
-export type Entry<T> = readonly [keyof T, T[keyof T]];
+export type Entry<T> = readonly [key: keyof T, value: T[keyof T]];
 
 /**
  * Create a type that represents an array of an objects `[key, value]` entry pairs.
@@ -107,7 +107,7 @@ export interface OutputOptions {
     embedFonts?: boolean
 }
 
-export type RGBA = readonly [number, number, number, number?];
+export type RGBA = readonly [r: number, g: number, b: number, a?: number];
 
 export interface AnsiStyle {
     /**
@@ -151,7 +151,7 @@ export interface CursorLocation {
 export interface TextChunk {
     str: string
     style: AnsiStyle
-    x: readonly [number, number]
+    x: readonly [idx: number, span: number]
 }
 
 export interface TextLine {

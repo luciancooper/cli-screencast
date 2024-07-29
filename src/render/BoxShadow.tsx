@@ -24,7 +24,7 @@ export interface BoxShadowOptions {
      * to contract.
      * @defaultValue `2`
      */
-    spread?: number | [number, number]
+    spread?: number | [rx: number, ry: number]
 
     /**
      * Blur radius of the box shadow. This is the standard deviation value for the Gaussian blur function.

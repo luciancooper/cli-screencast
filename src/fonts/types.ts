@@ -81,7 +81,7 @@ export interface SystemFontData {
     filePath: string
     style: 'italic' | 'normal'
     weight: FontStyle['weight']
-    fvar?: [string, number][]
+    fvar?: [axis: string, value: number][]
     ttcSubfont?: SfntHeader
 }
 
@@ -94,6 +94,16 @@ export type ResolvedFontFamily = { name: string } & ({
 } | {
     type: 'generic' | null
 });
+
+export interface ResolvedFontAccumulator {
+    families: ResolvedFontFamily[]
+    columnWidth: [count: number, width: number | undefined][]
+}
+
+export interface EmbeddedFontAccumulator {
+    css: string[]
+    family: string[]
+}
 
 /**
  * Font 'name' table record

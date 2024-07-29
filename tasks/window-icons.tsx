@@ -17,8 +17,8 @@ interface IconsPreviewProps extends SVGProps<SVGElement> {
     fontColumnWidth?: number | undefined
     spacing: number
     indent?: number
-    padding: readonly [number, number]
-    insets: readonly [number, number]
+    padding: readonly [px: number, py: number]
+    insets: readonly [ix: number, iy: number]
 }
 
 const IconsPreview: FunctionComponent<IconsPreviewProps> = ({

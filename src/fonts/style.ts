@@ -7,7 +7,7 @@ interface KeywordRegExp<T> {
     value: T
 }
 
-function keywordRegExpArray<T>(kw: [T, string][]) {
+function keywordRegExpArray<T>(kw: [value: T, regex: string][]) {
     return kw.map(([value, re]) => ({
         family: new RegExp(` ${re}`, 'i'),
         subfamily: new RegExp(` ?${re}`, 'i'),
@@ -67,7 +67,7 @@ function findClosestNormalizedValue<T extends number>(values: T[], value: number
                 : value > def ? idx - 1 : idx;
 }
 
-const coreTextWeightThresholds: [number, FontWeight][] = [
+const coreTextWeightThresholds: [threshold: number, standard: FontWeight][] = [
     [-0.8, 100], [-0.5, 200], [-0.4, 300], [0, 400],
     [0.25, 500], [0.35, 600], [0.5, 700], [0.6, 800],
 ];
@@ -95,7 +95,7 @@ function extractKeywordValue<T>(
     family: string,
     subfamily: string,
     regexs: KeywordRegExp<T>[],
-): [string, string, T | null] {
+): [family: string, subfamily: string, value: T | null] {
     if (family) {
         for (const { family: re, value } of regexs) {
             if (re.test(family)) return [family.replace(re, ''), subfamily, value];
@@ -228,13 +228,15 @@ export function styleAnsiMatchPriority(
     fonts: { style: FontStyle, fvarInstance?: { defscore: number } }[],
     ansi: AnsiCode,
 ): number[] {
-    return fonts.map<[number, number, number]>(({ style: { slant, weight, width }, fvarInstance }, idx) => [
-        idx,
-        (((ansi & 0b10) ? slant : 2 - slant) << 8)
-        | (fontWeightMatchPriority[ansi & 1]!.indexOf(weight) << 4)
-        | fontWidthMatchPriority.indexOf(width),
-        fvarInstance?.defscore ?? 0,
-    ]).sort(([i1, p1, def1], [i2, p2, def2]) => (
+    return fonts.map<[idx: number, priority: number, defscore: number]>(
+        ({ style: { slant, weight, width }, fvarInstance }, idx) => [
+            idx,
+            (((ansi & 0b10) ? slant : 2 - slant) << 8)
+            | (fontWeightMatchPriority[ansi & 1]!.indexOf(weight) << 4)
+            | fontWidthMatchPriority.indexOf(width),
+            fvarInstance?.defscore ?? 0,
+        ],
+    ).sort(([i1, p1, def1], [i2, p2, def2]) => (
         (p2 - p1) || (def2 - def1) || (i1 - i2)
     )).map(([idx]) => idx);
 }

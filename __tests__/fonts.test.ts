@@ -7,7 +7,7 @@ import { GraphemeSet } from '@src/fonts/range';
 import extractContentSubsets, { createContentSubsets, type ContentSubsets } from '@src/fonts/content';
 import { getSystemFonts, resolveSystemFont, embedSystemFont } from '@src/fonts/system';
 import { fetchGoogleFontMetadata, resolveGoogleFont, embedGoogleFont, type GoogleFontMetadata } from '@src/fonts/google';
-import type { ResolvedFontFamily, SfntHeader, SystemFont } from '@src/fonts/types';
+import type { ResolvedFontFamily, ResolvedFontAccumulator, EmbeddedFontAccumulator, SfntHeader, SystemFont } from '@src/fonts/types';
 import { resolveFonts, embedFontCss, type ResolvedFontData } from '@src/fonts';
 import { makeLine } from './helpers/objects';
 
@@ -157,7 +157,7 @@ describe('resolveGoogleFont', () => {
     });
 
     test('content coverage is empty', async () => {
-        const resolved: Parameters<typeof resolveGoogleFont>[0] = { families: [], columnWidth: [] },
+        const resolved: ResolvedFontAccumulator = { families: [], columnWidth: [] },
             subset = createContentSubsets(['']);
         await resolveGoogleFont(resolved, subset, meta['Ubuntu Mono']!);
         expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([
@@ -166,7 +166,7 @@ describe('resolveGoogleFont', () => {
     });
 
     test('google font family supports multiple styles', async () => {
-        const resolved: Parameters<typeof resolveGoogleFont>[0] = { families: [], columnWidth: [] };
+        const resolved: ResolvedFontAccumulator = { families: [], columnWidth: [] };
         let subset = createContentSubsets(['abc', 'cde', '', '']);
         subset = await resolveGoogleFont(resolved, subset, meta['Ubuntu Mono']!);
         expect(subset.coverage.empty()).toBe(true);
@@ -181,7 +181,7 @@ describe('resolveGoogleFont', () => {
     });
 
     test('content coverage only partially overlaps with font coverage', async () => {
-        const resolved: Parameters<typeof resolveGoogleFont>[0] = { families: [], columnWidth: [] };
+        const resolved: ResolvedFontAccumulator = { families: [], columnWidth: [] };
         let subset = createContentSubsets(['abc', '∆∏∑', 'cde', '']);
         subset = await resolveGoogleFont(resolved, subset, meta['Fira Code']!);
         expect(subset.coverage.string()).toBe('∆∏∑');
@@ -201,7 +201,7 @@ describe('resolveSystemFont', () => {
     });
 
     test('content coverage is empty', async () => {
-        const resolved: Parameters<typeof resolveSystemFont>[0] = { families: [], columnWidth: [] },
+        const resolved: ResolvedFontAccumulator = { families: [], columnWidth: [] },
             subset = createContentSubsets(['']);
         await resolveSystemFont(resolved, subset, { name: 'Monaco', fonts: systemFonts['Monaco']! });
         expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([
@@ -210,7 +210,7 @@ describe('resolveSystemFont', () => {
     });
 
     test('content coverage does not overlap with font', async () => {
-        const resolved: Parameters<typeof resolveSystemFont>[0] = { families: [], columnWidth: [] };
+        const resolved: ResolvedFontAccumulator = { families: [], columnWidth: [] };
         let subset = createContentSubsets(['⊕⊖⊗⊘']);
         subset = await resolveSystemFont(resolved, subset, { name: 'Monaco', fonts: systemFonts['Monaco']! });
         expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([
@@ -220,7 +220,7 @@ describe('resolveSystemFont', () => {
     });
 
     test('system font family only supports one style', async () => {
-        const resolved: Parameters<typeof resolveSystemFont>[0] = { families: [], columnWidth: [] };
+        const resolved: ResolvedFontAccumulator = { families: [], columnWidth: [] };
         let subset = createContentSubsets(['abc', 'cde']);
         subset = await resolveSystemFont(resolved, subset, { name: 'Monaco', fonts: systemFonts['Monaco']! });
         expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([{
@@ -239,7 +239,7 @@ describe('resolveSystemFont', () => {
     });
 
     test('content coverage only partially overlaps with font coverage', async () => {
-        const resolved: Parameters<typeof resolveSystemFont>[0] = { families: [], columnWidth: [] };
+        const resolved: ResolvedFontAccumulator = { families: [], columnWidth: [] };
         let subset = createContentSubsets(['abc⊕⊖', '⊗', 'cde⊘']);
         subset = await resolveSystemFont(resolved, subset, {
             name: 'Cascadia Code',
@@ -270,7 +270,7 @@ describe('resolveSystemFont', () => {
     });
 
     test('system font family is a ttc font collection', async () => {
-        const resolved: Parameters<typeof resolveSystemFont>[0] = { families: [], columnWidth: [] },
+        const resolved: ResolvedFontAccumulator = { families: [], columnWidth: [] },
             subset = createContentSubsets(['abc', 'cde']);
         await resolveSystemFont(resolved, subset, { name: 'Menlo', fonts: systemFonts['Menlo']! });
         expect(resolved.families).toStrictEqual<ResolvedFontFamily[]>([{
@@ -369,19 +369,19 @@ describe('resolveFonts', () => {
 
 describe('embedGoogleFont', () => {
     test('does not add font family name if no fonts were resolved and full coverage is true', async () => {
-        const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+        const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
         await embedGoogleFont(embedded, { name: 'Fira Code', fonts: [] }, { forPng: false, fullCoverage: true });
         expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: [] });
     });
 
     test('adds font family name if full coverage is false', async () => {
-        const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+        const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
         await embedGoogleFont(embedded, { name: 'Fira Code', fonts: [] }, { forPng: false, fullCoverage: false });
         expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: ['Fira Code'] });
     });
 
     test('embedding for png returns @font-face css blocks with font url sources', async () => {
-        const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+        const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
         await embedGoogleFont(embedded, {
             name: 'Fira Code',
             fonts: [
@@ -395,7 +395,7 @@ describe('embedGoogleFont', () => {
     });
 
     test('embeding for svg returns @font-face css blocks with embedded woff2 sources', async () => {
-        const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+        const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
         await embedGoogleFont(embedded, {
             name: 'Fira Code',
             fonts: [
@@ -411,7 +411,7 @@ describe('embedGoogleFont', () => {
     describe('http errors', () => {
         test('handles thrown errors when fetching css from google api', async () => {
             nock('https://fonts.googleapis.com').get(/^\/css2/).replyWithError('mocked network error');
-            const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+            const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
             await embedGoogleFont(embedded, {
                 name: 'Fira Code',
                 fonts: [{ params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' }],
@@ -421,7 +421,7 @@ describe('embedGoogleFont', () => {
 
         test('handles status codes other than 200 when fetching css from google api', async () => {
             nock('https://fonts.googleapis.com').get(/^\/css2/).reply(404);
-            const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+            const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
             await embedGoogleFont(embedded, {
                 name: 'Fira Code',
                 fonts: [{ params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' }],
@@ -431,7 +431,7 @@ describe('embedGoogleFont', () => {
 
         test('handles thrown errors when fetching static font files', async () => {
             nock('https://fonts.gstatic.com').get(() => true).replyWithError('mocked network error');
-            const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+            const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
             await embedGoogleFont(embedded, {
                 name: 'Fira Code',
                 fonts: [{ params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' }],
@@ -444,7 +444,7 @@ describe('embedGoogleFont', () => {
 
         test('handles status codes other than 200 when fetching static font files', async () => {
             nock('https://fonts.gstatic.com').get(() => true).reply(404);
-            const embedded: Parameters<typeof embedGoogleFont>[0] = { css: [], family: [] };
+            const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
             await embedGoogleFont(embedded, {
                 name: 'Fira Code',
                 fonts: [{ params: 'family=Fira+Code:ital,wght@0,400', chars: 'abc' }],
@@ -467,19 +467,19 @@ describe('embedSystemFont', () => {
     });
 
     test('does not add font family name if no fonts were resolved and full coverage is true', async () => {
-        const embedded: Parameters<typeof embedSystemFont>[0] = { css: [], family: [] };
+        const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
         await embedSystemFont(embedded, { name: 'Monaco', fonts: [] }, { forPng: false, fullCoverage: true });
         expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: [] });
     });
 
     test('adds font family name if full coverage is false', async () => {
-        const embedded: Parameters<typeof embedSystemFont>[0] = { css: [], family: [] };
+        const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
         await embedSystemFont(embedded, { name: 'Monaco', fonts: [] }, { forPng: false, fullCoverage: false });
         expect(embedded).toStrictEqual<typeof embedded>({ css: [], family: ['Monaco'] });
     });
 
     test('embeding for svg returns @font-face css blocks', async () => {
-        const embedded: Parameters<typeof embedSystemFont>[0] = { css: [], family: [] };
+        const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
         await embedSystemFont(embedded, monacoTest('abc'), { forPng: false, fullCoverage: true });
         expect(embedded).toStrictEqual<typeof embedded>({
             css: [expect.stringMatching(/^@font-face \{.*?src:url\(data:font\/woff2;charset=utf-8;base64.*?\}$/) as string],
@@ -488,7 +488,7 @@ describe('embedSystemFont', () => {
     });
 
     test('embedding for png returns no css blocks', async () => {
-        const embedded: Parameters<typeof embedSystemFont>[0] = { css: [], family: [] };
+        const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
         await embedSystemFont(embedded, {
             name: 'Monaco',
             fonts: [{
@@ -501,7 +501,7 @@ describe('embedSystemFont', () => {
 
     test('wawoff2 compression error', async () => {
         (woff2Compress as jest.Mock).mockRejectedValueOnce(new Error('woff2 compression error'));
-        const embedded: Parameters<typeof embedSystemFont>[0] = { css: [], family: [] };
+        const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
         await embedSystemFont(embedded, monacoTest('abc'), { forPng: false, fullCoverage: true });
         expect(embedded).toStrictEqual<typeof embedded>({
             css: [expect.stringMatching(/^@font-face \{.*?src:url\(data:font\/ttf;charset=utf-8;base64.*?\}$/) as string],

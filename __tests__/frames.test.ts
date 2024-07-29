@@ -5,9 +5,9 @@ import { makeLine } from './helpers/objects';
 const dimensions = { columns: 10, rows: 5 };
 
 const makeParsedCaptureData = (
-    content: [number, number, string][],
-    cursor: [number, number, boolean?][],
-    title: [number, number, string?][],
+    content: [time: number, endTime: number, line: string][],
+    cursor: [time: number, endTime: number][],
+    title: [time: number, endTime: number, title?: string][],
 ): ParsedCaptureData => ({
     ...dimensions,
     content: content.map(([time, endTime, line]) => ({

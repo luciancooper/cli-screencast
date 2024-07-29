@@ -13,7 +13,7 @@ interface WindowTitleProps {
     keyFrame?: KeyFrame
 }
 
-function truncateTitle(chunks: TextChunk[], cols: number): readonly [TextChunk[], number] {
+function truncateTitle(chunks: TextChunk[], cols: number): readonly [chunks: TextChunk[], columns: number] {
     const truncated: TextChunk[] = [];
     let tcols = cols;
     for (const { str, x: [x, span], style } of chunks) {

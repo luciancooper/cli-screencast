@@ -11,7 +11,7 @@ export type AnsiCode = 0 | 1 | 2 | 3;
 
 export interface ContentSubsets {
     coverage: GraphemeSet
-    subsets: [AnsiCode, GraphemeSet][]
+    subsets: [ansi: AnsiCode, subset: GraphemeSet][]
 }
 
 type TermScreen = TerminalLines & { title: Title };
@@ -69,7 +69,7 @@ export default function extractContentSubsets(data: FrameData): ContentSubsets {
         const ansi = (style.props & 1) | ((style.props >>> 1) & 2);
         chars[ansi] = chars[ansi]?.union(str) ?? GraphemeSet.from(str);
     }
-    const subsets = [...chars.entries()].filter(([, c]) => c) as [AnsiCode, GraphemeSet][],
+    const subsets = [...chars.entries()].filter(([, c]) => c) as [ansi: AnsiCode, subset: GraphemeSet][],
         coverage = GraphemeSet.merge(...subsets.map(([, c]) => c));
     return { coverage, subsets };
 }

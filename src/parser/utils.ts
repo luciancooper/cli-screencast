@@ -13,7 +13,7 @@ export function clone<T>(obj: T): T {
  * @param regex - regular expression to match chunks
  * @param string - string to process
  */
-export function* regexChunks(regex: RegExp, string: string): Generator<readonly [string, boolean]> {
+export function* regexChunks(regex: RegExp, string: string): Generator<readonly [str: string, match: boolean]> {
     // lower index of the chunk preceding each escape sequence
     let i = 0;
     // call `exec()` until all matches are found

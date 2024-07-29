@@ -7,7 +7,7 @@ export interface CmapEncodingRecord {
     offset: number
 }
 
-const cmapEncodingPriority = [
+const cmapEncodingPriority: [platform: number, encoding: number][] = [
     // 32-bit subtables
     [3, 10], // Windows Platform - Unicode full repertoire
     [0, 6], // Unicode platform - Unicode full repertoire—for use with subtable format 13
@@ -49,7 +49,7 @@ export function cmapCoverage(
         case 0:
             range = CodePointRange.from(
                 table.glyphIdArray
-                    .map<[number, number]>((gid, char) => [gid, char])
+                    .map<[gid: number, char: number]>((gid, char) => [gid, char])
                     .filter(([gid]) => gid !== 0 && gid < numGlyphs)
                     .map(([gid, char]) => [char, advanceWidth[Math.min(gid, awl - 1)]]),
             );
@@ -60,7 +60,7 @@ export function cmapCoverage(
         case 10:
             range = CodePointRange.from(
                 table.glyphIdArray
-                    .map<[number, number]>((gid, offset) => [gid, table.startCharCode + offset])
+                    .map<[gid: number, offset: number]>((gid, offset) => [gid, table.startCharCode + offset])
                     .filter(([gid]) => gid !== 0 && gid < numGlyphs)
                     .map(([gid, char]) => [char, advanceWidth[Math.min(gid, awl - 1)]]),
             );
@@ -68,7 +68,7 @@ export function cmapCoverage(
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-2-high-byte-mapping-through-table
         // adapted from https://github.com/fonttools/fonttools/blob/main/Lib/fontTools/ttLib/tables/_c_m_a_p.py#L460
         case 2: {
-            const codePoints: [number, number | undefined][] = [];
+            const codePoints: [cp: number, width: number | undefined][] = [];
             for (let firstByte = 0; firstByte < 256; firstByte += 1) {
                 // get subheader index for this first byte
                 const shIndex = table.subHeaderKeys[firstByte]! >> 3,
@@ -106,7 +106,7 @@ export function cmapCoverage(
         }
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-4-segment-mapping-to-delta-values
         case 4: {
-            const codePoints: [number, number | undefined][] = [];
+            const codePoints: [cp: number, width: number | undefined][] = [];
             for (let i = 0, n = table.segCount; i < n - 1; i += 1) {
                 const start = table.startCodes[i]!,
                     end = table.endCodes[i]! + 1,
@@ -136,7 +136,7 @@ export function cmapCoverage(
         }
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-12-segmented-coverage
         case 12: {
-            const codePoints: [number, number | undefined][] = [];
+            const codePoints: [cp: number, width: number | undefined][] = [];
             for (const { startCharCode, endCharCode, glyphID } of table.groups) {
                 for (let c = startCharCode, gid = glyphID; c <= endCharCode; c += 1, gid += 1) {
                     if (gid !== 0 && gid < numGlyphs) {
@@ -149,7 +149,7 @@ export function cmapCoverage(
         }
         // https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings
         case 13: {
-            const ranges: [number, number, number | undefined][] = [];
+            const ranges: [cp1: number, cp2: number, width: number | undefined][] = [];
             for (const { startCharCode, endCharCode, glyphID } of table.groups) {
                 if (glyphID === 0 || glyphID >= numGlyphs) continue;
                 ranges.push([startCharCode, endCharCode + 1, advanceWidth[Math.min(glyphID, awl - 1)]]);

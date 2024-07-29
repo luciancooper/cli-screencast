@@ -1,7 +1,7 @@
 import https from 'https';
 import type { AnsiCode, ContentSubsets } from './content';
 import { CodePointRange, type GraphemeSet } from './range';
-import type { ResolvedFontFamily } from './types';
+import type { ResolvedFontFamily, ResolvedFontAccumulator, EmbeddedFontAccumulator } from './types';
 import log from '../logger';
 
 const StyleID = ['400', '700', '400i', '700i'] as const;
@@ -106,7 +106,7 @@ export async function fetchGoogleFontMetadata(font: string): Promise<GoogleFontM
         family,
         styles: (Object.keys(fonts) as GoogleFontVariantID[]).filter((k) => StyleID.includes(k)),
         coverage: GoogleFontCoverage.fromRanges(
-            Object.values(coverage).flatMap((cov) => cov.split(',').map<[number, number]>((r) => {
+            Object.values(coverage).flatMap((cov) => cov.split(',').map<[cp1: number, cp2: number]>((r) => {
                 const { 1: i1, 2: i2 = i1 } = /(\d+)(?:-(\d+))?/.exec(r)!;
                 return [parseInt(i1!, 10), parseInt(i2!, 10) + 1];
             })),
@@ -114,15 +114,15 @@ export async function fetchGoogleFontMetadata(font: string): Promise<GoogleFontM
     };
 }
 
-type ResolvedGoogleFonts = Extract<ResolvedFontFamily, { type: 'google' }>['fonts'];
+type ResolvedGoogleFontFamily = Extract<ResolvedFontFamily, { type: 'google' }>;
 
 export async function resolveGoogleFont(
-    { families, columnWidth }: { families: ResolvedFontFamily[], columnWidth: [number, number | undefined][] },
+    { families, columnWidth }: ResolvedFontAccumulator,
     content: ContentSubsets,
     meta: GoogleFontMetadata,
 ): Promise<ContentSubsets> {
     // create array of resolved fonts
-    const resolved: ResolvedGoogleFonts = [];
+    const resolved: ResolvedGoogleFontFamily['fonts'] = [];
     // add resolved family object to the resolved families array
     families.push({ name: meta.family, type: 'google', fonts: resolved });
     // calculate intersection between content and family coverage
@@ -131,7 +131,7 @@ export async function resolveGoogleFont(
     if (coverage.intersection.empty()) return content;
     log.debug('resolving font coverage from google font family %s', meta.family);
     // determine content coverage for each ansi style subset
-    const subsets: [AnsiCode, GraphemeSet][] = [],
+    const subsets: [ansi: AnsiCode, subset: GraphemeSet][] = [],
         contentDifference: ContentSubsets = { coverage: coverage.difference, subsets: [] };
     for (const [ansi, chars] of content.subsets) {
         const { intersection, difference } = chars.intersect(meta.coverage);
@@ -167,8 +167,8 @@ export async function resolveGoogleFont(
 }
 
 export async function embedGoogleFont(
-    embedded: { css: string[], family: string[] },
-    { name, fonts }: Omit<Extract<ResolvedFontFamily, { type: 'google' }>, 'type'>,
+    embedded: EmbeddedFontAccumulator,
+    { name, fonts }: Omit<ResolvedGoogleFontFamily, 'type'>,
     { forPng, fullCoverage }: { forPng: boolean, fullCoverage: boolean },
 ) {
     if (fonts.length) log.debug(`embedding font ${forPng ? 'css for' : 'subset from'} google font family %s`, name);

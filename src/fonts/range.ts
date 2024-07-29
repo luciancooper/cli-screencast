@@ -28,7 +28,7 @@ function mergeSort<T extends string | number>(array: T[]) {
     return array.slice(0, sortTopDown(array.slice(), array, 0, array.length));
 }
 
-type Tuple<T> = [T, (number | undefined)?];
+type Tuple<T> = [char: T, width?: number | undefined];
 
 function sortTuplesTopDown<T extends string | number>(b: Tuple<T>[], a: Tuple<T>[], l: number, r: number) {
     if (r - l <= 1) return r - l;
@@ -58,7 +58,7 @@ function mergeSortTuples<T extends string | number>(array: Tuple<T>[]) {
     return array.slice(0, sortTuplesTopDown(array.slice(), array, 0, array.length));
 }
 
-type Range = [number, number, (number | undefined)?];
+type Range = [cp1: number, cp2: number, width?: number | undefined];
 
 /**
  * Merge sort top down from array b into array a
@@ -231,7 +231,8 @@ export class CodePointRange {
     }
 
     /**
-     * Checks if a codepoint is in this code point range
+     * Checks if a codepoint is in this code point range.
+     * Returns false if the codepoint is not in the range, otherwise returns the code point width.
      */
     contains(code: number): false | number | undefined {
         // use binary search
@@ -287,7 +288,7 @@ export class MeasuredGraphemeSet implements Iterable<number> {
         return new MeasuredGraphemeSet(mergeSortTuples(chars));
     }
 
-    widthDistribution(): [number, number | undefined][] {
+    widthDistribution(): [count: number, width: number | undefined][] {
         const map = new Map<number | undefined, number>();
         for (const [, v] of this.chars) map.set(v, (map.get(v) ?? 0) + 1);
         return [...map.entries()].map(([v, count]) => [count, v]);

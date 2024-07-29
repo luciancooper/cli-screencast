@@ -10,7 +10,7 @@ const fixtures = (() => {
     return obj as Record<keyof typeof pngFixtures, Buffer>;
 })();
 
-function createPngBuffer(...chunks: readonly [string, number | Buffer][]): Buffer {
+function createPngBuffer(...chunks: readonly [type: string, data: number | Buffer][]): Buffer {
     return PNG.encodeChunks(chunks.map<PNGChunk>(([type, data]) => ({
         type,
         data: typeof data === 'number' ? Buffer.alloc(data) : type === 'IDAT' ? deflateSync(data) : data,

@@ -1,4 +1,4 @@
-import type { ResolvedFontFamily } from './types';
+import type { ResolvedFontFamily, ResolvedFontAccumulator, EmbeddedFontAccumulator } from './types';
 import extractContentSubsets, { createContentSubsets, type FrameData, type ContentSubsets } from './content';
 import { caselessMatch } from './names';
 import { getSystemFonts, resolveSystemFont, embedSystemFont } from './system';
@@ -39,10 +39,7 @@ export async function resolveFonts(
         // get system font keys
         systemFontKeys = Object.keys(systemFonts),
         // create object to accumulate resolved font data
-        resolved: { families: ResolvedFontFamily[], columnWidth: [number, number | undefined][] } = {
-            families: [],
-            columnWidth: [],
-        };
+        resolved: ResolvedFontAccumulator = { families: [], columnWidth: [] };
     // iterate over specified font families
     for (const name of familyNames) {
         // if family is a generic key, add it to the embedded family spec and continue
@@ -90,7 +87,7 @@ export async function embedFontCss(
     forPng = false,
 ): Promise<{ css: string | null, fontFamily: string }> {
     // create object to accumulate embedded font data
-    const embedded: { css: string[], family: string[] } = { css: [], family: [] };
+    const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
     // build font css
     for (const family of fontFamilies) {
         if (family.type === 'system') {

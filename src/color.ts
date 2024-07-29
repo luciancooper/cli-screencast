@@ -57,7 +57,7 @@ export function color8Bit(color: number): number | RGBA {
             Math.floor((color - 16) / 36),
             Math.floor(((color - 16) % 36) / 6),
             (color - 16) % 6,
-        ].map((i) => i && (95 + (i - 1) * 40)) as [number, number, number];
+        ].map((i) => i && (95 + (i - 1) * 40)) as [r: number, g: number, b: number];
     }
     // 232 - 255 : grayscale (24 colors)
     const gray = (color - 232) * 10 + 8;

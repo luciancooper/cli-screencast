@@ -26,7 +26,7 @@ export type RunCallback<T> = (source: NodeRecordingStream) => Promise<T> | T;
 interface OutputStreamDescriptors {
     columns: PropertyDescriptor | undefined
     rows: PropertyDescriptor | undefined
-    props: (readonly [string, PropertyDescriptor | undefined])[]
+    props: (readonly [key: string, desc: PropertyDescriptor | undefined])[]
 }
 
 interface TargetDescriptors {
@@ -36,7 +36,7 @@ interface TargetDescriptors {
 }
 
 interface SocketHandle {
-    getWindowSize?: (arr: [number, number]) => Error | null
+    getWindowSize?: (arr: [cols: number, rows: number]) => Error | null
 }
 
 export default class NodeRecordingStream extends RecordingStream {
@@ -157,7 +157,7 @@ export default class NodeRecordingStream extends RecordingStream {
     }
 
     private restoreOutputStream(stream: NodeJS.WriteStream, descriptors: OutputStreamDescriptors): void {
-        const size = new Array(2) as [number, number];
+        const size = new Array(2) as [cols: number, rows: number];
         let { columns, rows } = descriptors;
         // get current window size from `stream._handle`
         const { _handle } = (stream as unknown as { _handle?: SocketHandle });

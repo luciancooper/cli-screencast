@@ -1,7 +1,7 @@
 import systemFontPaths from 'system-font-paths';
 import { compress as woff2Compress } from 'wawoff2';
 import type { ContentSubsets } from './content';
-import type { SystemFont, SystemFontData, ResolvedFontFamily } from './types';
+import type { SystemFont, SystemFontData, ResolvedFontFamily, ResolvedFontAccumulator, EmbeddedFontAccumulator } from './types';
 import FontDecoder from './decoder';
 import { CodePointRange, type MeasuredGraphemeSet } from './range';
 import { styleAnsiMatchPriority } from './style';
@@ -28,15 +28,15 @@ export async function getSystemFonts(match?: string[]) {
     return families;
 }
 
-type ResolvedSystemFonts = Extract<ResolvedFontFamily, { type: 'system' }>['fonts'];
+type ResolvedSystemFontFamily = Extract<ResolvedFontFamily, { type: 'system' }>;
 
 export async function resolveSystemFont(
-    { families, columnWidth }: { families: ResolvedFontFamily[], columnWidth: [number, number | undefined][] },
+    { families, columnWidth }: ResolvedFontAccumulator,
     content: ContentSubsets,
     { name, fonts }: { name: string, fonts: SystemFont[] },
 ): Promise<ContentSubsets> {
     // create array of resolved fonts
-    const resolved: ResolvedSystemFonts = [];
+    const resolved: ResolvedSystemFontFamily['fonts'] = [];
     // add resolved family object to the resolved families array
     families.push({ name, type: 'system', fonts: resolved });
     // stop if content coverage is empty
@@ -87,8 +87,8 @@ export async function resolveSystemFont(
 }
 
 export async function embedSystemFont(
-    embedded: { css: string[], family: string[] },
-    { name, fonts }: Omit<Extract<ResolvedFontFamily, { type: 'system' }>, 'type'>,
+    embedded: EmbeddedFontAccumulator,
+    { name, fonts }: Omit<ResolvedSystemFontFamily, 'type'>,
     { forPng, fullCoverage }: { forPng: boolean, fullCoverage: boolean },
 ) {
     if (!forPng && fonts.length) log.debug('embedding font subset from locally installed font family %s', name);

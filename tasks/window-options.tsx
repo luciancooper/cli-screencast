@@ -19,12 +19,12 @@ const labelFontProps = {
 
 type DiagramLabelProps = {
     text: string
-    coords: [number, number]
-    size: [number, number]
+    coords: [x: number, y: number]
+    size: [w: number, h: number]
     line: {
         angle: number // [0, 360]
         distance: number // distance between label and arrow point
-        curvature: number | [number, number] // [-1, 1]
+        curvature: number | [c1: number, c2: number] // [-1, 1]
     }
     position?: number
     textPosition?: number
@@ -108,7 +108,7 @@ const DiagramLabel: FunctionComponent<DiagramLabelProps & { labelColumnWidth: nu
 
 interface DiagramOptions extends Partial<TerminalOptions>, RenderOptions {
     scaleFactor: number
-    insets: [number, number]
+    insets: [ix: number, iy: number]
 }
 
 async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOptions) {
