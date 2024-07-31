@@ -1,5 +1,5 @@
 import { inflateSync, deflateSync } from 'zlib';
-import { Size } from '../types';
+import type { Size } from '../types';
 
 export interface PNGChunk {
     type: string

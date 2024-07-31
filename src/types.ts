@@ -1,4 +1,4 @@
-import icons from './render/icons.json';
+import type icons from './render/icons.json';
 
 /**
  * A strict version of the built-in `Omit` that requires omitted keys `K` to be present on the given type `T`.

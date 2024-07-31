@@ -1,5 +1,5 @@
 import { launch, type Browser } from 'puppeteer';
-import { Size, SVGData, SVGCaptureData } from '../types';
+import type { Size, SVGData, SVGCaptureData } from '../types';
 import PNG from './png';
 import log from '../logger';
 

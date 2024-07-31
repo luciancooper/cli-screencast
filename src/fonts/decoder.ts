@@ -6,7 +6,7 @@ import FontReader from './reader';
 import { getEncoding } from './encoding';
 import { getLanguage, localizeNames, caselessMatch } from './names';
 import { getFontStyle, extendFontStyle } from './style';
-import { type CmapEncodingRecord, cmapCoverage, selectCmapRecord } from './cmap';
+import { cmapCoverage, selectCmapRecord, type CmapEncodingRecord } from './cmap';
 
 type DecodeCallback<T> = (this: FontDecoder, header: SfntHeader) => T | PromiseLike<T>;
 

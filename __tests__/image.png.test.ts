@@ -1,5 +1,5 @@
 import { deflateSync } from 'zlib';
-import PNG, { PNGChunk, PNGEncoding } from '@src/image/png';
+import PNG, { type PNGChunk, type PNGEncoding } from '@src/image/png';
 import pngFixtures from './fixtures/png.json';
 
 const fixtures = (() => {

@@ -5,7 +5,7 @@ import { resolveTitle } from '@src/parser';
 import { hexString } from '@src/color';
 import type { CursorKeyFrame } from '@src/types';
 import type { KeyTime } from '@src/render/Animation';
-import Context, { RenderContext } from '@src/render/Context';
+import Context, { type RenderContext } from '@src/render/Context';
 import Window from '@src/render/Window';
 import WindowTitle from '@src/render/WindowTitle';
 import BoxShadow, { defaultBoxShadow, type BoxShadowOptions } from '@src/render/BoxShadow';
