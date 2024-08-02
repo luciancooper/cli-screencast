@@ -2,14 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { FunctionComponent } from 'react';
-import type { TerminalOptions } from '../src/types';
-import { applyDefRenderOptions, applyDefTerminalOptions } from '../src/options';
-import { resolveTitle } from '../src/parser/title';
-import { resolveFonts, embedFontCss } from '../src/fonts';
-import Context from '../src/render/Context';
-import Window from '../src/render/Window';
-import { resolveContext, type RenderOptions } from '../src/render';
-import log, { setLogLevel } from '../src/logger';
+import type { TerminalOptions } from '@src/types';
+import { applyDefRenderOptions, applyDefTerminalOptions } from '@src/options';
+import { resolveTitle } from '@src/parser/title';
+import { resolveFonts, embedFontCss } from '@src/fonts';
+import Context from '@src/render/Context';
+import Window from '@src/render/Window';
+import { resolveContext, type RenderOptions } from '@src/render';
+import log, { setLogLevel } from '@src/logger';
 
 const labelFontProps = {
     fontSize: 12,

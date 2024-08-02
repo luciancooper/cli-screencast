@@ -5,6 +5,7 @@
     "lib": ["ESNext"],
     "jsx": "react-jsxdev",
     "paths": {
+      "@src": ["./src"],
       "@src/*": ["./src/*"],
     },
     "allowJs": true,
@@ -28,5 +29,8 @@
     "resolveJsonModule": true
   },
   "include": ["**/*", "**/.*"],
-  "exclude": ["lib", "coverage"]
+  "exclude": ["lib", "coverage"],
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  }
 }

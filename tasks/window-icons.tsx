@@ -2,9 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import type { FunctionComponent, SVGProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { resolveFonts, embedFontCss } from '../src/fonts';
-import icons from '../src/render/icons.json';
-import log, { setLogLevel } from '../src/logger';
+import { resolveFonts, embedFontCss } from '@src/fonts';
+import icons from '@src/render/icons.json';
+import log, { setLogLevel } from '@src/logger';
 
 interface IconsPreviewProps extends SVGProps<SVGElement> {
     fontSize: number

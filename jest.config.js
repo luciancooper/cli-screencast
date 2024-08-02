@@ -13,6 +13,7 @@ module.exports = {
         '**/*.test.[jt]s?(x)',
     ],
     moduleNameMapper: {
+        '^@src$': '<rootDir>/src',
         '^@src/(.+)$': '<rootDir>/src/$1',
     },
     setupFilesAfterEnv: [

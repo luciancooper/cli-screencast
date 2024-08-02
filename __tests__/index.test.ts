@@ -3,7 +3,7 @@ import { writeFile, readFile } from 'fs/promises';
 import YAML from 'yaml';
 import { stdin as mockStdin } from 'mock-stdin';
 import type { SourceFrame } from '@src/source';
-import { renderScreen, captureFrames, captureSpawn, captureShell, captureCallback, renderData } from '../src';
+import { renderScreen, captureFrames, captureSpawn, captureShell, captureCallback, renderData } from '@src';
 import mockStdout, { type MockStdout } from './helpers/mockStdout';
 
 const dimensions = { columns: 50, rows: 10 };
