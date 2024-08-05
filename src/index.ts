@@ -2,7 +2,7 @@ import type {
     CaptureData, ScreenData, ParsedCaptureData, ParsedScreenData, OutputOptions, TerminalOptions,
 } from './types';
 import { validateOptions, applyDefTerminalOptions, applyDefOutputOptions, applyDefRenderOptions } from './options';
-import { applyLoggingOptions, setLogLevel, resetLogLevel, type LoggingOptions } from './logger';
+import log, { applyLoggingOptions, setLogLevel, resetLogLevel, type LoggingOptions } from './logger';
 import { parseScreen, parseCapture } from './parser';
 import RecordingStream, { type SourceFrame } from './source';
 import { readableSpawn, readableShell, type SpawnOptions, type ShellOptions } from './spawn';
@@ -45,8 +45,10 @@ async function renderScreenData(screen: ScreenData, options: OutputOptions & Ren
                 else cache[type] = await createPng(rendered, scaleFactor);
             }
         }
-        if (path) await writeToFile(path, type === 'json' ? cache[type]!.pretty : cache[type]!);
-        else output = type === 'json' ? cache[type]!.data : cache[type]!;
+        if (path) {
+            await writeToFile(path, type === 'json' ? cache[type]!.pretty : cache[type]!);
+            log.info('wrote %s data out to file %S', type, path);
+        } else output = type === 'json' ? cache[type]!.data : cache[type]!;
     }
     return output!;
 }
@@ -79,8 +81,10 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
                 }
             }
         }
-        if (path) await writeToFile(path, type === 'json' ? cache[type]!.pretty : cache[type]!);
-        else output = type === 'json' ? cache[type]!.data : cache[type]!;
+        if (path) {
+            await writeToFile(path, type === 'json' ? cache[type]!.pretty : cache[type]!);
+            log.info('wrote %s data out to file %S', type, path);
+        } else output = type === 'json' ? cache[type]!.data : cache[type]!;
     }
     return output!;
 }
@@ -221,7 +225,7 @@ export async function captureCallback(
 
 /**
  * Render a screencast or screenshot from a json or yaml data file.
- * @param path - data file containing the screencast data to render
+ * @param path - data file path containing the screencast data to render
  * @param options - render options
  * @returns rendered screencast svg string or png buffer
  */
@@ -230,9 +234,9 @@ export async function renderData(path: string, options: LoggingOptions & OutputO
     applyLoggingOptions(options);
     try {
         // read data from provided source file
-        const data = await dataFromFile(path);
+        const { type, data } = await dataFromFile(path);
         // render the data from the provided file
-        return await (('writes' in data) ? renderCaptureData(data, options) : renderScreenData(data, options));
+        return await (type === 'capture' ? renderCaptureData(data, options) : renderScreenData(data, options));
     } finally {
         resetLogLevel();
     }

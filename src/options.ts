@@ -40,9 +40,9 @@ export function applyDefOutputOptions(options: OutputOptions) {
                 outputs.push({ type: ext as OutputType, path });
                 continue;
             }
-            log.warn(`output file path %O has ${
+            log.warn(`output file path %S has ${
                 ext ? `unsupported extension ${ext}` : 'no extension'
-            }, ${output} data will be written to file`, file);
+            }, %k data will be written to file`, file, output);
             outputs.push({ type: output, path });
         }
     }

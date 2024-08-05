@@ -1,4 +1,3 @@
-import fs from 'fs';
 import path from 'path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { FunctionComponent } from 'react';
@@ -9,6 +8,7 @@ import { resolveFonts, embedFontCss } from '@src/fonts';
 import Context from '@src/render/Context';
 import Window from '@src/render/Window';
 import { resolveContext, type RenderOptions } from '@src/render';
+import { writeToFile } from '@src/utils';
 import log, { setLogLevel } from '@src/logger';
 
 const labelFontProps = {
@@ -344,15 +344,12 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
 (async () => {
     // set log level
     setLogLevel('debug');
-    // target directory
-    const dir = path.resolve(__dirname, '../media');
-    // make target directory if it does not exist
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+    // target file path
+    const filePath = path.resolve(__dirname, '../media/window-options.svg');
     // render window options diagram
     try {
         log.info('rendering window options diagram');
-        const filePath = path.resolve(dir, './window-options.svg');
-        await fs.promises.writeFile(filePath, await render({
+        await writeToFile(filePath, await render({
             scaleFactor: 1.25,
             insets: [1, 1],
             offsetX: 30,
@@ -363,7 +360,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
             windowTitle: 'Title',
             theme: { fontFamily: "'Cascadia Code', 'CaskaydiaCove NF Mono'" },
         }));
-        log.info('wrote window options diagram to %O', filePath);
+        log.info('wrote window options diagram to %S', filePath);
     } catch (e: unknown) {
         console.log(e);
     }

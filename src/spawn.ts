@@ -6,6 +6,7 @@ import onExit from 'signal-exit';
 import type { TerminalOptions } from './types';
 import RecordingStream from './source';
 import { mergePromise } from './utils';
+import log from './logger';
 
 const signals = Object.entries(constants.signals) as (readonly [NodeJS.Signals, number])[];
 
@@ -279,8 +280,6 @@ export function readableSpawn(command: string, args: string[], {
     if (connectStdin && silent) {
         throw new Error("'silent' option must be false if 'connectStdin' is true");
     }
-    // indicate start of the capture
-    if (!silent) process.stdout.write(PtyRecordingStream.kCaptureStartLine);
     // resolve env
     const env = resolveEnv(envOption ?? {}, extendEnv);
     // resolve file & args
@@ -300,6 +299,9 @@ export function readableSpawn(command: string, args: string[], {
         // resolve path to command
         file = resolveCommand(command, cwd, env);
     }
+    log.debug('spawning process (file: %S args: %O)', file, _args);
+    // indicate start of the capture
+    if (!silent) process.stdout.write(PtyRecordingStream.kCaptureStartLine);
     // create recording source stream
     const stream = new PtyRecordingStream(opts, env, shell ? file : undefined),
         // create pty child process
@@ -380,6 +382,7 @@ export function readableSpawn(command: string, args: string[], {
         if (!silent) process.stdout.write(PtyRecordingStream.kCaptureEndLine);
         // push finish event
         stream.finish({ result });
+        log.debug('spawned process complete: %O', result);
         return result;
     });
     // merge source stream and promise chain
@@ -399,9 +402,10 @@ export function readableShell({
         // resolve shell
         file = typeof shell === 'string' ? shell : process.platform === 'win32'
             ? (env['ComSpec'] ?? process.env['ComSpec'] ?? 'cmd.exe')
-            : (env['SHELL'] ?? process.env['SHELL'] ?? '/bin/sh'),
-        // create recording source stream
-        stream = new PtyRecordingStream(opts, env, file),
+            : (env['SHELL'] ?? process.env['SHELL'] ?? '/bin/sh');
+    log.debug('launching pty shell (file: %S)', file);
+    // create recording source stream
+    const stream = new PtyRecordingStream(opts, env, file),
         // create pty child process
         spawned = spawn(file, [], {
             name: env['TERM']!,
@@ -460,6 +464,7 @@ export function readableShell({
         }
         // push finish event
         stream.finish({ result });
+        log.debug('shell process complete: %O', result);
         return result;
     });
     // merge source stream and promise chain

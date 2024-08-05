@@ -56,6 +56,7 @@ describe('renderScreen', () => {
     test('promises a buffer when output type is `png`', async () => {
         const png = await renderScreen('Hello World!', {
             ...dimensions,
+            logLevel: 'silent',
             output: 'png',
             outputPath: [outputPaths.json, outputPaths.svg, outputPaths.png],
             cursorHidden: false,

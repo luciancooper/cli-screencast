@@ -3,6 +3,7 @@ import nock from 'nock';
 import { compress as woff2Compress } from 'wawoff2';
 import { resolve as resolvePath } from 'path';
 import { resolveTitle } from '@src/parser';
+import { applyLoggingOptions, resetLogLevel } from '@src/logger';
 import { GraphemeSet } from '@src/fonts/range';
 import extractContentSubsets, { createContentSubsets, type ContentSubsets } from '@src/fonts/content';
 import { getSystemFonts, resolveSystemFont, embedSystemFont } from '@src/fonts/system';
@@ -19,9 +20,17 @@ jest.mock('wawoff2', () => {
     };
 });
 
+beforeAll(() => {
+    applyLoggingOptions({ logLevel: 'error' });
+});
+
 afterEach(() => {
     jest.clearAllMocks();
     nock.cleanAll();
+});
+
+afterAll(() => {
+    resetLogLevel();
 });
 
 const FontFiles = {

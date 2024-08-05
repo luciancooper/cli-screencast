@@ -195,7 +195,7 @@ Options config object to specify [configuration options](#options).
 <a name='options.logLevel'></a>
 › &nbsp; **logLevel** &nbsp;•&nbsp; `string`
 
-Controls how much info is logged to the console during the render process. Options are (in order of descending verbosity): `'debug'`, `'info'`, `'warn'`, `'error'`, and `'silent'`. Defaults to `'info'`.
+Controls how much info is logged to the console during the render process. Options are (in order of descending verbosity): `'debug'`, `'info'`, `'warn'`, `'error'`, and `'silent'`. Defaults to `'warn'`.
 
 > ### *Output Related Options*
 

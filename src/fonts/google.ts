@@ -95,6 +95,7 @@ export async function fetchGoogleFontMetadata(font: string): Promise<GoogleFontM
         if (res.status === 404) return null;
         data = res.data!;
     } catch (error) {
+        log.warn("error occured fetching google font metadata for '%s':\n  %e", fontFamily, { error });
         return null;
     }
     const { family, fonts, coverage } = JSON.parse(data.toString('utf8').replace(/^[^{]+/, '')) as {
@@ -129,7 +130,6 @@ export async function resolveGoogleFont(
     const coverage = content.coverage.intersect(meta.coverage);
     // stop if no chars are covered by this font
     if (coverage.intersection.empty()) return content;
-    log.debug('resolving font coverage from google font family %s', meta.family);
     // determine content coverage for each ansi style subset
     const subsets: [ansi: AnsiCode, subset: GraphemeSet][] = [],
         contentDifference: ContentSubsets = { coverage: coverage.difference, subsets: [] };
@@ -162,6 +162,12 @@ export async function resolveGoogleFont(
         // add to columnWidth array
         columnWidth.push([chars.length, undefined]);
     }
+    log.debug(
+        "resolved font coverage from google font family '%s':"
+        + '\n  • weight: %k, style: %k, coverage: %O'.repeat(resolved.length),
+        meta.family,
+        ...resolved.flatMap(({ params: p, chars: c }) => [p.slice(-3), p.slice(-5, -4) === '1' ? 'italic' : 'normal', c]),
+    );
     // return remaining content difference
     return contentDifference;
 }
@@ -171,7 +177,7 @@ export async function embedGoogleFont(
     { name, fonts }: Omit<ResolvedGoogleFontFamily, 'type'>,
     { forPng, fullCoverage }: { forPng: boolean, fullCoverage: boolean },
 ) {
-    if (fonts.length) log.debug(`embedding font ${forPng ? 'css for' : 'subset from'} google font family %s`, name);
+    if (fonts.length) log.debug("embedding font %s google font family '%s'", forPng ? 'css for' : 'subset from', name);
     // add family name to the font-family list
     if (fonts.length || !fullCoverage) embedded.family.push(name);
     // fetch font style character subsets
@@ -184,9 +190,13 @@ export async function embedGoogleFont(
                 path: `/css2?${encodeURI(`${params}&text=${chars}`)}`,
                 headers: { 'User-Agent': UA },
             });
-            if (res.status !== 200) continue;
+            if (res.status !== 200) {
+                log.warn('received response status %k when attempting fetch google font css', res.status);
+                continue;
+            }
             css = res.data!.toString();
         } catch (error) {
+            log.warn("error occured fetching google font css for '%s':\n  %e", name, { error });
             continue;
         }
         // replace @font-face family name with embedded font family
@@ -210,8 +220,10 @@ export async function embedGoogleFont(
                     const res = await fetchData(m[1]!);
                     if (res.status === 200) {
                         fontData = `url(data:${res.type!};charset=utf-8;base64,${res.data!.toString('base64')})`;
-                    }
-                } catch {}
+                    } else log.warn('received response status %k when attempting fetch google font data', res.status);
+                } catch (error) {
+                    log.warn('error occured fetching google font data:\n  %e', { error });
+                }
                 // replace the url in the css source code with fetched data base64 encoded
                 base64 += fontData;
             }

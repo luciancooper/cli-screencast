@@ -3,6 +3,7 @@ import { readFile } from 'fs/promises';
 import YAML from 'yaml';
 import type { CaptureData, ScreenData } from './types';
 import { resolveFilePath } from './utils';
+import log from './logger';
 import { version } from '../package.json';
 
 function validateField(
@@ -20,12 +21,13 @@ function validateField(
     }
 }
 
-export function validateData(parsed: any) {
-    let data: CaptureData | ScreenData | null = null;
+type FileData = { type: 'capture', data: CaptureData } | { type: 'screen', data: ScreenData };
+
+export function validateData(parsed: any): FileData | { errors: string[] } {
     const errors: string[] = [];
     if (!(parsed instanceof Object && !Array.isArray(parsed))) {
         errors.push('data must be an object');
-        return { data, errors };
+        return { errors };
     }
     // validate package version field
     if (!Object.hasOwn(parsed, 'version')) {
@@ -46,10 +48,10 @@ export function validateData(parsed: any) {
     // validate shared numerical fields 'columns', 'rows', 'tabSize'
     for (const key of ['columns', 'rows', 'tabSize']) validateField(errors, parsed, key, 'number');
     // stop if data does not have a valid 'type' field
-    if (!type) return { data, errors };
+    if (!type) return { errors };
     // delete version field
     delete parsed.version;
-    // validate 'screen' type fields
+    // validate 'screen' and 'capture' file types differently
     if (type === 'screen') {
         // validate 'content' field
         validateField(errors, parsed, 'content', 'string');
@@ -67,8 +69,6 @@ export function validateData(parsed: any) {
         } else if (typeof parsed.windowIcon !== 'string' && typeof parsed.windowIcon !== 'boolean') {
             errors.push("'windowIcon' must be a string or boolean");
         }
-        // cast data to ScreenData if there are no validation errors
-        if (!errors.length) data = parsed as ScreenData;
     } else {
         // validate 'endDelay' field
         validateField(errors, parsed, 'endDelay', 'number');
@@ -92,13 +92,11 @@ export function validateData(parsed: any) {
             // add a maximum of 5 write element errors to errors array as to not overflow
             errors.push(...writeErrors.slice(0, 5));
         }
-        // cast data to CaptureData if there are no validation errors
-        if (!errors.length) data = parsed as CaptureData;
     }
-    return { data, errors };
+    return errors.length ? { errors } : { type, data: parsed };
 }
 
-export async function dataFromFile(file: string): Promise<ScreenData | CaptureData> {
+export async function dataFromFile(file: string): Promise<FileData> {
     const { path, ext } = resolveFilePath(file);
     // check data file extension
     if (ext !== 'json' && ext !== 'yaml') {
@@ -112,12 +110,13 @@ export async function dataFromFile(file: string): Promise<ScreenData | CaptureDa
         throw new Error(`File not found: '${file}'`);
     }
     // validate the data
-    const { data, errors } = validateData(ext === 'yaml' ? YAML.parse(content) : JSON.parse(content));
+    const result = validateData(ext === 'yaml' ? YAML.parse(content) : JSON.parse(content));
     // throw error if validation failed
-    if (errors.length) {
-        throw new Error(`Invalid data:\n${errors.map((e) => `\n * ${e}`).join('')}`);
+    if ('errors' in result) {
+        throw new Error(`Invalid data:\n${result.errors.map((e) => `\n * ${e}`).join('')}`);
     }
-    return data!;
+    log.info('read %s data from file %S', result.type, path);
+    return result;
 }
 
 interface JSONOutput {

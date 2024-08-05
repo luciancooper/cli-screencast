@@ -3,6 +3,7 @@ import { splitChars } from 'tty-strings';
 import type { CaptureData } from './types';
 import type { StartEvent, WriteEvent, FinishEvent, SourceEvent } from './source';
 import { applyDefaults } from './options';
+import log from './logger';
 
 interface BufferedWrite {
     time: number
@@ -67,7 +68,7 @@ export const defaultCaptureOptions: Required<CaptureOptions> = {
     keystrokeAnimationInterval: 100,
 };
 
-export class CaptureStream extends Writable {
+class CaptureStream extends Writable {
     private started = false;
 
     private context: Pick<CaptureData, 'columns' | 'rows' | 'tabSize'> | null = null;
@@ -247,8 +248,10 @@ export default function captureSource(source: Readable, props: CaptureOptions) {
     return new Promise<CaptureData>((resolve, reject) => {
         const capture = source.pipe(new CaptureStream(props));
         capture.on('finish', () => {
-            if (capture.data) resolve(capture.data);
-            else reject(new Error('Incomplete capture - source did not emit finish'));
+            if (capture.data) {
+                log.debug('source capture complete');
+                resolve(capture.data);
+            } else reject(new Error('Incomplete capture - source did not emit finish'));
         });
         capture.on('error', reject);
     });

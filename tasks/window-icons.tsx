@@ -1,9 +1,9 @@
-import fs from 'fs';
 import path from 'path';
 import type { FunctionComponent, SVGProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { resolveFonts, embedFontCss } from '@src/fonts';
 import icons from '@src/render/icons.json';
+import { writeToFile } from '@src/utils';
 import log, { setLogLevel } from '@src/logger';
 
 interface IconsPreviewProps extends SVGProps<SVGElement> {
@@ -104,16 +104,13 @@ async function render() {
 (async () => {
     // set log level
     setLogLevel('debug');
-    // target directory
-    const dir = path.resolve(__dirname, '../media');
-    // make target directory if it does not exist
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+    // target file path
+    const filePath = path.resolve(__dirname, '../media/window-icons.svg');
     // render window icons diagram
     try {
         log.info('rendering window icons diagram');
-        const filePath = path.resolve(dir, './window-icons.svg');
-        await fs.promises.writeFile(filePath, await render());
-        log.info('wrote window icons diagram to %O', filePath);
+        await writeToFile(filePath, await render());
+        log.info('wrote window icons diagram to %S', filePath);
     } catch (e: unknown) {
         console.log(e);
     }

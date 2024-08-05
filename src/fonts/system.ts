@@ -41,7 +41,6 @@ export async function resolveSystemFont(
     families.push({ name, type: 'system', fonts: resolved });
     // stop if content coverage is empty
     if (content.coverage.empty()) return content;
-    log.debug('resolving font coverage from locally installed font family %s', name);
     // accumulated code point coverage for this font family
     const fontCoverage = CodePointRange.merge(...fonts.map(({ coverage }) => coverage)),
         // total subset of chars covered by this font
@@ -82,6 +81,12 @@ export async function resolveSystemFont(
         // add this font to accumulated family object
         resolved.push({ data, chars: chars.string() });
     }
+    log.debug(
+        "resolved font coverage from locally installed font family '%s':"
+        + '\n  • weight: %k, style: %k, coverage: %O'.repeat(resolved.length),
+        name,
+        ...resolved.flatMap(({ data: { weight, style }, chars }) => [weight, style, chars]),
+    );
     // return remaining char coverage difference
     return contentDifference;
 }
@@ -91,7 +96,7 @@ export async function embedSystemFont(
     { name, fonts }: Omit<ResolvedSystemFontFamily, 'type'>,
     { forPng, fullCoverage }: { forPng: boolean, fullCoverage: boolean },
 ) {
-    if (!forPng && fonts.length) log.debug('embedding font subset from locally installed font family %s', name);
+    if (!forPng && fonts.length) log.debug("embedding font subset from locally installed font family '%s'", name);
     // add family name to the font-family list
     if (fonts.length || !fullCoverage) embedded.family.push(name);
     // stop if embedding for png
@@ -100,14 +105,18 @@ export async function embedSystemFont(
     for (const { data, chars } of fonts) {
         // subset font file
         const fontSubsetBuffer = await subsetFontFile(data, chars);
-        if (!fontSubsetBuffer) continue;
+        if (!fontSubsetBuffer) {
+            log.warn('failed to subset font file %S with coverage %O', data.filePath, chars);
+            continue;
+        }
         // apply woff2 compression to font subset buffer
         let src: string;
         try {
             src = `url(data:font/woff2;charset=utf-8;base64,${
                 Buffer.from(await woff2Compress(fontSubsetBuffer)).toString('base64')
             }) format(woff2)`;
-        } catch (e) {
+        } catch (error) {
+            log.warn('woff2 compression error occurred: %e', { error });
             src = `url(data:font/ttf;charset=utf-8;base64,${
                 fontSubsetBuffer.toString('base64')
             }) format(truetype)`;

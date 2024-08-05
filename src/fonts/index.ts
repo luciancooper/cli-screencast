@@ -3,6 +3,7 @@ import extractContentSubsets, { createContentSubsets, type FrameData, type Conte
 import { caselessMatch } from './names';
 import { getSystemFonts, resolveSystemFont, embedSystemFont } from './system';
 import { fetchGoogleFontMetadata, resolveGoogleFont, embedGoogleFont } from './google';
+import log from '../logger';
 
 const genericFamilies = [
     'serif', 'sans-serif', 'monospace', 'cursive', 'fantasy',
@@ -68,6 +69,7 @@ export async function resolveFonts(
     const widthMap = new Map<number | undefined, number>();
     for (const [count, k] of resolved.columnWidth) widthMap.set(k, (widthMap.get(k) ?? 0) + count);
     const [fontColumnWidth] = [...widthMap.entries()].sort(([x, a], [y, b]) => (b - a || (y ?? 0) - (x ?? 0)))[0] ?? [];
+    if (fontColumnWidth) log.debug('column width resolved from font coverage: %k', fontColumnWidth);
     // return resolved fonts data
     return {
         fontFamilies: resolved.families,

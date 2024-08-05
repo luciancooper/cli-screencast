@@ -2,9 +2,15 @@ import path from 'path';
 import { validateOptions, applyDefaults, applyDefOutputOptions, applyDefRenderOptions } from '@src/options';
 import { defaultBoxShadow } from '@src/render';
 import type { Dimensions } from '@src/types';
-import { setLogLevel } from '@src/logger';
+import { applyLoggingOptions, resetLogLevel } from '@src/logger';
 
-setLogLevel('error');
+beforeAll(() => {
+    applyLoggingOptions({ logLevel: 'error' });
+});
+
+afterAll(() => {
+    resetLogLevel();
+});
 
 describe('validateOptions', () => {
     test('throws error if columns and rows options are not specified', () => {
