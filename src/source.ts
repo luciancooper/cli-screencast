@@ -30,8 +30,7 @@ export interface WriteEvent extends EventTime {
 
 export interface FinishEvent extends EventTime {
     type: 'finish'
-    result?: unknown
-    error?: unknown
+    content?: unknown
 }
 
 export type SourceEvent = StartEvent | WriteEvent | FinishEvent;
@@ -173,7 +172,7 @@ export default class RecordingStream extends DuplexConstructor {
         if (!this.started) this.start();
     }
 
-    finish({ result, error }: { result?: unknown, error?: unknown } = {}): void {
+    finish(content?: unknown): void {
         if (this.ended) {
             throw new Error('Source stream is closed');
         }
@@ -185,8 +184,7 @@ export default class RecordingStream extends DuplexConstructor {
             type: 'finish',
             time,
             adjustment: this.timeAdjustment,
-            error,
-            result,
+            content,
         });
         // reset time adjustment
         this.timeAdjustment = 0;

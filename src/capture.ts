@@ -189,16 +189,27 @@ class CaptureStream extends Writable {
         this.bufferWrite({ time: 0, adjustment: keystrokeInterval, content: cursorEscape });
     }
 
-    private finishCapture({ time, adjustment = 0 }: FinishEvent) {
+    private finishCapture({ time, adjustment = 0, content: final }: FinishEvent) {
         // add to accumulated time adjustment
         this.accAdjustment += adjustment;
-        // process buffered writes
+        // the content field may contain a final write
+        const content = typeof final === 'string' ? final : '',
+            adjTime = (time - this.cropAdjustment) + this.accAdjustment;
+        // process final writes
         if (this.buffered) {
-            this.pushFrame(this.buffered);
+            if (adjTime - this.buffered.time > this.mergeThreshold) {
+                this.pushFrame(this.buffered);
+                this.pushFrame({ time: adjTime, content });
+            } else {
+                this.buffered.content += content;
+                this.pushFrame(this.buffered);
+            }
             this.buffered = null;
+        } else {
+            this.pushFrame({ time: adjTime, content });
         }
         // capture duration
-        const duration = (time - this.cropAdjustment) + this.accAdjustment + this.endTimePadding;
+        const duration = adjTime + this.endTimePadding;
         // create capture data
         this.data = {
             ...this.context!,

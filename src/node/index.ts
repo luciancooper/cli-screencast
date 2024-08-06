@@ -1,5 +1,6 @@
 import * as readline from 'readline';
 import type { Interface, ReadLineOptions } from 'readline';
+import { inspect } from 'util';
 import RecordingStream from '../source';
 import type { OmitStrict, TerminalOptions } from '../types';
 import { type CaptureOptions, defaultCaptureOptions } from '../capture';
@@ -178,7 +179,15 @@ export class NodeRecordingStream extends RecordingStream {
         Object.defineProperty(process, 'stdin', { value: this.input, configurable: true, writable: false });
     }
 
-    protected restoreStreams() {
+    override start(command?: string) {
+        super.start(command);
+        this.hookStreams();
+    }
+
+    override finish(error?: Error) {
+        const err = error ? `${inspect(error, { colors: true })}\n` : undefined;
+        super.finish(err);
+        // restore streams
         if (!this.targetDescriptors) return;
         const { stdout, stderr, stdin } = this.targetDescriptors;
         this.restoreOutputStream(process.stdout, stdout);
@@ -186,17 +195,10 @@ export class NodeRecordingStream extends RecordingStream {
         restoreProperty(process, 'stdin', stdin);
         this.input.unhook();
         this.targetDescriptors = null;
-        if (!this.silent) process.stdout.write(NodeRecordingStream.kCaptureEndLine);
-    }
-
-    override start(command?: string) {
-        super.start(command);
-        this.hookStreams();
-    }
-
-    override finish(error?: unknown) {
-        super.finish({ error });
-        this.restoreStreams();
+        if (!this.silent) {
+            if (err) process.stderr.write(err);
+            process.stdout.write(NodeRecordingStream.kCaptureEndLine);
+        }
     }
 }
 

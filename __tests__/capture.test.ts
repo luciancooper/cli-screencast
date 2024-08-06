@@ -256,6 +256,35 @@ describe('captureSource', () => {
         });
     });
 
+    describe('finish events with content', () => {
+        test('captures finish content as final write', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { content: 'first write\n', time: 500 },
+                { type: 'finish', time: 1050, content: 'final content\n' },
+            ], { cropStartDelay: false })).resolves.toMatchObject<PartialCaptureData>({
+                writes: [
+                    { content: 'first write\n', delay: 500 },
+                    { content: 'final content\n', delay: 550 },
+                ],
+                endDelay: 500,
+            });
+        });
+
+        test('final write will merge with prior one within the merge threshold', async () => {
+            await expect(runCapture([
+                { type: 'start' },
+                { content: 'previous write - ', time: 500 },
+                { type: 'finish', time: 505, content: 'final content\n' },
+            ], { cropStartDelay: false })).resolves.toMatchObject<PartialCaptureData>({
+                writes: [
+                    { content: 'previous write - final content\n', delay: 500 },
+                ],
+                endDelay: 505,
+            });
+        });
+    });
+
     describe('source streams with no write events', () => {
         test('source emits a start event followed immediately by a finish event', async () => {
             await expect(runCapture(

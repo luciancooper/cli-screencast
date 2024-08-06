@@ -1,3 +1,4 @@
+import { inspect } from 'util';
 import type { Writable } from 'stream';
 import type { Dimensions } from '@src/types';
 import type { SourceEvent, WriteEvent } from '@src/source';
@@ -125,7 +126,21 @@ describe('callbackStream', () => {
             expect(stderr).not.toHaveBeenCalled();
             await expect(consume<SourceEvent>(stream)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start' },
-                { type: 'finish', error: { message: 'run error' } },
+                { type: 'finish', content: expect.stringMatching(/^Error: run error\n/) },
+            ]);
+        });
+
+        test('outputs caught errors to stderr if `silent` option is `false`', async () => {
+            const error = new Error('run error');
+            await callbackStream(() => {
+                throw error;
+            }, { ...dimensions, silent: false });
+            expect(stdout.mock.calls.map(([a]) => a)).toEqual([
+                NodeRecordingStream.kCaptureStartLine,
+                NodeRecordingStream.kCaptureEndLine,
+            ]);
+            expect(stderr.mock.calls.map(([a]) => a)).toEqual([
+                `${inspect(error, { colors: true })}\n`,
             ]);
         });
 
@@ -140,7 +155,7 @@ describe('callbackStream', () => {
             expect(stderr).not.toHaveBeenCalled();
             await expect(consume<SourceEvent>(stream)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start' },
-                { type: 'finish', error: { message: 'run error' } },
+                { type: 'finish', content: expect.stringMatching(/^Error: run error\n/) },
             ]);
         });
 

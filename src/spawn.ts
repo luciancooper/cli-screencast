@@ -16,7 +16,6 @@ export interface PtyResult {
     exitCode: number
     timedOut: boolean
     signal?: NodeJS.Signals | number | undefined
-    error?: Error | undefined
 }
 
 interface PtyOptions {
@@ -144,10 +143,17 @@ class PtyRecordingStream extends RecordingStream {
 
     shell: string | undefined;
 
+    result: PtyResult | null = null;
+
     constructor(options: TerminalOptions, env: Env, shell?: string) {
         super(options);
         this.env = env;
         this.shell = shell;
+    }
+
+    override finish(result: PtyResult) {
+        super.finish();
+        this.result = result;
     }
 }
 
@@ -371,7 +377,6 @@ export function readableSpawn(command: string, args: string[], {
         ]).catch<PtyResult>((error: Error) => spawnPromise.then((result) => ({
             ...result,
             timedOut: true,
-            error,
         })));
     }
     // add signal-exit handler
@@ -381,7 +386,7 @@ export function readableSpawn(command: string, args: string[], {
         // indicate end of the capture
         if (!silent) process.stdout.write(PtyRecordingStream.kCaptureEndLine);
         // push finish event
-        stream.finish({ result });
+        stream.finish(result);
         log.debug('spawned process complete: %O', result);
         return result;
     });
@@ -463,7 +468,7 @@ export function readableShell({
             process.stdout.write(`\n${PtyRecordingStream.kCaptureEndLine}`);
         }
         // push finish event
-        stream.finish({ result });
+        stream.finish(result);
         log.debug('shell process complete: %O', result);
         return result;
     });
