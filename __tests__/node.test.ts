@@ -1,7 +1,7 @@
 import type { Writable } from 'stream';
 import type { Dimensions } from '@src/types';
 import type { SourceEvent, WriteEvent } from '@src/source';
-import NodeRecordingStream from '@src/node';
+import callbackStream, { NodeRecordingStream } from '@src/node';
 import { consume } from './helpers/streams';
 import stub from './helpers/stub';
 
@@ -19,14 +19,14 @@ afterEach(() => {
     jest.restoreAllMocks();
 });
 
-describe('NodeRecordingStream', () => {
+describe('callbackStream', () => {
     test('capture writes to stdout & stderr inside `run` block', async () => {
-        const stream = new NodeRecordingStream(dimensions);
-        await stream.run((source) => {
+        const stream = callbackStream((source) => {
             process.stdout.write('write to stdout', () => {});
             process.stderr.write(Buffer.from('write to stderr', 'utf-8'));
             source.finish();
-        });
+        }, dimensions);
+        await stream;
         expect(stream.ended).toBe(true);
         expect(stdout).not.toHaveBeenCalled();
         expect(stderr).not.toHaveBeenCalled();
@@ -40,14 +40,14 @@ describe('NodeRecordingStream', () => {
 
     test('ensure `stdout` & `stderr` streams implement tty.WriteStream when `isTTY` is false', async () => {
         const restore = stub(process.stdout, { isTTY: false }),
-            stream = new NodeRecordingStream(dimensions);
-        await expect(stream.run(() => {
-            process.stdout.cursorTo(0);
-            process.stdout.clearLine(1);
-            process.stdout.clearScreenDown();
-            process.stdout.moveCursor(1, 2);
-            return [process.stdout.isTTY, Object.getOwnPropertyNames(process.stdout)];
-        })).resolves.toEqual([true, expect.arrayContaining([
+            stream = callbackStream<[boolean, string[]]>(() => {
+                process.stdout.cursorTo(0);
+                process.stdout.clearLine(1);
+                process.stdout.clearScreenDown();
+                process.stdout.moveCursor(1, 2);
+                return [process.stdout.isTTY, Object.getOwnPropertyNames(process.stdout)];
+            }, dimensions);
+        await expect(stream).resolves.toEqual([true, expect.arrayContaining([
             'isTTY',
             'cursorTo',
             'moveCursor',
@@ -69,25 +69,27 @@ describe('NodeRecordingStream', () => {
     });
 
     test('hook into stdout `columns` & `rows` to mimic provided terminal size', async () => {
-        await expect(new NodeRecordingStream(dimensions).run(() => [
+        const stream = callbackStream<[number, number, [number, number]]>(() => [
             process.stdout.columns,
             process.stdout.rows,
             process.stdout.getWindowSize(),
-        ])).resolves.toEqual([80, 5, [80, 5]]);
+        ], dimensions);
+        await expect(stream).resolves.toEqual([80, 5, [80, 5]]);
     });
 
     test('hook into stdout `getColorDepth` & `hasColors` methods to mimic 24 bit color support', async () => {
-        await expect(new NodeRecordingStream(dimensions).run(() => [
+        const stream = callbackStream<[number, boolean, boolean]>(() => [
             process.stdout.getColorDepth(),
             process.stdout.hasColors(),
             process.stdout.hasColors(256),
-        ])).resolves.toStrictEqual([24, true, true]);
+        ], dimensions);
+        await expect(stream).resolves.toStrictEqual([24, true, true]);
     });
 
     test('pipes output to terminal if `silent` option is `false`', async () => {
-        await new NodeRecordingStream({ ...dimensions, silent: false }).run(() => {
+        await callbackStream(() => {
             process.stdout.write('message');
-        });
+        }, { ...dimensions, silent: false });
         expect(stdout.mock.calls.map(([a]) => a)).toEqual([
             NodeRecordingStream.kCaptureStartLine,
             'message',
@@ -96,7 +98,7 @@ describe('NodeRecordingStream', () => {
     });
 
     test('readline interface instances can be created via the `createInterface` method', async () => {
-        await expect(new NodeRecordingStream(dimensions).run<string[]>((source) => {
+        const stream = callbackStream<string[]>((source) => {
             const rl = source.createInterface(),
                 lines: string[] = [];
             rl.on('line', (line) => void lines.push(line));
@@ -107,33 +109,47 @@ describe('NodeRecordingStream', () => {
                 });
                 rl.close();
             });
-        })).resolves.toEqual(['written from a readline interface']);
+        }, dimensions);
+        await expect(stream).resolves.toEqual(['written from a readline interface']);
         expect(stdout).not.toHaveBeenCalled();
         expect(stderr).not.toHaveBeenCalled();
     });
 
     describe('errors', () => {
-        test('catch errors that occur in the function passed to `run`', async () => {
-            const stream = new NodeRecordingStream(dimensions);
-            await expect(stream.run(() => {
+        test('catch errors that occur before stream is finished', async () => {
+            const stream = callbackStream(() => {
                 throw new Error('run error');
-            })).rejects.toMatchObject({ message: 'run error' });
+            }, dimensions);
+            await expect(stream).resolves.toBeNull();
             expect(stdout).not.toHaveBeenCalled();
             expect(stderr).not.toHaveBeenCalled();
-            const events = await consume<SourceEvent>(stream);
-            expect(events[events.length - 1]).toMatchObject<Partial<SourceEvent>>({
-                type: 'finish',
-                error: { message: 'run error' },
-            });
+            await expect(consume<SourceEvent>(stream)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+                { type: 'start' },
+                { type: 'finish', error: { message: 'run error' } },
+            ]);
         });
 
-        test('pass an error to `finish` inside `run` block', async () => {
-            const stream = new NodeRecordingStream(dimensions);
-            await expect(stream.run((source) => {
+        test('errors passed directly to finish', async () => {
+            const stream = callbackStream((source) => {
                 const error = new Error('run error');
                 source.finish(error);
-                throw error;
-            })).rejects.toMatchObject({ message: 'run error' });
+            }, dimensions);
+            await expect(stream).resolves.toBeUndefined();
+            expect(stream.ended).toBe(true);
+            expect(stdout).not.toHaveBeenCalled();
+            expect(stderr).not.toHaveBeenCalled();
+            await expect(consume<SourceEvent>(stream)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+                { type: 'start' },
+                { type: 'finish', error: { message: 'run error' } },
+            ]);
+        });
+
+        test('errors thrown after finish will cause stream to throw', async () => {
+            const stream = callbackStream((source) => {
+                source.finish();
+                throw new Error('post finish error');
+            }, dimensions);
+            await expect(stream).rejects.toThrow('post finish error');
             expect(stream.ended).toBe(true);
             expect(stdout).not.toHaveBeenCalled();
             expect(stderr).not.toHaveBeenCalled();
@@ -142,9 +158,7 @@ describe('NodeRecordingStream', () => {
 
     describe('input', () => {
         test('emit artificial keypress events', async () => {
-            const stream = new NodeRecordingStream(dimensions);
-            // test run block
-            await expect(stream.run<string[]>(async (source) => {
+            const stream = callbackStream<string[]>(async (source) => {
                 const rl = source.createInterface(),
                     lines: string[] = [];
                 rl.on('line', (line) => void lines.push(line));
@@ -159,26 +173,29 @@ describe('NodeRecordingStream', () => {
                     rl.close();
                 });
                 return lines;
-            })).resolves.toEqual(['abcdef']);
+            }, dimensions);
+            // test run block
+            await expect(stream).resolves.toEqual(['abcdef']);
             expect(stdout).not.toHaveBeenCalled();
             expect(stderr).not.toHaveBeenCalled();
         });
 
         test('pipe `process.stdin` to `input` stream if `connectStdin` option is true', async () => {
             const setRawMode = jest.fn((() => {}) as any as typeof process.stdin.setRawMode),
-                restore = stub(process.stdin, { isTTY: true, isRaw: false, setRawMode });
-            await expect(new NodeRecordingStream({ ...dimensions, connectStdin: true }).run<string>((source) => {
-                const rl = source.createInterface();
-                return new Promise((resolve) => {
-                    rl.once('line', (line) => {
-                        rl.once('close', () => {
-                            resolve(line);
+                restore = stub(process.stdin, { isTTY: true, isRaw: false, setRawMode }),
+                stream = callbackStream<string>((source) => {
+                    const rl = source.createInterface();
+                    return new Promise((resolve) => {
+                        rl.once('line', (line) => {
+                            rl.once('close', () => {
+                                resolve(line);
+                            });
+                            rl.close();
                         });
-                        rl.close();
+                        process.stdin.write('abc\n');
                     });
-                    process.stdin.write('abc\n');
-                });
-            })).resolves.toBe('abc');
+                }, { ...dimensions, connectStdin: true });
+            await expect(stream).resolves.toBe('abc');
             restore();
             expect(stdout).not.toHaveBeenCalled();
             expect(stderr).not.toHaveBeenCalled();
@@ -202,25 +219,23 @@ describe('NodeRecordingStream', () => {
         );
 
         test('trigger artificial resize events on `stdout` & `stderr` output streams', async () => {
-            const stream = new NodeRecordingStream(dimensions),
-                [resizeEmitted] = await Promise.all([
-                    resizePromise(stream, process.stdout),
-                    stream.run(async (source) => {
-                        source.resize(90, 10);
-                    }),
-                ]);
-            expect(resizeEmitted).toBe(true);
+            const stream = callbackStream((source) => {
+                source.resize(90, 10);
+            }, dimensions);
+            await expect(Promise.all([
+                resizePromise(stream, process.stdout),
+                stream,
+            ])).resolves.toEqual([true]);
         });
 
         test('suppress artificial resize events when size does not change', async () => {
-            const stream = new NodeRecordingStream(dimensions),
-                [resizeEmitted] = await Promise.all([
-                    resizePromise(stream, process.stdout),
-                    stream.run((source) => {
-                        source.resize(stream.columns, stream.rows);
-                    }),
-                ]);
-            expect(resizeEmitted).toBe(false);
+            const stream = callbackStream((source) => {
+                source.resize(stream.columns, stream.rows);
+            }, dimensions);
+            await expect(Promise.all([
+                resizePromise(stream, process.stdout),
+                stream,
+            ])).resolves.toEqual([false]);
         });
     });
 });

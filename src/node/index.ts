@@ -4,7 +4,7 @@ import RecordingStream from '../source';
 import type { OmitStrict, TerminalOptions } from '../types';
 import { type CaptureOptions, defaultCaptureOptions } from '../capture';
 import { applyDefaults } from '../options';
-import { restoreProperty } from '../utils';
+import { restoreProperty, mergePromise } from '../utils';
 import InputStream from './input';
 
 export interface CallbackOptions {
@@ -20,8 +20,6 @@ export interface CallbackOptions {
      */
     silent?: boolean
 }
-
-export type RunCallback<T> = (source: NodeRecordingStream) => Promise<T> | T;
 
 interface OutputStreamDescriptors {
     columns: PropertyDescriptor | undefined
@@ -39,7 +37,9 @@ interface SocketHandle {
     getWindowSize?: (arr: [cols: number, rows: number]) => Error | null
 }
 
-export default class NodeRecordingStream extends RecordingStream {
+type Options = TerminalOptions & CallbackOptions & Pick<CaptureOptions, 'keystrokeAnimationInterval'>;
+
+export class NodeRecordingStream extends RecordingStream {
     isTTY = true;
 
     private targetDescriptors: TargetDescriptors | null = null;
@@ -50,7 +50,7 @@ export default class NodeRecordingStream extends RecordingStream {
 
     keystrokeAnimationInterval: number;
 
-    constructor(options: TerminalOptions & CallbackOptions & Pick<CaptureOptions, 'keystrokeAnimationInterval'>) {
+    constructor(options: Options) {
         super(options);
         // apply defaults
         const { connectStdin, silent, keystrokeAnimationInterval } = applyDefaults({
@@ -102,18 +102,6 @@ export default class NodeRecordingStream extends RecordingStream {
             tabSize: this.context.tabSize,
             terminal: true,
         });
-    }
-
-    async run<T = any>(fn: RunCallback<T>): Promise<T> {
-        this.hookStreams();
-        try {
-            const result = await fn(this);
-            if (!this.ended) this.finish();
-            return result;
-        } catch (error: unknown) {
-            if (!this.ended) this.finish(error);
-            throw error;
-        }
     }
 
     private outputStreamDescriptors(stream: NodeJS.WriteStream, tty: boolean): OutputStreamDescriptors {
@@ -174,7 +162,7 @@ export default class NodeRecordingStream extends RecordingStream {
         }
     }
 
-    protected hookStreams() {
+    hookStreams() {
         if (this.targetDescriptors) return;
         if (!this.silent) process.stdout.write(NodeRecordingStream.kCaptureStartLine);
         const stdoutTTY = process.stdout.isTTY,
@@ -210,4 +198,35 @@ export default class NodeRecordingStream extends RecordingStream {
         super.finish({ error });
         this.restoreStreams();
     }
+}
+
+export type RunCallback<T> = (source: NodeRecordingStream) => Promise<T> | T;
+
+export default function callbackStream<T = any>(fn: RunCallback<T>, options: Options) {
+    // create node recording stream
+    const stream = new NodeRecordingStream(options);
+    // wrap callback in a promise and defer execution until next tick
+    // this allows setup to be completed if callback is synchronous.
+    let promise = new Promise<T | null>((resolve, reject) => {
+        process.nextTick(() => {
+            // hook streams
+            stream.hookStreams();
+            // run callback
+            (async () => fn(stream))().then(resolve, reject);
+        });
+    });
+    promise = promise.then((result) => {
+        if (!stream.ended) stream.finish();
+        return result;
+    }, (error: Error) => {
+        // if error was caught during recording, it will be included in the capture
+        if (!stream.ended) {
+            stream.finish(error);
+            return null;
+        }
+        // otherwise it will be rethrown and kill the capture
+        throw error;
+    });
+    // merge source stream and promise chain
+    return mergePromise(stream, promise);
 }

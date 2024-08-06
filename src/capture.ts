@@ -244,8 +244,8 @@ class CaptureStream extends Writable {
     }
 }
 
-export default function captureSource(source: Readable, props: CaptureOptions) {
-    return new Promise<CaptureData>((resolve, reject) => {
+export default function captureSource(source: Readable | (Readable & PromiseLike<any>), props: CaptureOptions) {
+    const promise = new Promise<CaptureData>((resolve, reject) => {
         const capture = source.pipe(new CaptureStream(props));
         capture.on('finish', () => {
             if (capture.data) {
@@ -255,4 +255,5 @@ export default function captureSource(source: Readable, props: CaptureOptions) {
         });
         capture.on('error', reject);
     });
+    return Promise.all([promise, source]).then(([data]) => data);
 }

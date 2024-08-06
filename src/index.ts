@@ -6,7 +6,7 @@ import log, { applyLoggingOptions, setLogLevel, resetLogLevel, type LoggingOptio
 import { parseScreen, parseCapture } from './parser';
 import RecordingStream, { type SourceFrame } from './source';
 import { readableSpawn, readableShell, type SpawnOptions, type ShellOptions } from './spawn';
-import NodeRecordingStream, { type CallbackOptions, type RunCallback } from './node';
+import callbackStream, { type CallbackOptions, type RunCallback } from './node';
 import captureSource, { type CaptureOptions } from './capture';
 import extractCaptureFrames from './frames';
 import { resolveFonts, embedFontCss, type ResolvedFontData } from './fonts';
@@ -211,11 +211,10 @@ export async function captureCallback(
     // apply log level options
     applyLoggingOptions(options);
     try {
-        // create a recording stream and run the provided callback function
-        const source = new NodeRecordingStream(options);
-        await source.run(fn);
-        // capture the source stream
-        const capture = await captureSource(source, options);
+        // create a callback recording stream
+        const source = callbackStream(fn, options),
+            // capture the source stream
+            capture = await captureSource(source, options);
         // render the captured source data
         return await renderCaptureData(capture, options);
     } finally {
