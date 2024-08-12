@@ -1,5 +1,6 @@
 import { resolve, extname, dirname } from 'path';
 import { mkdir, writeFile } from 'fs/promises';
+import { addAbortSignal, type Stream } from 'stream';
 
 /**
  * Resolve a file path relative to the current working directory
@@ -27,6 +28,33 @@ export async function writeToFile(path: string, content: string | Buffer) {
     } catch {}
     // write data to file
     await writeFile(path, content);
+}
+
+/**
+ * Creates a promise that resolves when the stream is closed, rejecting with any errors emitted on the stream.
+ * @param stream - stream to promisify
+ * @param ac - abort controller
+ */
+export function promisifyStream(stream: Stream, ac: AbortController): Promise<void> {
+    // add abort signal to the stream
+    addAbortSignal(ac.signal, stream);
+    // resolve promise when 'close' event is fired
+    return new Promise<void>((res, rej) => {
+        let error: Error | undefined;
+        // listen for errors on the stream
+        stream.once('error', (e: Error) => {
+            // if stream was aborted elsewhere, don't save the error
+            if (e.name === 'AbortError') return;
+            // store the error and call the abort controller
+            error = e;
+            ac.abort();
+        });
+        // resolve the promise when the stream closes
+        stream.once('close', () => {
+            if (error) rej(error);
+            else res();
+        });
+    });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment

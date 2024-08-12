@@ -1,11 +1,23 @@
-import RecordingStream, { type SourceEvent } from '@src/source';
+import RecordingStream, { readableFrames, type SourceEvent } from '@src/source';
 import type { TerminalOptions } from '@src/types';
-import { consume } from './helpers/streams';
+import { promisifyStream } from '@src/utils';
+import { consume, consumePromisified } from './helpers/streams';
 
 const defOptions: TerminalOptions = {
     columns: 20,
     rows: 10,
 };
+
+function mockDateNow(times: number[]) {
+    const { now } = Date;
+    let i = 0;
+    const spy = jest.spyOn(Date, 'now');
+    spy.mockImplementation(() => (
+        // eslint-disable-next-line no-plusplus
+        times[i++] ?? now()
+    ));
+    return spy;
+}
 
 afterEach(() => {
     jest.restoreAllMocks();
@@ -14,249 +26,200 @@ afterEach(() => {
 describe('RecordingStream', () => {
     describe('write', () => {
         test('emits write events', async () => {
+            mockDateNow([5, 5, 10, 15]);
             const source = new RecordingStream(defOptions);
-            source.start();
-            source.write('string write');
-            source.write(Buffer.from('buffer write', 'utf-8'));
+            source.start(); // now: 5
+            source.write('string write'); // now: 5
+            source.write(Buffer.from('buffer write', 'utf-8')); // now: 10
             source.write('');
-            source.finish();
+            source.finish(); // now: 15
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
-                { content: 'string write' },
-                { content: 'buffer write' },
-                { type: 'finish' },
+                { content: 'string write', time: 0 },
+                { content: 'buffer write', time: 5 },
+                { type: 'finish', time: 10 },
             ]);
         });
 
         test('activates stream when called before start', async () => {
+            mockDateNow([5, 8, 10]);
             const source = new RecordingStream(defOptions);
-            source.write('pre-start write');
-            source.finish();
+            source.write('pre-start write'); // now: 5 & 8
+            source.finish(); // now: 10
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
-                { content: 'pre-start write' },
-                { type: 'finish' },
+                { content: 'pre-start write', time: 3 },
+                { type: 'finish', time: 5 },
             ]);
         });
 
         test('writing to stream after it has closed throws an error', async () => {
-            const source = new RecordingStream(defOptions);
+            const source = new RecordingStream(defOptions),
+                promise = promisifyStream(source, new AbortController());
             source.finish();
-            await expect(new Promise<void>((resolve, reject) => {
-                source.once('error', reject);
-                source.write('illegal write');
-            })).rejects.toMatchObject({ message: 'Source stream is closed' });
+            source.write('illegal write');
+            // stream should be destroyed by the invalid write
+            await expect(promise).rejects.toThrow('Invalid write, source stream has been closed');
         });
     });
 
     describe('start', () => {
         test('extra calls are ignored', async () => {
+            mockDateNow([5, 10]);
             const source = new RecordingStream(defOptions);
+            source.start(); // now: 5
             source.start();
-            source.start();
-            source.finish();
+            source.finish(); // now: 10
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
-                { type: 'finish' },
+                { type: 'finish', time: 5 },
             ]);
         });
 
         test('throws error if called after stream has closed', async () => {
-            const source = new RecordingStream(defOptions);
+            const source = new RecordingStream(defOptions),
+                promise = promisifyStream(source, new AbortController());
             source.finish();
-            // bad start() call
+            // a bad start() call should throw
             expect(() => {
                 source.start();
-            }).toThrow('Source stream is closed');
+            }).toThrow("Cannot use 'start' after source stream has been closed");
+            // stream should be destroyed by the bad start() call
+            await expect(promise).rejects.toThrow("Cannot use 'start' after source stream has been closed");
         });
     });
 
     describe('finish', () => {
         test('is called by `_final` if stream is closed via `end()`', async () => {
+            mockDateNow([5, 5, 12, 13]);
             const source = new RecordingStream(defOptions);
-            source.write('first write');
-            source.end('end write');
+            source.write('first write'); // now: 5 & 5
+            source.end('end write'); // now: 12 & 13
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
-                { content: 'first write' },
-                { content: 'end write' },
-                { type: 'finish' },
+                { content: 'first write', time: 0 },
+                { content: 'end write', time: 7 },
+                { type: 'finish', time: 8 },
             ]);
         });
 
         test('throws error if called after stream has closed', async () => {
-            const source = new RecordingStream(defOptions);
+            const source = new RecordingStream(defOptions),
+                promise = promisifyStream(source, new AbortController());
             source.finish();
+            // a bad finish() call should throw
             expect(() => {
                 source.finish();
-            }).toThrow('Source stream is closed');
-        });
-    });
-
-    describe('queueFinish', () => {
-        test('writes are ignored after finish is queued', async () => {
-            const spy = jest.spyOn(Date, 'now');
-            spy.mockImplementationOnce(() => 5);
-            spy.mockImplementationOnce(() => 5);
-            const source = new RecordingStream(defOptions);
-            source.write('first write');
-            spy.mockImplementationOnce(() => 10);
-            source.queueFinish();
-            source.write('ignored write');
-            source.end('ignored end write');
-            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
-                { type: 'start', ...source.termOptions },
-                { content: 'first write', time: 0 },
-                { type: 'finish', time: 5 },
-            ]);
-        });
-
-        test('extra calls are ignored', async () => {
-            const spy = jest.spyOn(Date, 'now');
-            spy.mockImplementationOnce(() => 5);
-            const source = new RecordingStream(defOptions);
-            source.start();
-            spy.mockImplementationOnce(() => 10);
-            source.queueFinish();
-            spy.mockImplementationOnce(() => 15);
-            source.queueFinish();
-            source.finish();
-            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
-                { type: 'start', ...source.termOptions },
-                { type: 'finish', time: 5 },
-            ]);
-        });
-
-        test('activates stream when called before start', async () => {
-            const spy = jest.spyOn(Date, 'now');
-            spy.mockImplementationOnce(() => 5);
-            spy.mockImplementationOnce(() => 5);
-            const source = new RecordingStream(defOptions);
-            source.queueFinish();
-            source.finish();
-            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
-                { type: 'start', ...source.termOptions },
-                { type: 'finish', time: 0 },
-            ]);
-        });
-
-        test('throws error if called after stream has closed', () => {
-            const source = new RecordingStream(defOptions);
-            source.finish();
-            expect(() => {
-                source.queueFinish();
-            }).toThrow('Source stream is closed');
+            }).toThrow("Cannot use 'finish' after source stream has been closed");
+            // stream should be destroyed by the bad finish() call
+            await expect(promise).rejects.toThrow("Cannot use 'finish' after source stream has been closed");
         });
     });
 
     describe('wait', () => {
         test('increments the time adjustment of the next emitted event', async () => {
+            mockDateNow([5, 10, 12, 15]);
             const source = new RecordingStream(defOptions);
-            source.start();
-            source.write('write 1');
+            source.start(); // now: 5
+            source.write('write 1'); // now: 10
             source.wait(500);
-            source.write('write 2');
-            source.finish();
+            source.write('write 2'); // now: 12
+            source.finish(); // now: 15
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
-                { content: 'write 1', adjustment: 0 },
-                { content: 'write 2', adjustment: 500 },
-                { type: 'finish', adjustment: 0 },
+                { content: 'write 1', time: 5, adjustment: 0 },
+                { content: 'write 2', time: 7, adjustment: 500 },
+                { type: 'finish', time: 10, adjustment: 0 },
             ]);
         });
 
         test('activates stream when called before start', async () => {
+            mockDateNow([5, 10]);
             const source = new RecordingStream(defOptions);
-            source.wait(500);
-            source.finish();
+            source.wait(500); // now: 5
+            source.finish(); // now: 10
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
-                { type: 'finish', adjustment: 500 },
+                { type: 'finish', time: 5, adjustment: 500 },
             ]);
         });
 
-        test('ignored if finish has been queued', async () => {
-            const source = new RecordingStream(defOptions);
-            source.start();
-            source.queueFinish();
-            source.wait(500);
+        test('throws error if called after stream has closed', async () => {
+            const source = new RecordingStream(defOptions),
+                promise = promisifyStream(source, new AbortController());
             source.finish();
-            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
-                { type: 'start', ...source.termOptions },
-                { type: 'finish', adjustment: 0 },
-            ]);
-        });
-
-        test('throws error if called after stream has closed', () => {
-            const source = new RecordingStream(defOptions);
-            source.finish();
+            // a bad wait() call should throw
             expect(() => {
                 source.wait(500);
-            }).toThrow('Source stream is closed');
+            }).toThrow("Cannot use 'wait' after source stream has been closed");
+            // stream should be destroyed by the bad wait() call
+            await expect(promise).rejects.toThrow("Cannot use 'wait' after source stream has been closed");
         });
     });
 
     describe('setTitle', () => {
         test('creates window title escape sequence write events', async () => {
+            mockDateNow([5, 10, 12, 15]);
             const source = new RecordingStream(defOptions);
-            source.start();
-            source.setTitle('window title', 'node');
-            source.setTitle('node task', true);
-            source.finish();
+            source.start(); // now: 5
+            source.setTitle('window title', 'node'); // 10
+            source.setTitle('node task', true); // 12
+            source.finish(); // 15
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
-                { content: '\x1b]2;window title\x07\x1b]1;node\x07' },
-                { content: '\x1b]0;node task\x07' },
-                { type: 'finish' },
+                { content: '\x1b]2;window title\x07\x1b]1;node\x07', time: 5 },
+                { content: '\x1b]0;node task\x07', time: 7 },
+                { type: 'finish', time: 10 },
             ]);
         });
 
         test('activates stream when called before start', async () => {
+            mockDateNow([5, 6, 10]);
             const source = new RecordingStream(defOptions);
-            source.setTitle('window title');
-            source.finish();
+            source.setTitle('window title'); // now: 5 & 6
+            source.finish(); // now:  10
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
-                { content: '\x1b]2;window title\x07' },
-                { type: 'finish' },
+                { content: '\x1b]2;window title\x07', time: 1 },
+                { type: 'finish', time: 5 },
             ]);
         });
 
-        test('ignored if finish has been queued', async () => {
-            const source = new RecordingStream(defOptions);
-            source.start();
-            source.queueFinish();
-            source.setTitle('ignored window title');
+        test('throws error if called after stream has closed', async () => {
+            const source = new RecordingStream(defOptions),
+                promise = promisifyStream(source, new AbortController());
             source.finish();
-            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
-                { type: 'start', ...source.termOptions },
-                { type: 'finish' },
-            ]);
-        });
-
-        test('throws error if called after stream has closed', () => {
-            const source = new RecordingStream(defOptions);
-            source.finish();
+            // a bad setTitle() call should throw
             expect(() => {
                 source.setTitle('title');
-            }).toThrow('Source stream is closed');
+            }).toThrow("Cannot use 'setTitle' after source stream has been closed");
+            // stream should be destroyed by the bad setTitle() call
+            await expect(promise).rejects.toThrow("Cannot use 'setTitle' after source stream has been closed");
         });
     });
+});
 
-    describe('fromFrames', () => {
-        test('creates a source stream from a sequence of frame objects', async () => {
-            const source = RecordingStream.fromFrames(defOptions, [
-                { content: 'line 1', duration: 500 },
-                { content: 'line 2', duration: 500 },
-                { content: 'line 3', duration: 500 },
-            ]);
-            await expect(consume<SourceEvent>(source)).resolves.toEqual<SourceEvent[]>([
-                { type: 'start', ...source.termOptions },
-                { content: 'line 1', time: 0 },
-                { content: 'line 2', time: 500 },
-                { content: 'line 3', time: 1000 },
-                { type: 'finish', time: 1500 },
-            ]);
-        });
+describe('readableFrames', () => {
+    test('creates a source stream from an array of frames', async () => {
+        const source = readableFrames(defOptions, [
+            { content: 'line 1', duration: 500 },
+            { content: 'line 2', duration: 500 },
+            { content: 'line 3', duration: 500 },
+        ], new AbortController());
+        await expect(consumePromisified<SourceEvent>(source)).resolves.toEqual<SourceEvent[]>([
+            expect.objectContaining({ type: 'start' }),
+            { content: 'line 1', time: 0 },
+            { content: 'line 2', time: 500 },
+            { content: 'line 3', time: 1000 },
+            { type: 'finish', time: 1500 },
+        ]);
+    });
+
+    test('can handle an empty array of frames', async () => {
+        const source = readableFrames(defOptions, [], new AbortController());
+        await expect(consumePromisified<SourceEvent>(source)).resolves.toEqual<SourceEvent[]>([
+            expect.objectContaining({ type: 'start' }),
+            { type: 'finish', time: 0 },
+        ]);
     });
 });

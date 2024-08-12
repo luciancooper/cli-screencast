@@ -5,7 +5,7 @@ import which from 'which';
 import onExit from 'signal-exit';
 import type { TerminalOptions } from './types';
 import RecordingStream from './source';
-import { mergePromise } from './utils';
+import { promisifyStream, mergePromise } from './utils';
 import log from './logger';
 
 const signals = Object.entries(constants.signals) as (readonly [NodeJS.Signals, number])[];
@@ -138,22 +138,27 @@ export function resolveEnv(envOpt: Env, extendEnv: boolean): Env {
     return env;
 }
 
-class PtyRecordingStream extends RecordingStream {
+class PtyRecordingStream extends RecordingStream<PtyResult> {
+    silent: boolean;
+
     env: Env;
 
     shell: string | undefined;
 
-    result: PtyResult | null = null;
-
-    constructor(options: TerminalOptions, env: Env, shell?: string) {
+    constructor(options: TerminalOptions, silent: boolean, env: Env, shell?: string) {
         super(options);
         this.env = env;
+        this.silent = silent;
         this.shell = shell;
     }
 
-    override finish(result: PtyResult) {
+    override finish() {
+        if (this.ended) return;
         super.finish();
-        this.result = result;
+        // indicate end of the capture if stream is not silent
+        if (!this.silent) {
+            process.stdout.write(`\n${PtyRecordingStream.kCaptureEndLine}`);
+        }
     }
 }
 
@@ -221,7 +226,13 @@ interface PtyState {
     signal: NodeJS.Signals | number | undefined
 }
 
-function createSpawnPromise(spawned: IPty, dataHook: IDisposable, state: PtyState, kill: (sig?: string) => void) {
+function createSpawnPromise(
+    spawned: IPty,
+    stream: PtyRecordingStream,
+    dataHook: IDisposable,
+    state: PtyState,
+    kill: (sig?: string) => void,
+) {
     return new Promise<PtyResult>((resolve) => {
         const exitHook = spawned.onExit((event) => {
             // dispose of hooks
@@ -232,6 +243,8 @@ function createSpawnPromise(spawned: IPty, dataHook: IDisposable, state: PtyStat
             // update exit code & signal
             state.exitCode ??= event.exitCode;
             state.signal ??= ((event.signal && signals.find(([, n]) => n === event.signal)) || [])[0] ?? event.signal;
+            // finish the stream
+            stream.finish();
             // resolve spawn result
             resolve({
                 exitCode: state.exitCode,
@@ -270,7 +283,7 @@ export function readableSpawn(command: string, args: string[], {
     killSignal = 'SIGTERM',
     useConpty = false,
     ...opts
-}: TerminalOptions & SpawnOptions) {
+}: TerminalOptions & SpawnOptions, ac: AbortController) {
     // validate args
     if (typeof command !== 'string') {
         throw new TypeError(`'command' must be a string. Received ${command as any}`);
@@ -309,7 +322,7 @@ export function readableSpawn(command: string, args: string[], {
     // indicate start of the capture
     if (!silent) process.stdout.write(PtyRecordingStream.kCaptureStartLine);
     // create recording source stream
-    const stream = new PtyRecordingStream(opts, env, shell ? file : undefined),
+    const stream = new PtyRecordingStream(opts, silent, env, shell ? file : undefined),
         // create pty child process
         spawned = spawn(file, _args, {
             name: env['TERM']!,
@@ -349,7 +362,7 @@ export function readableSpawn(command: string, args: string[], {
         };
     }
     // create spawn promise
-    const spawnPromise = createSpawnPromise(spawned, dataHook, state, kill);
+    const spawnPromise = createSpawnPromise(spawned, stream, dataHook, state, kill);
     // start a promise chain
     let promise = spawnPromise;
     // setup timeout
@@ -381,17 +394,17 @@ export function readableSpawn(command: string, args: string[], {
     }
     // add signal-exit handler
     promise = addSignalExitHandler(promise, state, kill);
-    // finally, invoke stream.finish
-    promise = promise.then((result) => {
-        // indicate end of the capture
-        if (!silent) process.stdout.write(PtyRecordingStream.kCaptureEndLine);
-        // push finish event
-        stream.finish(result);
-        log.debug('spawned process complete: %O', result);
-        return result;
-    });
     // merge source stream and promise chain
-    return mergePromise(stream, promise);
+    return mergePromise(stream, Promise.all([
+        // finally, set the result on the stream
+        promise.then((result) => {
+            // set the result
+            stream.setResult(result);
+            log.debug('spawned process complete: %O', result);
+        }),
+        // create stream promise to ensure 'close' event is fired
+        promisifyStream(stream, ac),
+    ]).then(() => {}));
 }
 
 export function readableShell({
@@ -401,7 +414,7 @@ export function readableShell({
     extendEnv = true,
     useConpty = false,
     ...opts
-}: TerminalOptions & ShellOptions) {
+}: TerminalOptions & ShellOptions, ac: AbortController) {
     // resolve env
     const env = resolveEnv(envOption ?? {}, extendEnv),
         // resolve shell
@@ -410,7 +423,7 @@ export function readableShell({
             : (env['SHELL'] ?? process.env['SHELL'] ?? '/bin/sh');
     log.debug('launching pty shell (file: %S)', file);
     // create recording source stream
-    const stream = new PtyRecordingStream(opts, env, file),
+    const stream = new PtyRecordingStream(opts, false, env, file),
         // create pty child process
         spawned = spawn(file, [], {
             name: env['TERM']!,
@@ -438,11 +451,9 @@ export function readableShell({
         const str = chunk.toString();
         // check for ctrl-D
         if (str === '\x04') {
-            if (!stream.finishQueued) {
-                stream.queueFinish();
-                // indicate end of the capture
-                process.stdout.write(`\n${PtyRecordingStream.kCaptureEndLine}`);
-            }
+            // finish the stream
+            stream.finish();
+            // kill the process if it has not been killed yet
             if (!state.killed) {
                 kill(process.platform !== 'win32' ? 'SIGKILL' : undefined);
             }
@@ -457,21 +468,18 @@ export function readableShell({
         spawned.kill(sig);
     };
     // create spawn promise chain
-    let promise = createSpawnPromise(spawned, dataHook, state, kill);
+    let promise = createSpawnPromise(spawned, stream, dataHook, state, kill);
     // add signal-exit handler
     promise = addSignalExitHandler(promise, state, kill);
-    // finally, invoke stream.finish
-    promise = promise.then((result) => {
-        // check if finish has been queued
-        if (!stream.finishQueued) {
-            // indicate end of the capture
-            process.stdout.write(`\n${PtyRecordingStream.kCaptureEndLine}`);
-        }
-        // push finish event
-        stream.finish(result);
-        log.debug('shell process complete: %O', result);
-        return result;
-    });
     // merge source stream and promise chain
-    return mergePromise(stream, promise);
+    return mergePromise(stream, Promise.all([
+        // finally, set the result on the stream
+        promise.then((result) => {
+            // set stream result
+            stream.setResult(result);
+            log.debug('shell process complete: %O', result);
+        }),
+        // create stream promise to ensure 'close' event is fired
+        promisifyStream(stream, ac),
+    ]).then(() => {}));
 }

@@ -5,7 +5,7 @@ import RecordingStream from '../source';
 import type { OmitStrict, TerminalOptions } from '../types';
 import { type CaptureOptions, defaultCaptureOptions } from '../capture';
 import { applyDefaults } from '../options';
-import { restoreProperty, mergePromise } from '../utils';
+import { restoreProperty, promisifyStream, mergePromise } from '../utils';
 import InputStream from './input';
 
 export interface CallbackOptions {
@@ -40,7 +40,7 @@ interface SocketHandle {
 
 type Options = TerminalOptions & CallbackOptions & Pick<CaptureOptions, 'keystrokeAnimationInterval'>;
 
-export class NodeRecordingStream extends RecordingStream {
+export class NodeRecordingStream<T> extends RecordingStream<T> {
     isTTY = true;
 
     private targetDescriptors: TargetDescriptors | null = null;
@@ -64,6 +64,23 @@ export class NodeRecordingStream extends RecordingStream {
         this.keystrokeAnimationInterval = keystrokeAnimationInterval;
         // setup input stream
         this.input = new InputStream(connectStdin);
+    }
+
+    get stdioHooked(): boolean {
+        return !!this.targetDescriptors;
+    }
+
+    handleCallbackError(error: Error): void {
+        // stop if stream is destroyed
+        if (this.destroyed) return;
+        if (!this.ended) {
+            // stream has not finished, so error can be captured
+            this.finish(error);
+            this.resume();
+        } else {
+            // stream has already finished so this error will destroy the stream
+            this.destroy(error);
+        }
     }
 
     /**
@@ -179,15 +196,7 @@ export class NodeRecordingStream extends RecordingStream {
         Object.defineProperty(process, 'stdin', { value: this.input, configurable: true, writable: false });
     }
 
-    override start(command?: string) {
-        super.start(command);
-        this.hookStreams();
-    }
-
-    override finish(error?: Error) {
-        const err = error ? `${inspect(error, { colors: true })}\n` : undefined;
-        super.finish(err);
-        // restore streams
+    restoreStreams(errorString?: string) {
         if (!this.targetDescriptors) return;
         const { stdout, stderr, stdin } = this.targetDescriptors;
         this.restoreOutputStream(process.stdout, stdout);
@@ -196,39 +205,58 @@ export class NodeRecordingStream extends RecordingStream {
         this.input.unhook();
         this.targetDescriptors = null;
         if (!this.silent) {
-            if (err) process.stderr.write(err);
+            if (errorString) process.stderr.write(errorString);
             process.stdout.write(NodeRecordingStream.kCaptureEndLine);
         }
     }
+
+    override start(command?: string) {
+        super.start(command);
+        this.hookStreams();
+    }
+
+    override _destroy(error: Error | null, callback: (e: Error | null) => void) {
+        // restore the hooked streams. This is neccessary to handle edge case
+        // where `destroy` is called on the stream within the callback
+        this.restoreStreams();
+        callback(error);
+    }
+
+    override finish(error?: Error) {
+        if (this.ended && error) {
+            this.destroy(error);
+            throw error;
+        }
+        const errorString = error ? `${inspect(error, { colors: true })}\n` : undefined;
+        // finish stream
+        super.finish(errorString);
+        // restore streams
+        this.restoreStreams(errorString);
+    }
 }
 
-export type RunCallback<T> = (source: NodeRecordingStream) => Promise<T> | T;
+export type RunCallback<T> = (source: NodeRecordingStream<T>) => Promise<T> | T;
 
-export default function callbackStream<T = any>(fn: RunCallback<T>, options: Options) {
+export default function readableCallback<T = any>(fn: RunCallback<T>, options: Options, ac: AbortController) {
     // create node recording stream
-    const stream = new NodeRecordingStream(options);
-    // wrap callback in a promise and defer execution until next tick
-    // this allows setup to be completed if callback is synchronous.
-    let promise = new Promise<T | null>((resolve, reject) => {
-        process.nextTick(() => {
-            // hook streams
-            stream.hookStreams();
-            // run callback
-            (async () => fn(stream))().then(resolve, reject);
+    const stream = new NodeRecordingStream<T>(options),
+        // wrap callback in a promise and defer execution until next tick
+        // this allows setup to be completed if callback is synchronous.
+        callbackPromise = new Promise<void>((resolve) => {
+            process.nextTick(() => {
+                // hook streams
+                stream.hookStreams();
+                // run callback
+                (async () => fn(stream))().then((result) => {
+                    stream.setResult(result);
+                }, (error: Error) => {
+                    stream.handleCallbackError(error);
+                }).then(resolve);
+            });
         });
-    });
-    promise = promise.then((result) => {
-        if (!stream.ended) stream.finish();
-        return result;
-    }, (error: Error) => {
-        // if error was caught during recording, it will be included in the capture
-        if (!stream.ended) {
-            stream.finish(error);
-            return null;
-        }
-        // otherwise it will be rethrown and kill the capture
-        throw error;
-    });
     // merge source stream and promise chain
-    return mergePromise(stream, promise);
+    return mergePromise(stream, Promise.all([
+        callbackPromise,
+        promisifyStream(stream, ac),
+    ]).then(() => {}));
 }

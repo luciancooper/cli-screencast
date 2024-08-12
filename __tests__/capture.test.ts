@@ -1,26 +1,22 @@
-import { Readable } from 'stream';
 import type { PartialExcept, DeepPartial, CaptureData, TerminalOptions, Dimensions } from '@src/types';
-import type { StartEvent, WriteEvent, FinishEvent } from '@src/source';
+import RecordingStream, { readableEvents, type SourceEvent, type StartEvent } from '@src/source';
 import captureSource, { type CaptureOptions } from '@src/capture';
 import { applyDefTerminalOptions } from '@src/options';
+import { promisifyStream, mergePromise } from '@src/utils';
 import * as ansi from './helpers/ansi';
 
 const defDimensions: Dimensions = { columns: 50, rows: 10 };
 
 function runCapture(
-    events: (PartialExcept<StartEvent, 'type'> | WriteEvent | FinishEvent)[],
+    partialEvents: (PartialExcept<StartEvent, 'type'> | Exclude<SourceEvent, StartEvent>)[],
     captureOptions: CaptureOptions = {},
     termOptions: Partial<TerminalOptions> = {},
 ) {
-    const eventIterator = events[Symbol.iterator](),
-        termProps = applyDefTerminalOptions({ ...defDimensions, ...termOptions });
-    return captureSource(new Readable({
-        objectMode: true,
-        read() {
-            const next = eventIterator.next();
-            this.push(next.done ? null : next.value.type === 'start' ? { ...termProps, ...next.value } : next.value);
-        },
-    }), captureOptions);
+    const termProps = applyDefTerminalOptions({ ...defDimensions, ...termOptions }),
+        events = partialEvents.map<SourceEvent>((evt) => (evt.type === 'start' ? { ...termProps, ...evt } : evt)),
+        ac = new AbortController(),
+        source = readableEvents(events, ac);
+    return captureSource(source, captureOptions, ac);
 }
 
 type PartialCaptureData = DeepPartial<CaptureData>;
@@ -379,7 +375,32 @@ describe('captureSource', () => {
             await expect(runCapture([
                 { type: 'start' },
                 { content: 'first write', time: 10 },
-            ])).rejects.toThrow('Incomplete capture - source did not emit finish');
+            ])).rejects.toThrow('Incomplete capture - source did not finish');
+        });
+    });
+
+    describe('errors in source streams', () => {
+        const makeSource = (ac: AbortController) => {
+            const stream = new RecordingStream(defDimensions);
+            return mergePromise(stream, promisifyStream(stream, ac));
+        };
+
+        test('source stream emits error', async () => {
+            const ac = new AbortController(),
+                source = makeSource(ac),
+                promise = captureSource(source, {}, ac);
+            source.finish();
+            source.write('bad write');
+            await expect(promise).rejects.toThrow('Invalid write, source stream has been closed');
+        });
+
+        test('abort controller cancels streams', async () => {
+            const ac = new AbortController(),
+                source = makeSource(ac),
+                promise = captureSource(source, {}, ac);
+            source.write('first write');
+            ac.abort();
+            await expect(promise).rejects.toThrow('Incomplete capture - source did not finish');
         });
     });
 });

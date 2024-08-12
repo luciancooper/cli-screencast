@@ -19,6 +19,7 @@ declare global {
             toBeNumber: () => number
             toBeUndefined: () => undefined
             toBeString: () => string
+            toBeFalsy: () => any
         }
         interface InverseAsymmetricMatchers {
             toBeApprox: (expected: number | bigint, threshold?: number) => number
@@ -139,37 +140,56 @@ expect.extend({
         };
     },
 
-    toBeNumber(val: unknown) {
+    toBeNumber(val: unknown, expected: any) {
+        const options = matcherHintOptions.call(this);
+        this.utils.ensureNoExpected(expected, 'toBeNumber', options);
         const pass = typeof val === 'number';
         return {
             pass,
             message: () => (
-                this.utils.matcherHint('toBeNumber', 'received', '', matcherHintOptions.call(this))
+                this.utils.matcherHint('toBeNumber', 'received', '', options)
                 + `\n\nExpected value to ${pass ? 'not ' : ''}be a number, received: ${this.utils.printReceived(val)}`
             ),
         };
     },
 
-    toBeUndefined(actual: unknown) {
-        const pass = actual === undefined;
+    toBeUndefined(val: unknown, expected: any) {
+        const options = matcherHintOptions.call(this);
+        this.utils.ensureNoExpected(expected, 'toBeUndefined', options);
+        const pass = val === undefined;
         return {
             pass,
             message: () => (
-                this.utils.matcherHint('toBeUndefined', undefined, '', matcherHintOptions.call(this))
+                this.utils.matcherHint('toBeUndefined', 'received', '', options)
                 + '\n\n'
                 + (pass ? 'Expected value to not be undefined'
-                    : `Expected value to be undefined, received:  ${this.utils.printReceived(actual)}`)
+                    : `Expected value to be undefined, received: ${this.utils.printReceived(val)}`)
             ),
         };
     },
 
-    toBeString(val: unknown) {
+    toBeString(val: unknown, expected: any) {
+        const options = matcherHintOptions.call(this);
+        this.utils.ensureNoExpected(expected, 'toBeString', options);
         const pass = typeof val === 'string' || val instanceof String;
         return {
             pass,
             message: () => (
-                this.utils.matcherHint('toBeString', 'received', '', matcherHintOptions.call(this))
+                this.utils.matcherHint('toBeString', 'received', '', options)
                 + `\n\nExpected value to ${pass ? 'not ' : ''}be a string, received: ${this.utils.printReceived(val)}`
+            ),
+        };
+    },
+
+    toBeFalsy(val: unknown, expected: any) {
+        const options = matcherHintOptions.call(this);
+        this.utils.ensureNoExpected(expected, 'toBeFalsy', options);
+        const pass = !val;
+        return {
+            pass: !val,
+            message: () => (
+                this.utils.matcherHint('toBeFalsy', 'received', '', options)
+                + `\n\nExpected value to ${pass ? 'not ' : ''}be falsy, received: ${this.utils.printReceived(val)}`
             ),
         };
     },

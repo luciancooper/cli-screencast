@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import path from 'path';
 import signalExit from 'signal-exit';
 import { stdin as mockStdin } from 'mock-stdin';
@@ -5,7 +6,7 @@ import { stripAnsi } from 'tty-strings';
 import type { SourceEvent } from '@src/source';
 import { readableSpawn, readableShell, resolveEnv, resolveCommand, colorEnv, type PtyResult } from '@src/spawn';
 import mockStdout, { type MockStdout } from './helpers/mockStdout';
-import { consumePromise } from './helpers/streams';
+import { consumePromisified } from './helpers/streams';
 
 let stdout: MockStdout,
     stdin: ReturnType<typeof mockStdin>;
@@ -48,6 +49,12 @@ jest.mock('signal-exit', () => {
 beforeAll(() => {
     stdout = mockStdout();
     stdin = mockStdin();
+});
+
+let ac: AbortController;
+
+beforeEach(() => {
+    ac = new AbortController();
 });
 
 afterEach(() => {
@@ -122,11 +129,15 @@ describe('readableSpawn', () => {
     const dimensions = { columns: 20, rows: 5 };
 
     test('creates readable source events from subprocess writes to stdout', async () => {
-        const source = readableSpawn('echo', ['log message'], { ...dimensions, shell: true }),
-            [result, events] = await consumePromise<PtyResult, SourceEvent>(source);
-        // check the result
-        expect(result.exitCode).toBe(0);
-        expect(result.signal).toBeFalsy();
+        const source = readableSpawn('echo', ['log message'], { ...dimensions, shell: true }, ac),
+            // consume events
+            events = await consumePromisified<SourceEvent>(source);
+        // check pty result
+        expect(source.result).toStrictEqual<PtyResult>({
+            exitCode: 0,
+            signal: expect.toBeFalsy(),
+            timedOut: false,
+        });
         // check start event
         expect(events[0]).toMatchObject<Partial<SourceEvent>>(
             { type: 'start', command: 'echo log message', ...dimensions },
@@ -149,11 +160,13 @@ describe('readableSpawn', () => {
         const source = readableSpawn('sleep', ['10'], {
             ...dimensions,
             shell: process.platform === 'win32' ? 'powershell.exe' : true,
-        });
+        }, ac);
         // mock the process exiting
-        await (signalExit as MockSignalExit).flushAfter(250, 1, 'SIGINT');
+        await (signalExit as MockSignalExit).flushAfter(100, 1, 'SIGINT');
+        // ensure stream promise resolves
+        await expect(source).resolves.toBeUndefined();
         // result should have exit code 1 & signal 'SIGINT'
-        await expect(source).resolves.toMatchObject<Partial<PtyResult>>({
+        expect(source.result).toStrictEqual<PtyResult>({
             exitCode: 1,
             signal: 'SIGINT',
             timedOut: false,
@@ -165,16 +178,19 @@ describe('readableSpawn', () => {
             '-e',
             "const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });"
             + "rl.question('Prompt: ', (a) => { console.log(a); rl.close(); });",
-        ], { ...dimensions, connectStdin: true });
+        ], { ...dimensions, connectStdin: true }, ac);
         // send mocks stdin after first write to stdout
         await stdout.nextWrite().then(() => {
             stdin.send('Response\n');
         });
         // consume events
-        const [result, events] = await consumePromise<PtyResult, SourceEvent>(source);
-        // check result
-        expect(result.exitCode).toBe(0);
-        expect(result.signal).toBeFalsy();
+        const events = await consumePromisified<SourceEvent>(source);
+        // check pty result
+        expect(source.result).toStrictEqual<PtyResult>({
+            exitCode: 0,
+            signal: expect.toBeFalsy(),
+            timedOut: false,
+        });
         // check start event
         expect(events[0]).toMatchObject<Partial<SourceEvent>>({ type: 'start', ...dimensions });
         // check finish event
@@ -201,53 +217,61 @@ describe('readableSpawn', () => {
 
     test('subprocess env will not extend process.env if `extendEnv` is false', async () => {
         const source = readableSpawn('echo', ['message'], {
-                ...dimensions,
-                shell: true,
-                env: {},
-                extendEnv: false,
-            }),
-            result = await source;
+            ...dimensions,
+            shell: true,
+            env: {},
+            extendEnv: false,
+        }, ac);
+        // ensure stream promise resolves
+        await expect(source).resolves.toBeUndefined();
         // check env
         expect(source.env).toEqual(resolveEnv({}, false));
-        // check result
-        expect(result.exitCode).toBe(0);
-        expect(result.signal).toBeFalsy();
+        // check pty result
+        expect(source.result).toStrictEqual<PtyResult>({
+            exitCode: 0,
+            signal: expect.toBeFalsy(),
+            timedOut: false,
+        });
     });
 
     describe('validation', () => {
         test('throws an error if `command` arg is an empty string', async () => {
             expect(() => {
-                readableSpawn('', [], dimensions);
+                readableSpawn('', [], dimensions, ac);
             }).toThrow("'command' cannot be empty");
         });
 
         test('throws type error if `command` arg is not a string', async () => {
             expect(() => {
-                readableSpawn({} as unknown as string, [], dimensions);
+                readableSpawn({} as unknown as string, [], dimensions, ac);
             }).toThrow("'command' must be a string. Received [object Object]");
         });
 
         test('throws error if timeout option is invalid', () => {
             expect(() => {
-                readableSpawn('ls', [], { ...dimensions, timeout: -500 });
+                readableSpawn('ls', [], { ...dimensions, timeout: -500 }, ac);
             }).toThrow('`timeout` must be a non-negative integer');
         });
 
         test('throws error if both connectStdin and silent options are enabled', () => {
             expect(() => {
-                readableSpawn('ls', [], { ...dimensions, silent: true, connectStdin: true });
+                readableSpawn('ls', [], { ...dimensions, silent: true, connectStdin: true }, ac);
             }).toThrow("'silent' option must be false if 'connectStdin' is true");
         });
     });
 
     describe('timeouts', () => {
         test('will send `killSignal` signal to spawned process on timeout', async () => {
-            await expect(readableSpawn('sleep', ['5'], {
+            const source = readableSpawn('sleep', ['5'], {
                 ...dimensions,
                 shell: process.platform === 'win32' ? 'powershell.exe' : true,
-                timeout: 500,
+                timeout: 300,
                 killSignal: 'SIGKILL',
-            })).resolves.toMatchObject<Partial<PtyResult>>({
+            }, ac);
+            // ensure stream promise resolves
+            await expect(source).resolves.toBeUndefined();
+            // check pty result
+            expect(source.result).toStrictEqual<PtyResult>({
                 exitCode: 1,
                 signal: 'SIGKILL',
                 timedOut: true,
@@ -255,14 +279,17 @@ describe('readableSpawn', () => {
         });
 
         test('timeout is cleared if process completes before it is reached', async () => {
-            const result = await readableSpawn('sleep', ['1'], {
-                ...dimensions,
-                shell: process.platform === 'win32' ? 'powershell.exe' : true,
-                timeout: 4000,
+            const [shell, args] = process.platform === 'win32'
+                    ? ['powershell.exe', ['-Milliseconds', '200']] : [true, ['0.2']],
+                source = readableSpawn('sleep', args, { ...dimensions, shell, timeout: 4000 }, ac);
+            // ensure stream promise resolves
+            await expect(source).resolves.toBeUndefined();
+            // check pty result
+            expect(source.result).toStrictEqual<PtyResult>({
+                exitCode: 0,
+                signal: expect.toBeFalsy(),
+                timedOut: false,
             });
-            expect(result.exitCode).toBe(0);
-            expect(result.signal).toBeFalsy();
-            expect(result.timedOut).toBe(false);
         });
     });
 });
@@ -272,18 +299,21 @@ describe('readableShell', () => {
 
     test('shell can be specified as an option', async () => {
         const shell = process.platform === 'win32' ? 'powershell.exe' : '/bin/bash',
-            source = readableShell({ shell, ...dimensions });
+            source = readableShell({ shell, ...dimensions }, ac);
         // send mocks stdin after first write to stdout
         await stdout.nextWrite().then(() => {
             stdin.send('exit\r\n');
         });
         // consume events
-        const [result, events] = await consumePromise<PtyResult, SourceEvent>(source);
+        const events = await consumePromisified<SourceEvent>(source);
         // check shell
         expect(source.shell).toBe(shell);
-        // check result
-        expect(result.exitCode).toBe(0);
-        expect(result.signal).toBeFalsy();
+        // check pty result
+        expect(source.result).toStrictEqual<PtyResult>({
+            exitCode: 0,
+            signal: expect.toBeFalsy(),
+            timedOut: false,
+        });
         // check start event
         expect(events[0]).toMatchObject<Partial<SourceEvent>>({ type: 'start', ...dimensions });
         // check finish event
@@ -296,15 +326,17 @@ describe('readableShell', () => {
     });
 
     test('stops recording on ctrl-d', async () => {
-        const source = readableShell(dimensions);
+        const source = readableShell(dimensions, ac);
         // send mocks stdin after first write to stdout
         await stdout.nextWrite().then(() => {
             stdin.send('\x04');
         });
         // consume events
-        const [result, events] = await consumePromise<PtyResult, SourceEvent>(source);
-        // check result
-        expect(result.exitCode).toBe(0);
+        const events = await consumePromisified<SourceEvent>(source);
+        // check pty result
+        expect(source.result).toMatchObject<Partial<PtyResult>>({
+            exitCode: 0,
+        });
         // check start event
         expect(events[0]).toMatchObject<Partial<SourceEvent>>({ type: 'start', ...dimensions });
         // check finish event
@@ -317,27 +349,34 @@ describe('readableShell', () => {
     });
 
     test('kills shell if parent process exits', async () => {
-        const source = readableShell(dimensions);
+        const source = readableShell(dimensions, ac);
         // mock the process exiting
-        await (signalExit as MockSignalExit).flushAfter(250, 1, 'SIGINT');
+        await (signalExit as MockSignalExit).flushAfter(100, 1, 'SIGINT');
+        // ensure stream promise resolves
+        await expect(source).resolves.toBeUndefined();
         // result should have exit code 1 & signal 'SIGINT'
-        await expect(source).resolves.toMatchObject<Partial<PtyResult>>({
+        expect(source.result).toStrictEqual<PtyResult>({
             exitCode: 1,
             signal: 'SIGINT',
+            timedOut: false,
         });
     });
 
     test('subprocess shell env will not extend process.env if `extendEnv` is false', async () => {
-        const source = readableShell({ ...dimensions, env: {}, extendEnv: false });
+        const source = readableShell({ ...dimensions, env: {}, extendEnv: false }, ac);
         // send mocks stdin after first write to stdout
         await stdout.nextWrite().then(() => {
             stdin.send('exit\r\n');
         });
-        const result = await source;
+        // ensure stream promise resolves
+        await expect(source).resolves.toBeUndefined();
         // check env
         expect(source.env).toEqual(resolveEnv({}, false));
-        // check result
-        expect(result.exitCode).toBe(0);
-        expect(result.signal).toBeFalsy();
+        // check pty result
+        expect(source.result).toStrictEqual<PtyResult>({
+            exitCode: 0,
+            signal: expect.toBeFalsy(),
+            timedOut: false,
+        });
     });
 });

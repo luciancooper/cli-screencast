@@ -4,9 +4,9 @@ import type {
 import { validateOptions, applyDefTerminalOptions, applyDefOutputOptions, applyDefRenderOptions } from './options';
 import log, { applyLoggingOptions, setLogLevel, resetLogLevel, type LoggingOptions } from './logger';
 import { parseScreen, parseCapture } from './parser';
-import RecordingStream, { type SourceFrame } from './source';
+import { readableFrames, type SourceFrame } from './source';
 import { readableSpawn, readableShell, type SpawnOptions, type ShellOptions } from './spawn';
-import callbackStream, { type CallbackOptions, type RunCallback } from './node';
+import readableCallback, { type CallbackOptions, type RunCallback } from './node';
 import captureSource, { type CaptureOptions } from './capture';
 import extractCaptureFrames from './frames';
 import { resolveFonts, embedFontCss, type ResolvedFontData } from './fonts';
@@ -129,10 +129,11 @@ export async function captureFrames(
     // apply log level options
     applyLoggingOptions(options);
     try {
-        // create source stream from frames
-        const source = RecordingStream.fromFrames(applyDefTerminalOptions(options), frames),
+        const ac = new AbortController(),
+            // create source stream from frames
+            source = readableFrames(options, frames, ac),
             // capture the source stream
-            capture = await captureSource(source, options);
+            capture = await captureSource(source, options, ac);
         // render the captured frames
         return await renderCaptureData(capture, options);
     } finally {
@@ -157,10 +158,11 @@ export async function captureSpawn(
     // apply log level options
     applyLoggingOptions(options);
     try {
-        // launch spawn source stream
-        const source = readableSpawn(command, args, options),
+        const ac = new AbortController(),
+            // launch spawn source stream
+            source = readableSpawn(command, args, options, ac),
             // capture the source stream
-            capture = await captureSource(source, options);
+            capture = await captureSource(source, options, ac);
         // render the captured source data
         return await renderCaptureData(capture, options);
     } finally {
@@ -182,10 +184,11 @@ export async function captureShell(
     // apply log level options
     applyLoggingOptions(options);
     try {
-        // launch shell source stream
-        const source = readableShell(options),
+        const ac = new AbortController(),
+            // launch shell source stream
+            source = readableShell(options, ac),
             // capture the source stream
-            capture = await captureSource(source, options);
+            capture = await captureSource(source, options, ac);
         // render the captured source data
         return await renderCaptureData(capture, options);
     } finally {
@@ -211,10 +214,11 @@ export async function captureCallback(
     // apply log level options
     applyLoggingOptions(options);
     try {
-        // create a callback recording stream
-        const source = callbackStream(fn, options),
+        const ac = new AbortController(),
+            // create a callback recording stream
+            source = readableCallback(fn, options, ac),
             // capture the source stream
-            capture = await captureSource(source, options);
+            capture = await captureSource(source, options, ac);
         // render the captured source data
         return await renderCaptureData(capture, options);
     } finally {

@@ -3,6 +3,7 @@ import { splitChars } from 'tty-strings';
 import type { CaptureData } from './types';
 import type { StartEvent, WriteEvent, FinishEvent, SourceEvent } from './source';
 import { applyDefaults } from './options';
+import { promisifyStream } from './utils';
 import log from './logger';
 
 interface BufferedWrite {
@@ -255,16 +256,25 @@ class CaptureStream extends Writable {
     }
 }
 
-export default function captureSource(source: Readable | (Readable & PromiseLike<any>), props: CaptureOptions) {
-    const promise = new Promise<CaptureData>((resolve, reject) => {
-        const capture = source.pipe(new CaptureStream(props));
-        capture.on('finish', () => {
+export default function captureSource(
+    source: Readable & PromiseLike<void>,
+    props: CaptureOptions,
+    ac: AbortController,
+) {
+    // create capture stream and attach it to the source stream
+    const capture = source.pipe(new CaptureStream(props)),
+        // create promise that resolves once capture stream has closed
+        promise = promisifyStream(capture, ac).then(() => {
             if (capture.data) {
                 log.debug('source capture complete');
-                resolve(capture.data);
-            } else reject(new Error('Incomplete capture - source did not emit finish'));
+                return capture.data;
+            }
+            throw new Error('Incomplete capture - source did not finish');
         });
-        capture.on('error', reject);
+    // merge source and capture promises
+    return Promise.allSettled([source, promise]).then(([sourceResult, captureResult]) => {
+        if (sourceResult.status === 'rejected') throw sourceResult.reason;
+        if (captureResult.status === 'rejected') throw captureResult.reason;
+        return captureResult.value;
     });
-    return Promise.all([promise, source]).then(([data]) => data);
 }

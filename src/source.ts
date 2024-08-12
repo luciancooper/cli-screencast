@@ -1,6 +1,7 @@
-import { Duplex, type DuplexOptions } from 'stream';
+import { Duplex, Readable, type DuplexOptions } from 'stream';
 import type { TerminalOptions, PickOptional } from './types';
 import { applyDefTerminalOptions } from './options';
+import { promisifyStream, mergePromise } from './utils';
 
 export interface SourceFrame {
     content: string
@@ -41,7 +42,7 @@ interface TypedDuplex extends Duplex {
 
 const DuplexConstructor: new(opts?: DuplexOptions | undefined) => TypedDuplex = Duplex;
 
-export default class RecordingStream extends DuplexConstructor {
+export default class RecordingStream<T> extends DuplexConstructor {
     static kCaptureStartLine = '\x1b[36;1m>>>\x1b[39m \x1b[31m●\x1b[39m Capture Start \x1b[36m>>>\x1b[39;22m\n';
 
     static kCaptureEndLine = '\x1b[36;1m<<<\x1b[39m \x1b[31m■\x1b[39m Capture End \x1b[36m<<<\x1b[39;22m\n';
@@ -56,9 +57,9 @@ export default class RecordingStream extends DuplexConstructor {
 
     private startTime = NaN;
 
-    private queuedFinish: number | null = null;
-
     private timeAdjustment = 0;
+
+    result: T | undefined = undefined;
 
     constructor(options: TerminalOptions) {
         super({
@@ -75,19 +76,6 @@ export default class RecordingStream extends DuplexConstructor {
         this.context = context;
     }
 
-    static fromFrames(opts: TerminalOptions, frames: SourceFrame[]): RecordingStream {
-        const stream = new RecordingStream(opts);
-        stream.push({ type: 'start', ...stream.termOptions });
-        let time = 0;
-        for (const { content, duration } of frames) {
-            stream.push({ time, content });
-            time += duration;
-        }
-        stream.push({ type: 'finish', time });
-        stream.push(null);
-        return stream;
-    }
-
     get termOptions(): Required<TerminalOptions> {
         const { columns, rows, context } = this;
         return { columns, rows, ...context };
@@ -97,8 +85,15 @@ export default class RecordingStream extends DuplexConstructor {
         return ((this as { _readableState?: { ended: boolean } })._readableState!).ended;
     }
 
-    get finishQueued(): boolean {
-        return this.queuedFinish !== null;
+    setResult(result: T) {
+        // store result
+        this.result = result;
+        // stop if stream is destroyed
+        if (this.destroyed) return;
+        // finish the stream if neccessary
+        if (!this.ended) this.finish();
+        // resume the paused stream so final events can be read
+        this.resume();
     }
 
     private pushWrite(content: string) {
@@ -115,18 +110,16 @@ export default class RecordingStream extends DuplexConstructor {
 
     override _write(chunk: Buffer | string, enc: BufferEncoding, cb: (error?: Error | null) => void): void {
         if (this.ended) {
-            cb(new Error('Source stream is closed'));
+            cb(new Error('Invalid write, source stream has been closed'));
             return;
         }
-        if (!this.finishQueued) {
-            const content = Buffer.isBuffer(chunk) ? chunk.toString('utf-8') : chunk;
-            // only push non-empty writes
-            if (content) {
-                // push a start event if the source is inactive
-                if (!this.started) this.start();
-                // push write event
-                this.pushWrite(content);
-            }
+        const content = Buffer.isBuffer(chunk) ? chunk.toString('utf-8') : chunk;
+        // only push non-empty writes
+        if (content) {
+            // push a start event if the source is inactive
+            if (!this.started) this.start();
+            // push write event
+            this.pushWrite(content);
         }
         cb();
     }
@@ -138,10 +131,10 @@ export default class RecordingStream extends DuplexConstructor {
 
     wait(milliseconds: number): void {
         if (this.ended) {
-            throw new Error('Source stream is closed');
+            const error = new Error("Cannot use 'wait' after source stream has been closed");
+            this.destroy(error);
+            throw error;
         }
-        // check if finish has been queued
-        if (this.finishQueued) return;
         // push an initial start event to the readable stream if necessary
         if (!this.started) this.start();
         // add to accumulated time adjustment
@@ -150,7 +143,9 @@ export default class RecordingStream extends DuplexConstructor {
 
     start(command?: string): void {
         if (this.ended) {
-            throw new Error('Source stream is closed');
+            const error = new Error("Cannot use 'start' after source stream has been closed");
+            this.destroy(error);
+            throw error;
         }
         if (this.started) return;
         this.started = true;
@@ -160,25 +155,17 @@ export default class RecordingStream extends DuplexConstructor {
         this.emit('recording-start', this.startTime);
     }
 
-    queueFinish() {
-        if (this.ended) {
-            throw new Error('Source stream is closed');
-        }
-        // check if finish has been queued
-        if (this.finishQueued) return;
-        // set queued finish time
-        this.queuedFinish = this.started ? Date.now() - this.startTime : 0;
-        // push an initial start event to the readable stream if necessary
-        if (!this.started) this.start();
-    }
-
     finish(content?: unknown): void {
         if (this.ended) {
-            throw new Error('Source stream is closed');
+            const error = new Error("Cannot use 'finish' after source stream has been closed");
+            this.destroy(error);
+            throw error;
         }
-        const time = this.queuedFinish ?? (this.started ? Date.now() - this.startTime : 0);
+        const time = this.started ? Date.now() - this.startTime : 0;
         // emit start event if stream has not started
         if (!this.started) this.start();
+        // pause the stream
+        this.pause();
         // push finish event
         this.push({
             type: 'finish',
@@ -194,12 +181,12 @@ export default class RecordingStream extends DuplexConstructor {
 
     setTitle(title: string, icon: string | boolean = false) {
         if (this.ended) {
-            throw new Error('Source stream is closed');
+            const error = new Error("Cannot use 'setTitle' after source stream has been closed");
+            this.destroy(error);
+            throw error;
         }
         // push an initial start event to the readable stream if necessary
         if (!this.started) this.start();
-        // check if finish has been queued
-        if (this.finishQueued) return;
         // push write event
         this.pushWrite(
             typeof icon === 'string'
@@ -207,4 +194,47 @@ export default class RecordingStream extends DuplexConstructor {
                 : `\x1b]${icon ? 0 : 2};${title}\x07`,
         );
     }
+}
+
+/**
+ * Convert an array of source frames in to an array of source events
+ */
+export function framesToEvents(options: TerminalOptions, frames: SourceFrame[]): SourceEvent[] {
+    const events: SourceEvent[] = [
+        { type: 'start', ...applyDefTerminalOptions(options) },
+    ];
+    let time = 0;
+    for (const { content, duration } of frames) {
+        events.push({ time, content });
+        time += duration;
+    }
+    events.push({ type: 'finish', time });
+    return events;
+}
+
+/**
+ * Create a readable source stream from an array of events
+ */
+export function readableEvents(events: SourceEvent[], ac: AbortController) {
+    const eventIterator = events[Symbol.iterator](),
+        // create read stream
+        stream = new Readable({
+            objectMode: true,
+            read() {
+                const next = eventIterator.next();
+                this.push(next.done ? null : next.value);
+            },
+        }),
+        // promisify stream
+        promise = promisifyStream(stream, ac);
+    // merge stream into promise
+    return mergePromise(stream, promise);
+}
+
+/**
+ * Create a readable source stream from an array of source frames
+ */
+export function readableFrames(options: TerminalOptions, frames: SourceFrame[], ac: AbortController) {
+    const events = framesToEvents(options, frames);
+    return readableEvents(events, ac);
 }
