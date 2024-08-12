@@ -6,7 +6,7 @@ import log, { applyLoggingOptions, setLogLevel, resetLogLevel, type LoggingOptio
 import { parseScreen, parseCapture } from './parser';
 import { readableFrames, type SourceFrame } from './source';
 import { readableSpawn, readableShell, type SpawnOptions, type ShellOptions } from './spawn';
-import readableCallback, { type CallbackOptions, type RunCallback } from './node';
+import readableCallback, { type CallbackOptions, type NodeCapture } from './node';
 import captureSource, { type CaptureOptions } from './capture';
 import extractCaptureFrames from './frames';
 import { resolveFonts, embedFontCss, type ResolvedFontData } from './fonts';
@@ -201,12 +201,12 @@ export async function captureShell(
  * @remarks
  * Within the provided callback function `fn`, all writes to `process.stdout` and `process.stderr`, (and by extension
  * calls to `console.log` and `console.error`) will be captured and included in the returned screencast.
- * @param fn - callback function in which terminal output is captured
+ * @param fn - callback function in which terminal output is captured. Can be synchronous or asynchronous.
  * @param options - render options
  * @returns animated screen capture string (if output is svg, json, or yaml) or png buffer
  */
 export async function captureCallback(
-    fn: RunCallback<any>,
+    fn: (capture: NodeCapture) => any,
     options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & CallbackOptions & RenderOptions,
 ): Promise<string | Buffer> {
     // ensure required options are specified
@@ -259,4 +259,5 @@ export type {
     RenderOptions,
     SpawnOptions,
     CallbackOptions,
+    NodeCapture,
 };

@@ -22,6 +22,87 @@ export interface CallbackOptions {
     silent?: boolean
 }
 
+export interface NodeCapture {
+    /**
+     * The column width of the recording terminal window
+     */
+    columns: number
+
+    /**
+     * The row height of the recording terminal window
+     */
+    rows: number
+
+    /**
+     * The input stream for the terminal recording capture.
+     */
+    readonly input: InputStream
+
+    /**
+     * Start the capture, optionally passing a command prompt string to include in the beginning of the capture.
+     * @param command - command prompt string
+     */
+    start: (command?: string) => void
+
+    /**
+     * Finish the capture, optionally passing in an error to display at the end of the recording.
+     * @param error - error to display at the end of the captured recording
+     */
+    finish: (error?: Error) => void
+
+    /**
+     * Write data to the terminal recording to be captured.
+     * @param chunk - content to write
+     */
+    write: (chunk: any) => boolean
+
+    /**
+     * Do a final write to the terminal recording and then close the capture.
+     * @param chunk - content of final write
+     */
+    end: (chunk: any) => void
+
+    /**
+     * Artificially wait a number of milliseconds in the capture recording.
+     * @param milliseconds - milliseconds to wait
+     */
+    wait: (milliseconds: number) => void
+
+    /**
+     * Set the title and icon of the terminal window in the recorded capture.
+     * @param title - window title string
+     * @param icon - window icon
+     */
+    setTitle: (title: string, icon?: string | boolean) => any
+
+    /**
+     * Artificially emit a keypress to the recording's input stream during the capture.
+     * @param key - keypress to emit
+     */
+    emitKeypress: (key: string) => Promise<void>
+
+    /**
+     * Artificially emit a sequence of keypresses to the recording's input stream during the capture.
+     * @param string - keypresses to emit
+     */
+    emitKeypressSequence: (string: string | string[]) => Promise<void>
+
+    /**
+     * Create an interface to implement command-line interfaces to be captured in the recording. Works just like the
+     * [`readline.createInterface`](https://nodejs.org/api/readline.html#readlinecreateinterfaceoptions) method
+     * that is built into node.
+     * @param options - the same options as `readline.createInterface` except for `input`, `tabSize`, `terminal`.
+     * @returns a [`readline.Interface`](https://nodejs.org/api/readline.html#class-readlineinterface) instance
+     */
+    createInterface: (options?: OmitStrict<ReadLineOptions, 'input' | 'tabSize' | 'terminal'>) => Interface
+
+    /**
+     * Not yet implemented
+     * @experimental
+     */
+    resize: (columns: number, rows: number) => void
+}
+
 interface OutputStreamDescriptors {
     columns: PropertyDescriptor | undefined
     rows: PropertyDescriptor | undefined
@@ -40,7 +121,7 @@ interface SocketHandle {
 
 type Options = TerminalOptions & CallbackOptions & Pick<CaptureOptions, 'keystrokeAnimationInterval'>;
 
-export class NodeRecordingStream<T> extends RecordingStream<T> {
+export class NodeRecordingStream<T> extends RecordingStream<T> implements NodeCapture {
     isTTY = true;
 
     private targetDescriptors: TargetDescriptors | null = null;
@@ -84,7 +165,7 @@ export class NodeRecordingStream<T> extends RecordingStream<T> {
     }
 
     /**
-     * Resizes the dimensions of the output terminal window
+     * Resizes the dimensions of the recording terminal window
      * @param columns - The number of columns to resize to
      * @param rows - The number of rows to resize to
      */
@@ -235,9 +316,11 @@ export class NodeRecordingStream<T> extends RecordingStream<T> {
     }
 }
 
-export type RunCallback<T> = (source: NodeRecordingStream<T>) => Promise<T> | T;
-
-export default function readableCallback<T = any>(fn: RunCallback<T>, options: Options, ac: AbortController) {
+export default function readableCallback<T>(
+    fn: (capture: NodeCapture) => Promise<T> | T,
+    options: Options,
+    ac: AbortController,
+) {
     // create node recording stream
     const stream = new NodeRecordingStream<T>(options),
         // wrap callback in a promise and defer execution until next tick

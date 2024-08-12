@@ -15,7 +15,7 @@ export interface CaptureOptions {
     /**
      * Include the command prompt string at the beginning of the captured recording if it is present in the source
      * stream. Applies when capturing the output of a child process, or if a `command` string is passed to the `start`
-     * method of a TerminalSession class instance.
+     * method of a `NodeCapture` instance.
      * @defaultValue `true`
      */
     captureCommand?: boolean

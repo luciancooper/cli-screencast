@@ -154,9 +154,9 @@ Captures all writes to stdout that occur within a callback function.
 
 > #### *Arguments:*
 
-› &nbsp; **fn** &nbsp;•&nbsp; `(source) => void`
+› &nbsp; **fn** &nbsp;•&nbsp; `(capture) => any`
 
-Callback function within which terminal output is captured. Can be synchronous or asynchronous. The callback function will be passed a `NodeRecordingStream` instance.
+Callback function within which terminal output is captured. Can be synchronous or asynchronous. The callback function will be passed a `NodeCapture` instance.
 
 **Note:** Within the scope of this function, all writes to `process.stdout` and `process.stderr`, (and by extension calls to `console.log` and `console.error`) will be captured.
 

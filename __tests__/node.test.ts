@@ -218,7 +218,7 @@ describe('readableCallback', () => {
         test('destroy is called within the callback', async () => {
             const stream = readableCallback((source) => {
                 process.stdout.write('first write\n');
-                source.destroy(new Error('direct destroy error'));
+                (source as unknown as Writable).destroy(new Error('direct destroy error'));
             }, dimensions, ac);
             // ensure stream promise rejects
             await expect(stream).rejects.toThrow('direct destroy error');
