@@ -64,6 +64,7 @@ export function applyDefTerminalOptions(
 }
 
 const defaultRenderOptions: Required<Omit<RenderOptions, 'theme'>> = {
+    fontFamily: "'Monaco', 'Cascadia Code', 'Courier New'",
     fontSize: 16,
     lineHeight: 1.25,
     columnWidth: undefined,

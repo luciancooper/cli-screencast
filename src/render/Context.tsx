@@ -5,6 +5,7 @@ import type { Theme } from '../theme';
 export interface RenderContext extends Dimensions {
     theme: Theme<RGBA>
     fontSize: number
+    fontFamily: string
     grid: readonly [dx: number, dy: number]
     iconColumnWidth: number
     duration: number

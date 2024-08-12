@@ -18,6 +18,11 @@ export interface RenderOptions extends WindowOptions {
     theme?: Partial<Theme>
 
     /**
+     * @defaultValue `"'Monaco', 'Cascadia Code', 'Courier New'"`
+     */
+    fontFamily?: string
+
+    /**
      * @defaultValue `16`
      */
     fontSize?: number
@@ -41,13 +46,13 @@ export interface RenderOptions extends WindowOptions {
 interface RenderProps extends Required<RenderOptions> {
     theme: Theme<RGBA>
     boxShadow: false | Required<BoxShadowOptions>
-    fontFamily?: string
     fontColumnWidth?: number | undefined
     css?: string | null
 }
 
 export function resolveContext({
     theme,
+    fontFamily,
     fontSize,
     columnWidth,
     fontColumnWidth,
@@ -59,6 +64,7 @@ export function resolveContext({
         columns,
         rows,
         theme,
+        fontFamily,
         fontSize,
         grid: [fontSize * (columnWidth ?? fontColumnWidth ?? 0.6), fontSize * lineHeight],
         iconColumnWidth,

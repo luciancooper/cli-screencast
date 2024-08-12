@@ -115,7 +115,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
     const termProps = applyDefTerminalOptions({ columns: 50, rows: 10, ...options }, { cursorHidden: true }),
         renderProps = applyDefRenderOptions(options),
         title = resolveTitle(termProps.windowTitle, termProps.windowIcon),
-        { fontColumnWidth, ...windowFont } = await resolveFonts({ title, lines: [] }, renderProps.theme.fontFamily),
+        { fontColumnWidth, ...windowFont } = await resolveFonts({ title, lines: [] }, renderProps.fontFamily),
         font = await embedFontCss(windowFont),
         [context, windowOptions] = resolveContext({ ...renderProps, ...font, fontColumnWidth }, termProps),
         { columns, rows, grid: [dx, dy] } = context,
@@ -358,7 +358,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
             decorations: true,
             windowIcon: 'shell',
             windowTitle: 'Title',
-            theme: { fontFamily: "'Cascadia Code', 'CaskaydiaCove NF Mono'" },
+            fontFamily: "'Cascadia Code', 'CaskaydiaCove NF Mono'",
         }));
         log.info('wrote window options diagram to %S', filePath);
     } catch (e: unknown) {

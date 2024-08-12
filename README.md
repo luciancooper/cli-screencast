@@ -288,6 +288,11 @@ Tab column width. Defaults to `8`.
 
 Cursor is hidden in the captured terminal recording or frame. Defaults to `false`.
 
+<a name='options.fontFamily'></a>
+› &nbsp; **fontFamily** &nbsp;•&nbsp; `string`
+
+Font to use for the rendered terminal output, as a CSS style list. Default is `"'Monaco', 'Cascadia Code', 'Courier New'"`.
+
 <a name='options.fontSize'></a>
 › &nbsp; **fontSize** &nbsp;•&nbsp; `number`
 
@@ -301,7 +306,7 @@ The line height of the rendered terminal output. Default is `1.25`.
 <a name='options.columnWidth'></a>
 › &nbsp; **columnWidth** &nbsp;•&nbsp; `number`
 
-The aspect ratio used to determine the width of each terminal column, which will be calculated as this value times the `fontSize`. If unspecified, the renderer will attempt to determine the aspect ratio of the embedded font family, but if that fails will fall back to the standard value `0.6`.
+The aspect ratio used to determine the width of each terminal column, which will be calculated as this value times the [`fontSize`](#options.fontSize). If unspecified, the renderer will attempt to determine the aspect ratio of the specified [`fontFamily`](#options.fontFamily), but if that fails will fall back to the standard value `0.6`.
 
 <a name='options.theme'></a>
 › &nbsp; **theme** &nbsp;•&nbsp; `Object`
@@ -414,7 +419,6 @@ The terminal theme can be specified by passing a theme configuration object to t
 | **cursorType** | Cursor style, either `'beam'`,  `'block'`, or `'underline'` | `'beam'` |
 | **cursorBlink** | Enable cursor blinking | `false` |
 | **dim** | Opacity of dim text (styled with SGR code `2`)  | `0.5` |
-| **fontFamily** | Font family name | `"'Monaco', 'Cascadia Code', 'Courier New'"` |
 
 ## Window Box Shadow
 

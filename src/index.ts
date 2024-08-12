@@ -37,7 +37,7 @@ async function renderScreenData(screen: ScreenData, options: OutputOptions & Ren
                 cache[type] = dataToYaml('screen', screen);
             } else {
                 parsed ??= parseScreen(screen);
-                fonts ??= await resolveFonts(parsed, props.theme.fontFamily);
+                fonts ??= await resolveFonts(parsed, props.fontFamily);
                 const { fontColumnWidth, ...resolvedFonts } = fonts,
                     css = (type === 'png' || embedFonts) ? await embedFontCss(resolvedFonts, type === 'png') : null,
                     rendered = renderScreenSvg(parsed, { ...props, fontColumnWidth, ...css });
@@ -68,7 +68,7 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
                 cache[type] = dataToYaml('capture', capture);
             } else {
                 parsed ??= parseCapture(capture);
-                fonts ??= await resolveFonts(parsed, props.theme.fontFamily);
+                fonts ??= await resolveFonts(parsed, props.fontFamily);
                 const { fontColumnWidth, ...resolvedFonts } = fonts;
                 if (type === 'png') {
                     const frames = extractCaptureFrames(parsed),

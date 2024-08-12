@@ -69,7 +69,6 @@ interface WindowProps extends Required<WindowOptions>, SVGProps<SVGSVGElement> {
     boxShadow: false | Required<BoxShadowOptions>
     title?: Title | TitleKeyFrame[] | null
     forceTitleInset?: boolean
-    fontFamily?: string
     css?: string | null
 }
 
@@ -77,7 +76,6 @@ const Window = forwardRef<Size, WindowProps>(({
     children,
     title = null,
     forceTitleInset = false,
-    fontFamily,
     css,
     borderRadius,
     boxShadow,
@@ -94,6 +92,7 @@ const Window = forwardRef<Size, WindowProps>(({
             rows,
             theme,
             fontSize,
+            fontFamily,
             grid: [dx, dy],
         } = useContext(Context),
         icons = Array.isArray(title)
@@ -112,7 +111,7 @@ const Window = forwardRef<Size, WindowProps>(({
         <svg
             xmlns='http://www.w3.org/2000/svg'
             xmlnsXlink='http://www.w3.org/1999/xlink'
-            fontFamily={fontFamily ?? theme.fontFamily}
+            fontFamily={fontFamily}
             fontSize={fontSize}
             {...size}
         >

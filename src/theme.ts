@@ -32,8 +32,6 @@ export interface Theme<Color = RGBA | string> {
     cursorBlink: boolean
     // ansi style
     dim: number
-    // font
-    fontFamily: string
 }
 
 export const defaultTheme: Theme = {
@@ -65,13 +63,11 @@ export const defaultTheme: Theme = {
     cursorBlink: false,
     // ansi style
     dim: 0.5,
-    // font
-    fontFamily: "'Monaco', 'Cascadia Code', 'Courier New'",
 };
 
 type ThemeNonColorKeys = { [K in keyof Theme]: Theme<never>[K] extends never ? never : K }[keyof Theme];
 
-const nonColorThemeKeys: ThemeNonColorKeys[] = ['cursorType', 'cursorBlink', 'dim', 'fontFamily'] as const;
+const nonColorThemeKeys: ThemeNonColorKeys[] = ['cursorType', 'cursorBlink', 'dim'] as const;
 
 export function resolveTheme(spec: Partial<Theme> = {}) {
     return (Object.entries({ ...defaultTheme, ...spec }) as Entries<Theme>)
