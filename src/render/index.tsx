@@ -23,12 +23,12 @@ export interface RenderOptions extends WindowOptions {
     fontFamily?: string
 
     /**
-     * @defaultValue `16`
+     * @defaultValue `12`
      */
     fontSize?: number
 
     /**
-     * @defaultValue `1.25`
+     * @defaultValue `1.2`
      */
     lineHeight?: number
 

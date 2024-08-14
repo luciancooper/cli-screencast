@@ -296,12 +296,12 @@ Font to use for the rendered terminal output, as a CSS style list. Default is `"
 <a name='options.fontSize'></a>
 › &nbsp; **fontSize** &nbsp;•&nbsp; `number`
 
-The font size of the rendered terminal output. Default is `16`.
+The font size of the rendered terminal output. Default is `12`.
 
 <a name='options.lineHeight'></a>
 › &nbsp; **lineHeight** &nbsp;•&nbsp; `number`
 
-The line height of the rendered terminal output. Default is `1.25`.
+The line height of the rendered terminal output. Default is `1.2`.
 
 <a name='options.columnWidth'></a>
 › &nbsp; **columnWidth** &nbsp;•&nbsp; `number`

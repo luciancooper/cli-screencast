@@ -351,6 +351,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
         log.info('rendering window options diagram');
         await writeToFile(filePath, await render({
             scaleFactor: 1.25,
+            fontSize: 16,
             insets: [1, 1],
             offsetX: 30,
             offsetY: 20,
