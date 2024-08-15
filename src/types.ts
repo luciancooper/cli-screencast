@@ -105,6 +105,13 @@ export interface OutputOptions {
      * @defaultValue `true`
      */
     embedFonts?: boolean
+
+    /**
+     * Array of font file paths or urls to resolve fonts from. These fonts will supplement any locally
+     * installed system fonts. woff, woff2, and zip files are not supported.
+     * @defaultValue `undefined`
+     */
+    fonts?: string[] | undefined
 }
 
 export type RGBA = readonly [r: number, g: number, b: number, a?: number];

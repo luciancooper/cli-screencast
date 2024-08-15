@@ -1,7 +1,7 @@
 import path from 'path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { FunctionComponent } from 'react';
-import type { TerminalOptions } from '@src/types';
+import type { TerminalOptions, OutputOptions } from '@src/types';
 import { applyDefRenderOptions, applyDefTerminalOptions } from '@src/options';
 import { resolveTitle } from '@src/parser/title';
 import { resolveFonts, embedFontCss } from '@src/fonts';
@@ -15,6 +15,7 @@ const labelFontProps = {
     fontSize: 12,
     lineHeight: 1.25,
     fontFamily: 'Consolas',
+    fonts: ['https://fontlib.s3.amazonaws.com/Consolas/Consola.ttf'],
 };
 
 type DiagramLabelProps = {
@@ -106,18 +107,26 @@ const DiagramLabel: FunctionComponent<DiagramLabelProps & { labelColumnWidth: nu
     );
 };
 
-interface DiagramOptions extends Partial<TerminalOptions>, RenderOptions {
-    scaleFactor: number
+interface DiagramOptions extends Partial<TerminalOptions>, RenderOptions, Pick<OutputOptions, 'scaleFactor' | 'fonts'> {
     insets: [ix: number, iy: number]
 }
 
-async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOptions) {
+async function render({ scaleFactor = 1, insets: [ix, iy], ...options }: DiagramOptions) {
     const termProps = applyDefTerminalOptions({ columns: 50, rows: 10, ...options }, { cursorHidden: true }),
         renderProps = applyDefRenderOptions(options),
         title = resolveTitle(termProps.windowTitle, termProps.windowIcon),
-        { fontColumnWidth, ...windowFont } = await resolveFonts({ title, lines: [] }, renderProps.fontFamily),
-        font = await embedFontCss(windowFont),
-        [context, windowOptions] = resolveContext({ ...renderProps, ...font, fontColumnWidth }, termProps),
+        { fontColumnWidth, ...windowFont } = await resolveFonts(
+            { title, lines: [] },
+            renderProps.fontFamily,
+            options.fonts,
+        ),
+        { svg: css, fontFamily } = await embedFontCss(windowFont, { svg: true, png: false }),
+        [context, windowOptions] = resolveContext({
+            ...renderProps,
+            fontFamily,
+            fontColumnWidth,
+            css,
+        }, termProps),
         { columns, rows, grid: [dx, dy] } = context,
         {
             paddingX,
@@ -311,8 +320,9 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
     const { fontColumnWidth: labelFontColumnWidth, ...labelFont } = await resolveFonts(
             labels.map(({ text }) => text).join(''),
             labelFontProps.fontFamily,
+            labelFontProps.fonts,
         ),
-        { css, fontFamily: labelFontFamily } = await embedFontCss(labelFont);
+        { svg: labelCss, fontFamily: labelFontFamily } = await embedFontCss(labelFont, { svg: true, png: false });
     return renderToStaticMarkup(
         <svg
             xmlns='http://www.w3.org/2000/svg'
@@ -331,7 +341,7 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
                     <rect x={0} y={0} width={width} height={height} stroke='#c4c4c4'/>
                 </g>
                 <g fontSize={labelFontProps.fontSize} fontFamily={labelFontFamily}>
-                    {css ? <style dangerouslySetInnerHTML={{ __html: css }}/> : null}
+                    {labelCss ? <style dangerouslySetInnerHTML={{ __html: labelCss }}/> : null}
                     {labels.map((labelProps, i) => (
                         <DiagramLabel key={`label-${i}`} labelColumnWidth={labelFontColumnWidth} {...labelProps}/>
                     ))}
@@ -359,7 +369,8 @@ async function render({ scaleFactor, insets: [ix, iy], ...options }: DiagramOpti
             decorations: true,
             windowIcon: 'shell',
             windowTitle: 'Title',
-            fontFamily: "'Cascadia Code', 'CaskaydiaCove NF Mono'",
+            fontFamily: 'Cascadia Code',
+            fonts: ['https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCode-Regular.ttf'],
         }));
         log.info('wrote window options diagram to %S', filePath);
     } catch (e: unknown) {

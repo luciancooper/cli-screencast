@@ -81,9 +81,10 @@ async function render() {
     // create embedded font
     const { fontColumnWidth, ...resolvedFonts } = await resolveFonts(
             Object.keys(icons).map((k) => `'${k}'`).join(''),
-            "'Cascadia Code', 'CaskaydiaCove NF Mono'",
+            'Cascadia Code',
+            ['https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCode-Regular.ttf'],
         ),
-        font = await embedFontCss(resolvedFonts);
+        { svg: css, fontFamily } = await embedFontCss(resolvedFonts, { svg: true, png: false });
     return renderToStaticMarkup(
         <IconsPreview
             fontSize={16}
@@ -96,7 +97,8 @@ async function render() {
             indent={10}
             padding={[20, 20]}
             insets={[30, 20]}
-            {...font}
+            fontFamily={fontFamily}
+            css={css}
         />,
     );
 }

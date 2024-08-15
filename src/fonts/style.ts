@@ -225,18 +225,19 @@ const fontWidthMatchPriority: FontWidth[] = [9, 1, 8, 2, 7, 3, 6, 4, 5];
  * bytes 8 - 9 indicate proximity of the slant to normal or italic depending on the ansi code
  */
 export function styleAnsiMatchPriority(
-    fonts: { style: FontStyle, fvarInstance?: { defscore: number } }[],
+    fonts: { style: FontStyle, src?: { specified?: boolean }, fvarInstance?: { defscore: number } }[],
     ansi: AnsiCode,
 ): number[] {
-    return fonts.map<[idx: number, priority: number, defscore: number]>(
-        ({ style: { slant, weight, width }, fvarInstance }, idx) => [
+    return fonts.map<[idx: number, priority: number, specified: number, defscore: number]>(
+        ({ style: { slant, weight, width }, src, fvarInstance }, idx) => [
             idx,
             (((ansi & 0b10) ? slant : 2 - slant) << 8)
             | (fontWeightMatchPriority[ansi & 1]!.indexOf(weight) << 4)
             | fontWidthMatchPriority.indexOf(width),
+            src?.specified ? 1 : 0,
             fvarInstance?.defscore ?? 0,
         ],
-    ).sort(([i1, p1, def1], [i2, p2, def2]) => (
-        (p2 - p1) || (def2 - def1) || (i1 - i2)
+    ).sort(([i1, p1, s1, def1], [i2, p2, s2, def2]) => (
+        (p2 - p1) || (s2 - s1) || (def2 - def1) || (i1 - i2)
     )).map(([idx]) => idx);
 }

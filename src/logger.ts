@@ -1,45 +1,6 @@
-import { createLogger, transports, format } from 'winston';
+import { createLogger, transports, format, type Logger } from 'winston';
 import { inspect, type InspectOptions } from 'util';
 import { stripAnsi } from 'tty-strings';
-
-export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'silent';
-
-// global log level
-let logLevel: LogLevel = 'warn';
-
-const transport = new transports.Console({
-    level: logLevel,
-});
-
-/**
- * Set global log level
- * @param level - global log level to set
- */
-export function setLogLevel(level: LogLevel) {
-    logLevel = level;
-    transport.level = logLevel;
-}
-
-/**
- * Resets back to the global log level
- */
-export function resetLogLevel() {
-    transport.level = logLevel;
-}
-
-export interface LoggingOptions {
-    /**
-     * Control how much info is logged to the console during the render process
-     * Options are (in order of decending verbosity): 'debug', 'info', 'warn', 'error', and 'silent'
-     * @defaultValue 'warn'
-     */
-    logLevel?: LogLevel
-}
-
-export function applyLoggingOptions({ logLevel: lvl }: LoggingOptions) {
-    // set log level
-    transport.level = lvl ?? logLevel;
-}
 
 const SPLAT = Symbol.for('splat');
 
@@ -131,7 +92,7 @@ function printf(message: string, ...splat: any[]) {
     return str;
 }
 
-export default createLogger({
+const logger = createLogger({
     levels,
     format: format.combine(
         format.metadata({ key: 'meta' }),
@@ -151,5 +112,44 @@ export default createLogger({
             return msg;
         }),
     ),
-    transports: [transport],
+    transports: [new transports.Console()],
 });
+
+Object.defineProperty(logger, 'printf', { value: printf });
+
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'silent';
+
+export interface LoggingOptions {
+    /**
+     * Control how much info is logged to the console during the render process
+     * Options are (in order of decending verbosity): 'debug', 'info', 'warn', 'error', and 'silent'
+     * @defaultValue 'warn'
+     */
+    logLevel?: LogLevel
+}
+
+// global log level
+let logLevel: LogLevel = 'warn';
+
+/**
+ * Set global log level
+ * @param level - global log level to set
+ */
+export function setLogLevel(level: LogLevel) {
+    logLevel = level;
+    logger.level = logLevel;
+}
+
+/**
+ * Resets back to the global log level
+ */
+export function resetLogLevel() {
+    logger.level = logLevel;
+}
+
+export function applyLoggingOptions({ logLevel: lvl }: LoggingOptions) {
+    // set log level
+    logger.level = lvl ?? logLevel;
+}
+
+export default logger as Logger & { printf: (message: string, ...splat: any[]) => string };

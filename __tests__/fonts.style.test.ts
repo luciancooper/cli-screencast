@@ -281,16 +281,18 @@ describe('styleAnsiMatchPriority', () => {
         ]);
     });
 
-    test('prioritizes higher defscores in the event of proximity ties', () => {
+    test('prioritizes specified fonts & higher defscores in the event of proximity ties', () => {
         const defscore: Parameters<typeof styleAnsiMatchPriority>[0] = [
-            { style: { weight: 400, width: 5, slant: 0 }, fvarInstance: { defscore: 0 } },
-            { style: { weight: 400, width: 5, slant: 0 }, fvarInstance: { defscore: 0 } },
-            { style: { weight: 400, width: 5, slant: 0 }, fvarInstance: { defscore: 1 } },
+            { style: { weight: 400, width: 5, slant: 0 }, src: { specified: false }, fvarInstance: { defscore: 0 } },
+            { style: { weight: 400, width: 5, slant: 0 }, src: { specified: true }, fvarInstance: { defscore: 0 } },
+            { style: { weight: 400, width: 5, slant: 0 }, src: { specified: false }, fvarInstance: { defscore: 1 } },
+            { style: { weight: 400, width: 5, slant: 0 }, src: { specified: false }, fvarInstance: { defscore: 1 } },
         ];
         expect(styleAnsiMatchPriority(defscore, 0).map((idx) => defscore[idx]!)).toEqual([
-            { style: { weight: 400, width: 5, slant: 0 }, fvarInstance: { defscore: 1 } },
-            { style: { weight: 400, width: 5, slant: 0 }, fvarInstance: { defscore: 0 } },
-            { style: { weight: 400, width: 5, slant: 0 }, fvarInstance: { defscore: 0 } },
+            { style: { weight: 400, width: 5, slant: 0 }, src: { specified: true }, fvarInstance: { defscore: 0 } },
+            { style: { weight: 400, width: 5, slant: 0 }, src: { specified: false }, fvarInstance: { defscore: 1 } },
+            { style: { weight: 400, width: 5, slant: 0 }, src: { specified: false }, fvarInstance: { defscore: 1 } },
+            { style: { weight: 400, width: 5, slant: 0 }, src: { specified: false }, fvarInstance: { defscore: 0 } },
         ]);
     });
 });

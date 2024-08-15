@@ -21,10 +21,12 @@ export interface ResolvedFontData {
  * Resolve the fonts for all text content of a screenshot or screencast.
  * @param data - screenshot or screencast data or a string
  * @param fontFamily - the css font family spec
+ * @param fonts - additional font file paths or urls to resolve fonts from
  */
 export async function resolveFonts(
     data: FrameData | ContentSubsets | string,
     fontFamily: string,
+    fonts?: string[],
 ): Promise<ResolvedFontData> {
     // create code point subset object from font data
     let subsets = (typeof data === 'string') ? createContentSubsets([data])
@@ -36,7 +38,7 @@ export async function resolveFonts(
     // create array of specified font families
     const familyNames = fontFamily.split(',').map((f) => f.trim().replace(/(?:^["']|["']$)/g, '')),
         // fetch system fonts
-        systemFonts = await getSystemFonts(familyNames),
+        systemFonts = await getSystemFonts({ match: familyNames, fonts }),
         // get system font keys
         systemFontKeys = Object.keys(systemFonts),
         // create object to accumulate resolved font data
@@ -78,6 +80,12 @@ export async function resolveFonts(
     };
 }
 
+export interface EmbeddedFontData {
+    svg: string | null
+    png: string | null
+    fontFamily: string
+}
+
 /**
  * Create css code for embedded font subsets.
  * @param fontData - resolved font families array and char coverage status
@@ -86,16 +94,20 @@ export async function resolveFonts(
  */
 export async function embedFontCss(
     { fontFamilies, fullCoverage }: Omit<ResolvedFontData, 'fontColumnWidth'>,
-    forPng = false,
-): Promise<{ css: string | null, fontFamily: string }> {
+    { png, svg }: { png: boolean, svg: boolean },
+): Promise<EmbeddedFontData> {
     // create object to accumulate embedded font data
-    const embedded: EmbeddedFontAccumulator = { css: [], family: [] };
+    const embedded: EmbeddedFontAccumulator = {
+        svg: svg ? [] : null,
+        png: png ? [] : null,
+        family: [],
+    };
     // build font css
     for (const family of fontFamilies) {
         if (family.type === 'system') {
-            await embedSystemFont(embedded, family, { forPng, fullCoverage });
+            await embedSystemFont(embedded, family, fullCoverage);
         } else if (family.type === 'google') {
-            await embedGoogleFont(embedded, family, { forPng, fullCoverage });
+            await embedGoogleFont(embedded, family, fullCoverage);
         } else if (family.type === 'generic' || !fullCoverage) {
             embedded.family.push(family.name);
         }
@@ -106,7 +118,8 @@ export async function embedFontCss(
     }
     // return embedded font css & font-family value
     return {
-        css: embedded.css.join('\n') || null,
+        png: embedded.png?.join('\n') || null,
+        svg: embedded.svg?.join('\n') || null,
         fontFamily: embedded.family.map((family) => (family.includes(' ') ? `"${family}"` : family)).join(','),
     };
 }

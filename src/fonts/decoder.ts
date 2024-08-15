@@ -1,14 +1,12 @@
 import type { Optionalize } from '../types';
 import type {
-    NameRecord, FvarTable, Os2Table, HeadTable, MaxpTable, CmapTable, SfntHeader, FontData, SystemFont,
+    NameRecord, FvarTable, Os2Table, HeadTable, MaxpTable, CmapTable, SfntHeader, FontData,
 } from './types';
 import FontReader from './reader';
 import { getEncoding } from './encoding';
 import { getLanguage, localizeNames, caselessMatch } from './names';
 import { getFontStyle, extendFontStyle } from './style';
 import { cmapCoverage, selectCmapRecord, type CmapEncodingRecord } from './cmap';
-
-type DecodeCallback<T> = (this: FontDecoder, header: SfntHeader) => T | PromiseLike<T>;
 
 export default class FontDecoder extends FontReader {
     /** optional list of font family names to match */
@@ -454,7 +452,7 @@ export default class FontDecoder extends FontReader {
         return fontHeaders;
     }
 
-    private async* decodeSfntSystemFonts(header: SfntHeader, checkName: boolean) {
+    private async* decodeSfntSystemFonts(header: SfntHeader, ttc: boolean): AsyncGenerator<FontData> {
         // decode localized 'name' table
         const names = await this.decodeLocalizedNames(header),
             // decode 'OS/2' table
@@ -464,7 +462,7 @@ export default class FontDecoder extends FontReader {
             // determine font family name and font style
             { family, style } = getFontStyle(names, os2, head);
         // apply family name filter if provided
-        if (checkName && (!family || (this.match && !caselessMatch(this.match, family)))) return;
+        if (this.match && (!family || !caselessMatch(this.match, family))) return;
         // decode 'cmap' table
         const cmap = await this.decodeSfntTable(header, 'cmap', this.cmapTable, 4);
         // code point coverage cannot be determined if font does not contain a 'cmap' table
@@ -484,7 +482,11 @@ export default class FontDecoder extends FontReader {
         // determine code point coverage
         const coverage = cmapCoverage(cmap, maxp.numGlyphs, advanceWidth),
             // decode 'fvar' table if present
-            fvar = await this.decodeSfntTable(header, 'fvar', this.fvarTable);
+            fvar = await this.decodeSfntTable(header, 'fvar', this.fvarTable),
+            // create base font data object
+            data: FontData = { family, style, coverage };
+        // add ttcSubfont field if this is from a true type collection
+        if (ttc) data.ttcSubfont = header;
         // check for fvar variants
         if (fvar) {
             // create fvar axis map
@@ -504,18 +506,22 @@ export default class FontDecoder extends FontReader {
                 }
                 // yield fvar instance data
                 yield {
-                    family,
-                    coverage,
+                    ...data,
                     style: extendFontStyle(style, axes, names[sfNameID]!, coords),
                     fvarInstance: { coords, defscore },
                 };
             }
         } else {
-            yield { family, style, coverage };
+            yield data;
         }
     }
 
-    private async* decodeFonts(checkName: boolean): AsyncGenerator<FontData> {
+    /**
+     * Calls the provided decoder callback function on each font in the file
+     */
+    private async* decodeAll<T>(
+        decoder: (this: FontDecoder, header: SfntHeader, ttc: boolean) => AsyncGenerator<T>,
+    ): AsyncGenerator<T> {
         try {
             // read first 4 bytes of the font file
             await this.read(4);
@@ -527,8 +533,8 @@ export default class FontDecoder extends FontReader {
                 case 0x00010000: { // true type outlines
                     // decode sfnt font header
                     const header = await this.sfntHeader();
-                    // extract system font info
-                    yield* this.decodeSfntSystemFonts(header, checkName);
+                    // call decoder callback
+                    yield* decoder.call(this, header, false);
                     break;
                 }
                 // 'ttcf'
@@ -539,10 +545,7 @@ export default class FontDecoder extends FontReader {
                     const headers = await this.ttcHeaders();
                     // loop through ttc subfonts
                     for (const header of headers) {
-                        // extract system font info from the subfont
-                        for await (const font of this.decodeSfntSystemFonts(header, checkName)) {
-                            yield { ...font, ttcSubfont: header };
-                        }
+                        yield* decoder.call(this, header, true);
                     }
                     break;
                 }
@@ -550,8 +553,12 @@ export default class FontDecoder extends FontReader {
                     throw new Error('woff font decoding is not supported');
                 case 0x774F4632: // 'wOF2'
                     throw new Error('woff2 font decoding is not supported');
+                case 0x504b0304:
+                case 0x504B0506:
+                case 0x504B0708:
+                    throw new Error('zip files are not supported');
                 default:
-                    throw new Error(`Invalid font signature ${type}`);
+                    throw new Error(`invalid font signature ${type}`);
             }
         } finally {
             await this.close();
@@ -559,77 +566,41 @@ export default class FontDecoder extends FontReader {
     }
 
     /**
-     * Decode a font buffer and extract font info
-     * @param buffer - font buffer to decode
+     * Decode a font file or buffer and extract font info
+     * @param source - font file or buffer to decode
      */
-    async decodeBufferFonts(buffer: Buffer): Promise<FontData[]> {
-        this.setBuffer(buffer);
+    async* decodeFonts(source: string | Buffer): AsyncGenerator<FontData> {
+        // set source
+        if (typeof source === 'string') this.filePath = source;
+        else this.setBuffer(source);
+        // decode all fonts
+        yield* this.decodeAll(this.decodeSfntSystemFonts);
+    }
+
+    /**
+     * Decodes all fonts in a file. Only used during testing
+     * @internal
+     */
+    async decodeFontsArray(source: string | Buffer): Promise<FontData[]> {
         // create array to store font data
         const fonts: FontData[] = [];
         // decode fonts
-        for await (const font of this.decodeFonts(false)) {
+        for await (const font of this.decodeFonts(source)) {
             fonts.push(font);
         }
         return fonts;
     }
 
     /**
-     * Decode a font file and extract system font info
-     * @param filePath - file path string
-     */
-    async decodeFileFonts(filePath: string): Promise<SystemFont[]> {
-        this.filePath = filePath;
-        // create array to store system font data
-        const fonts: SystemFont[] = [];
-        // decode fonts
-        for await (const font of this.decodeFonts(true)) {
-            fonts.push({ filePath, ...font });
-        }
-        return fonts;
-    }
-
-    /**
-     * Calls the provided decoder callback function on each font in the file
-     */
-    private async* decodeAll<T>(decoder: DecodeCallback<T>): AsyncGenerator<T> {
-        try {
-            // read first 4 bytes of the font file
-            await this.read(4);
-            const type = this.buf.readUInt32BE(this.buf_pos); // this.uint32();
-            switch (type) {
-                case 0x4F54544F: // 'OTTO' -> open type with CFF data (version 1 or 2)
-                case 0x74727565: // 'true'
-                case 0x74797031: // 'typ1'
-                case 0x00010000: // true type outlines
-                    yield (await decoder.call(this, await this.sfntHeader()));
-                    break;
-                // 'ttcf'
-                case 0x74746366:
-                    // initialize memoization lookup avoid re-decoding shared tables
-                    this.memoized = {};
-                    // decode ttc subfont headers
-                    for (const header of (await this.ttcHeaders())) {
-                        yield (await decoder.call(this, header));
-                    }
-                    break;
-                case 0x774F4646: // 'wOFF'
-                    throw new Error('woff font decoding is not supported');
-                case 0x774F4632: // 'wOF2'
-                    throw new Error('woff2 font decoding is not supported');
-                default:
-                    throw new Error(`Invalid font signature ${type}`);
-            }
-        } finally {
-            await this.close();
-        }
-    }
-
-    /**
-     * Calls the provided decoder callback function on the first font in the file. Only used testing
+     * Calls the provided decoder callback function on the first font in the file. Only used during testing
      * @internal
      */
-    async decodeFirst<T>(decoder: DecodeCallback<T>): Promise<T> {
-        const each = this.decodeAll(decoder),
+    async decodeFirst<T>(
+        decoder: (this: FontDecoder, header: SfntHeader, ttc: boolean) => T | PromiseLike<T>,
+    ): Promise<T> {
+        const each = this.decodeAll(async function* wrapper(...args) {
+                yield (await decoder.call(this, ...args));
+            }),
             { value } = (await each.next()) as IteratorYieldResult<T>;
         // finish the generator to close the file
         await each.return(null);

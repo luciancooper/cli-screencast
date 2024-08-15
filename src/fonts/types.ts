@@ -70,15 +70,21 @@ export interface FontData {
     ttcSubfont?: SfntHeader
 }
 
+export interface FontSource {
+    file: string | URL
+    specified?: boolean
+    installed?: boolean
+}
+
 /**
  * Information about a single system font style
  */
 export interface SystemFont extends FontData {
-    filePath: string
+    src: FontSource
 }
 
 export interface SystemFontData {
-    filePath: string
+    src: FontSource
     style: 'italic' | 'normal'
     weight: FontStyle['weight']
     fvar?: [axis: string, value: number][]
@@ -101,7 +107,8 @@ export interface ResolvedFontAccumulator {
 }
 
 export interface EmbeddedFontAccumulator {
-    css: string[]
+    png: string[] | null
+    svg: string[] | null
     family: string[]
 }
 

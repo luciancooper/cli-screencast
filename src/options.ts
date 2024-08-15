@@ -26,6 +26,7 @@ const defaultOutputOptions: Required<OutputOptions> = {
     outputPath: undefined,
     scaleFactor: 4,
     embedFonts: true,
+    fonts: undefined,
 };
 
 export function applyDefOutputOptions(options: OutputOptions) {

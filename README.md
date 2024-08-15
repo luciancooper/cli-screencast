@@ -223,6 +223,13 @@ Embed required fonts when rendering to svg, Defaults to `true`.
 
 **Note:** This option is only applicable when rendering to svg.
 
+<a name='options.fonts'></a>
+› &nbsp; **fonts** &nbsp;•&nbsp; `string[]`
+
+Array of font file paths or urls to resolve fonts from. These fonts will supplement any locally installed system fonts. Default is `undefined`.
+
+**Note:** woff, woff2, and zip files are not supported.
+
 > ### *Capture Related Options*
 
 <a name='options.writeMergeThreshold'></a>

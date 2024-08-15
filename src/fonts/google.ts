@@ -1,7 +1,7 @@
-import https from 'https';
 import type { AnsiCode, ContentSubsets } from './content';
 import { CodePointRange, type GraphemeSet } from './range';
 import type { ResolvedFontFamily, ResolvedFontAccumulator, EmbeddedFontAccumulator } from './types';
+import { fetchData } from './utils';
 import log from '../logger';
 
 const StyleID = ['400', '700', '400i', '700i'] as const;
@@ -24,47 +24,6 @@ const StyleParams: Record<string, string> = {
 
 // user-agent for requests to fonts.googleapis.com/css2
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36';
-
-interface FetchResponse {
-    /** http status code */
-    status: number
-    /** 'content-type' response header */
-    type?: string
-    /** request response data buffer */
-    data?: Buffer
-}
-
-/**
- * Make a GET request
- * @param req - request url or options object
- * @returns fetched data
- */
-export function fetchData(req: string | https.RequestOptions): Promise<FetchResponse> {
-    return new Promise((resolve, reject) => {
-        https.get(typeof req === 'string' ? encodeURI(req) : req, (res) => {
-            const status = res.statusCode!;
-            if (status >= 400) {
-                res.on('end', () => {
-                    resolve({ status });
-                });
-                res.resume();
-                return;
-            }
-            const chunks: Uint8Array[] = [];
-            // handle response chunks
-            res.on('data', (chunk: Buffer) => {
-                chunks.push(chunk);
-            });
-            // response complete
-            res.on('end', () => {
-                const type = res.headers['content-type'] ?? '';
-                resolve({ status, type, data: Buffer.concat(chunks) });
-            });
-        }).on('error', (err) => {
-            reject(err);
-        });
-    });
-}
 
 /**
  * The google fonts api does not include variation selectors within the code points provided by
@@ -175,9 +134,11 @@ export async function resolveGoogleFont(
 export async function embedGoogleFont(
     embedded: EmbeddedFontAccumulator,
     { name, fonts }: Omit<ResolvedGoogleFontFamily, 'type'>,
-    { forPng, fullCoverage }: { forPng: boolean, fullCoverage: boolean },
+    fullCoverage: boolean,
 ) {
-    if (fonts.length) log.debug("embedding font %s google font family '%s'", forPng ? 'css for' : 'subset from', name);
+    if (fonts.length) {
+        log.debug("embedding font %s google font family '%s'", embedded.svg ? 'subset from' : 'css for', name);
+    }
     // add family name to the font-family list
     if (fonts.length || !fullCoverage) embedded.family.push(name);
     // fetch font style character subsets
@@ -205,32 +166,36 @@ export async function embedGoogleFont(
         css = css.replace(/^\/\* .+\*\/\n/gm, '').trim();
         // remove newlines & extra whitespace from each @font-face declaration
         css = css.split(/\n(?=@font-face)/g).map((fontFace) => fontFace.replace(/\s*\n\s*/g, '').trim()).join('\n');
-        if (!forPng) {
-            // build a base-64 css string
-            let [base64, idx] = ['', 0];
-            // find all font urls to replace in css code
-            for (let regex = /url\((https?:\/\/.+?)\)/g, m = regex.exec(css); m; m = regex.exec(css)) {
-                // add preceeding css & the src descriptor
-                base64 += css.slice(idx, m.index);
-                // update index within the css source
-                idx = m.index + m[0].length;
-                // fetch font from the source url
-                let fontData = m[0];
-                try {
-                    const res = await fetchData(m[1]!);
-                    if (res.status === 200) {
-                        fontData = `url(data:${res.type!};charset=utf-8;base64,${res.data!.toString('base64')})`;
-                    } else log.warn('received response status %k when attempting fetch google font data', res.status);
-                } catch (error) {
-                    log.warn('error occured fetching google font data:\n  %e', { error });
-                }
-                // replace the url in the css source code with fetched data base64 encoded
-                base64 += fontData;
+        // if embedding css for png, add code with urls in it
+        embedded.png?.push(css);
+        // stop if not embedding for svg
+        if (!embedded.svg) continue;
+        // build a base-64 css string
+        let [base64, idx] = ['', 0];
+        // find all font urls to replace in css code
+        for (let regex = /url\((https?:\/\/.+?)\)/g, m = regex.exec(css); m; m = regex.exec(css)) {
+            // add preceeding css & the src descriptor
+            base64 += css.slice(idx, m.index);
+            // update index within the css source
+            idx = m.index + m[0].length;
+            // fetch font from the source url
+            let fontData = m[0];
+            try {
+                const res = await fetchData(m[1]!);
+                if (res.status === 200) {
+                    // sometimes google fonts api returns woff2 data with a 'content-type' text/html header.
+                    const type = res.type?.startsWith('font/') ? res.type : 'font/woff2';
+                    fontData = `url(data:${type};charset=utf-8;base64,${res.data!.toString('base64')})`;
+                } else log.warn('received response status %k when attempting to fetch google font data', res.status);
+            } catch (error) {
+                log.warn('error occured fetching google font data:\n  %e', { error });
             }
-            // return css with font urls replace with base64 encoded versions
-            css = base64 + css.slice(idx);
+            // replace the url in the css source code with fetched data base64 encoded
+            base64 += fontData;
         }
+        // return css with font urls replace with base64 encoded versions
+        css = base64 + css.slice(idx);
         // add css block to embedded font data
-        embedded.css.push(css);
+        embedded.svg.push(css);
     }
 }
