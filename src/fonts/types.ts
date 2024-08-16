@@ -1,3 +1,4 @@
+import type { URL } from 'url';
 import type { CodePointRange } from './range';
 
 export interface FontStyle {
