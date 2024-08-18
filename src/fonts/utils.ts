@@ -79,9 +79,10 @@ async function extractTtcFont(file: string | URL, header: SfntHeader): Promise<B
     // calculate byte length of subfont
     const tableSpans: [destOffset: number, srcOffset: number, bytes: number][] = [];
     let size = 12 + header.tables.length * 16;
-    for (const table of header.tables) {
-        tableSpans.push([size, table.offset, table.bytes]);
-        size += table.bytes;
+    for (const { offset, bytes } of header.tables) {
+        tableSpans.push([size, offset, bytes]);
+        // tables need to be properly aligned
+        size += bytes + ((bytes % 4) ? (4 - (bytes % 4)) : 0);
     }
     // allocate a dest buffer to write extracted subfont to
     const buf = Buffer.alloc(size);
