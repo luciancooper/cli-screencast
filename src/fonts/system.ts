@@ -1,4 +1,5 @@
 import { resolve as resolvePath } from 'path';
+import { promises as fs } from 'fs';
 import systemFontPaths from 'system-font-paths';
 import { compress as woff2Compress } from 'wawoff2';
 import type { Optionalize } from '../types';
@@ -6,7 +7,7 @@ import type { ContentSubsets } from './content';
 import type { SystemFont, SystemFontData, ResolvedFontFamily, ResolvedFontAccumulator, EmbeddedFontAccumulator } from './types';
 import FontDecoder from './decoder';
 import { CodePointRange, type MeasuredGraphemeSet } from './range';
-import { parseUrl, fetchFont, getFontBuffer } from './utils';
+import { parseUrl, getFontBuffer } from './utils';
 import { styleAnsiMatchPriority } from './style';
 import { subsetFontFile } from './subset';
 import log from '../logger';
@@ -22,59 +23,65 @@ export async function getSystemFonts({ match, fonts = [] }: Optionalize<{ match?
     for (const fontSrc of fonts) {
         const url = parseUrl(fontSrc);
         if (url) {
-            const buffer = await fetchFont(url);
-            if (!buffer) continue;
             try {
                 // decode the downloaded font buffer
-                const src = { file: url, specified: true };
-                for await (const font of decoder.decodeFonts(buffer)) {
+                for await (const font of decoder.decodeFonts({ file: url, specified: true })) {
                     families[font.family] ||= [];
-                    families[font.family]!.push({ src, ...font });
+                    families[font.family]!.push(font);
                 }
             } catch (error: unknown) {
                 log.warn('error decoding font fetched from %S: %s', url.href, (error as { message: string }).message);
             }
             continue;
         }
-        const filePath = resolvePath(fontSrc);
+        const file = resolvePath(fontSrc);
         try {
             // check if this font is installed locally as a system font
-            const idx = systemFonts.indexOf(filePath);
+            const idx = systemFonts.indexOf(file);
             if (idx >= 0) systemFonts.splice(idx, 1);
             // decode the font file
-            const src = { file: filePath, specified: true, installed: idx >= 0 };
-            for await (const font of decoder.decodeFonts(filePath)) {
+            for await (const font of decoder.decodeFonts({ file, specified: true, installed: idx >= 0 })) {
                 families[font.family] ||= [];
-                families[font.family]!.push({ src, ...font });
+                families[font.family]!.push(font);
             }
         } catch (error: unknown) {
             switch ((error as { code?: string }).code) {
                 case 'EISDIR':
-                    log.warn('specified font path: %S is a directory', filePath);
+                    log.warn('specified font path: %S is a directory', file);
                     break;
                 case 'ENOENT':
-                    log.warn('specified font path: %S does not exist', filePath);
+                    log.warn('specified font path: %S does not exist', file);
                     break;
                 default:
-                    log.warn('error decoding font path %S: %s', filePath, (error as { message: string }).message);
+                    log.warn('error decoding font path %S: %s', file, (error as { message: string }).message);
                     break;
             }
         }
     }
     // extract system font info from each system font file
-    for (const filePath of systemFonts) {
+    for (const file of systemFonts) {
         try {
             // decode the system font file
-            const src = { file: filePath, installed: true };
-            for await (const font of decoder.decodeFonts(filePath)) {
+            for await (const font of decoder.decodeFonts({ file, installed: true })) {
                 families[font.family] ||= [];
-                families[font.family]!.push({ src, ...font });
+                families[font.family]!.push(font);
             }
         } catch (e) {
             continue;
         }
     }
     return families;
+}
+
+export function systemFontData(font: SystemFont): SystemFontData {
+    const data: SystemFontData = {
+        src: font.src,
+        style: font.style.slant ? 'italic' : 'normal',
+        weight: font.style.weight,
+    };
+    if (font.fvarInstance) data.fvar = [...Object.entries(font.fvarInstance.coords)];
+    if (font.ttcSubfont) data.ttcSubfont = font.ttcSubfont;
+    return data;
 }
 
 type ResolvedSystemFontFamily = Extract<ResolvedFontFamily, { type: 'system' }>;
@@ -120,13 +127,7 @@ export async function resolveSystemFont(
         // add to columnWidth array
         columnWidth.push(...chars.widthDistribution());
         // create font data object
-        const data: SystemFontData = {
-            src: font.src,
-            style: font.style.slant ? 'italic' : 'normal',
-            weight: font.style.weight,
-        };
-        if (font.fvarInstance) data.fvar = [...Object.entries(font.fvarInstance.coords)];
-        if (font.ttcSubfont) data.ttcSubfont = font.ttcSubfont;
+        const data = systemFontData(font);
         // add this font to accumulated family object
         resolved.push({ data, chars: chars.string() });
     }
@@ -163,6 +164,23 @@ async function cssFontUrl(buf: Buffer) {
     }
 }
 
+async function cssPngFontSrc(data: Pick<SystemFontData, 'src' | 'ttcSubfont'>) {
+    // shortcut for remote fonts that are not within font collections
+    if (!data.ttcSubfont && typeof data.src.file !== 'string') {
+        return `url(${data.src.file.href}) format(${data.src.woff2 ? 'woff2' : 'opentype'})`;
+    }
+    // shortcut for local woff2 fonts that are not within font collections
+    if (!data.ttcSubfont && data.src.woff2) {
+        return `url(data:font/woff2;charset=utf-8;base64,${
+            (await fs.readFile(data.src.file)).toString('base64')
+        }) format(woff2)`;
+    }
+    // if font is in a ttc collection it must be extracted, or else style variations will not work
+    const buf = await getFontBuffer(data);
+    if (!buf) return null;
+    return cssFontUrl(buf);
+}
+
 function cssFontFace(family: string, { style, weight }: Pick<SystemFontData, 'style' | 'weight'>, src: string) {
     return '@font-face {'
         + `font-family:'${family}';`
@@ -183,15 +201,8 @@ export async function embedSystemFont(
     for (const { data, chars } of fonts) {
         // check for fonts that are not locally installed when embedding for png
         if (embedded.png && !data.src.installed) {
-            let src: string;
-            if (typeof data.src.file === 'string') {
-                const buf = await getFontBuffer(data);
-                if (!buf) continue;
-                src = await cssFontUrl(buf);
-            } else {
-                src = `url(${data.src.file.href}) format(opentype)`;
-            }
-            embedded.png.push(cssFontFace(name, data, src));
+            const src = await cssPngFontSrc(data);
+            if (src) embedded.png.push(cssFontFace(name, data, src));
         }
         // stop if not embedding for svg
         if (!embedded.svg) continue;

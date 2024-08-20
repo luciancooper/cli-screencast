@@ -6,10 +6,19 @@ import { URL } from 'url';
 import { resolveTitle } from '@src/parser';
 import { applyLoggingOptions, resetLogLevel } from '@src/logger';
 import { GraphemeSet } from '@src/fonts/range';
+import FontDecoder from '@src/fonts/decoder';
 import extractContentSubsets, { createContentSubsets, type ContentSubsets } from '@src/fonts/content';
-import { getSystemFonts, resolveSystemFont, embedSystemFont } from '@src/fonts/system';
+import { getSystemFonts, systemFontData, resolveSystemFont, embedSystemFont } from '@src/fonts/system';
 import { fetchGoogleFontMetadata, resolveGoogleFont, embedGoogleFont, type GoogleFontMetadata } from '@src/fonts/google';
-import type { ResolvedFontFamily, ResolvedFontAccumulator, EmbeddedFontAccumulator, SfntHeader, FontSource, SystemFont } from '@src/fonts/types';
+import type {
+    ResolvedFontFamily,
+    ResolvedFontAccumulator,
+    EmbeddedFontAccumulator,
+    SfntHeader,
+    FontSource,
+    SystemFont,
+    SystemFontData,
+} from '@src/fonts/types';
 import { resolveFonts, embedFontCss, type ResolvedFontData, type EmbeddedFontData } from '@src/fonts';
 import { makeLine } from './helpers/objects';
 
@@ -55,12 +64,29 @@ const fontFiles = {
         file: resolvePath(__dirname, './fixtures/decoder.ttf'),
         installed: false,
     },
+    ConsolasWoff2: {
+        file: resolvePath(__dirname, './fonts/Consola.woff2'),
+        installed: false,
+        specified: true,
+        woff2: true,
+    },
+    CourierWoff2: {
+        file: resolvePath(__dirname, './fonts/Courier.woff2'),
+        installed: false,
+        specified: true,
+        woff2: true,
+    },
 } satisfies Record<string, FontSource>;
 
 const remoteFonts = {
     Consolas: {
         file: new URL('https://fontlib.s3.amazonaws.com/Consolas/Consola.ttf'),
         specified: true,
+    },
+    CascadiaCodeWoff2: {
+        file: new URL('https://fontlib.s3.amazonaws.com/CascadiaCode/woff2/CascadiaCode.woff2'),
+        specified: true,
+        woff2: true,
     },
     CascadiaCodeRegular: {
         file: new URL('https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCode-Regular.ttf'),
@@ -73,6 +99,11 @@ const remoteFonts = {
     Courier: {
         file: new URL('https://fontlib.s3.amazonaws.com/Courier/Courier.ttc'),
         specified: true,
+    },
+    PTMonoWoff2: {
+        file: new URL('https://fontlib.s3.amazonaws.com/PTMono/PTMono.woff2'),
+        specified: true,
+        woff2: true,
     },
 } satisfies Record<string, FontSource>;
 
@@ -197,15 +228,23 @@ describe('getSystemFonts', () => {
             fonts: [
                 fontFiles.Decoder.file,
                 fontFiles.Menlo.file,
+                fontFiles.CourierWoff2.file,
                 remoteFonts.Consolas.file.href,
                 remoteFonts.CascadiaCodeRegular.file.href,
                 remoteFonts.CascadiaCodeItalic.file.href,
+                remoteFonts.PTMonoWoff2.file.href,
             ],
         })).resolves.toMatchObject({
             ...resolvedSystemFonts,
             Menlo: resolvedSystemFonts.Menlo.map((f) => ({ ...f, src: { ...fontFiles.Menlo, specified: true } })),
             Decoder: [
                 { style: { weight: 400, width: 5, slant: 0 }, src: { ...fontFiles.Decoder, specified: true } },
+            ],
+            Courier: [
+                { style: { weight: 400, width: 5, slant: 0 }, src: fontFiles.CourierWoff2 },
+                { style: { weight: 700, width: 5, slant: 0 }, src: fontFiles.CourierWoff2 },
+                { style: { weight: 400, width: 5, slant: 1 }, src: fontFiles.CourierWoff2 },
+                { style: { weight: 700, width: 5, slant: 1 }, src: fontFiles.CourierWoff2 },
             ],
             Consolas: [
                 { style: { weight: 400, width: 5, slant: 0 }, src: remoteFonts.Consolas },
@@ -214,6 +253,10 @@ describe('getSystemFonts', () => {
                 { style: { weight: 400, width: 5, slant: 0 }, src: remoteFonts.CascadiaCodeRegular },
                 { style: { weight: 400, width: 5, slant: 2 }, src: remoteFonts.CascadiaCodeItalic },
                 ...resolvedSystemFonts['Cascadia Code'],
+            ],
+            'PT Mono': [
+                { style: { weight: 700, width: 5, slant: 0 }, src: remoteFonts.PTMonoWoff2 },
+                { style: { weight: 400, width: 5, slant: 0 }, src: remoteFonts.PTMonoWoff2 },
             ],
         });
     });
@@ -225,8 +268,8 @@ describe('getSystemFonts', () => {
                 __dirname,
                 // this is a broken url (file does not exist)
                 'https://fontlib.s3.amazonaws.com/CascadiaCode/woff2/static/CascadiaCode.woff2',
-                // this is an unsupported woff2 font
-                'https://fontlib.s3.amazonaws.com/CascadiaCode/woff2/static/CascadiaCode-Regular.woff2',
+                // this is an unsupported woff font
+                'https://fontlib.s3.amazonaws.com/Consolas/woff/Consola.woff',
                 // this file doesn't exist
                 resolvePath(__dirname, './fonts/Consola.ttf'),
                 // unsupported zip file
@@ -539,18 +582,16 @@ describe('embedGoogleFont', () => {
 describe('embedSystemFont', () => {
     type ResolvedSystemFontData = Omit<Extract<ResolvedFontFamily, { type: 'system' }>, 'type'>;
 
-    function fontData(name: string, src: FontSource, chars: string): ResolvedSystemFontData {
-        return { name, fonts: [{ data: { src, style: 'normal', weight: 400 }, chars }] };
+    function fontData(name: string, info: FontSource | SystemFontData, chars: string): ResolvedSystemFontData {
+        const data: SystemFontData = ('file' in info) ? { src: info, style: 'normal', weight: 400 } : info;
+        return { name, fonts: [{ data, chars }] };
     }
 
-    let systemFonts: Record<string, SystemFont[]>;
-
-    beforeAll(async () => {
-        systemFonts = await getSystemFonts({
-            match: ['Courier'],
-            fonts: [remoteFonts.Courier.file.href],
-        });
-    });
+    async function decodeFonts(src: FontSource) {
+        const fonts: SystemFontData[] = [];
+        for await (const font of new FontDecoder().decodeFonts({ ...src })) fonts.push(systemFontData(font));
+        return fonts;
+    }
 
     test('does not add font family name if no fonts were resolved and full coverage is true', async () => {
         const embedded: EmbeddedFontAccumulator = { svg: [], png: null, family: [] };
@@ -574,42 +615,10 @@ describe('embedSystemFont', () => {
         });
     });
 
-    test('embedding for png with specified url sources', async () => {
-        const embedded: EmbeddedFontAccumulator = { png: [], svg: null, family: [] };
-        await embedSystemFont(embedded, fontData('Consolas', remoteFonts.Consolas, 'abc'), true);
-        expect(embedded).toStrictEqual<typeof embedded>({
-            png: [expect.stringMatching(/^@font-face \{.*?src:url\(https:.*?\}$/) as string],
-            svg: null,
-            family: ['Consolas'],
-        });
-    });
-
-    test('embedding for png with non-installed font file sources', async () => {
-        const embedded: EmbeddedFontAccumulator = { png: [], svg: null, family: [] },
-            data = fontData('Monaco', { ...fontFiles.Monaco, installed: false, specified: true }, 'abc');
-        await embedSystemFont(embedded, data, true);
-        expect(embedded).toStrictEqual<typeof embedded>({
-            png: [expect.stringMatching(/^@font-face \{.*?src:url\(data:font\/woff2;charset=utf-8;base64.*?\}$/) as string],
-            svg: null,
-            family: ['Monaco'],
-        });
-    });
-
     test('embedding a remote ttc subfont', async () => {
-        const embedded: EmbeddedFontAccumulator = { png: null, svg: [], family: [] },
-            { style, ttcSubfont } = systemFonts['Courier']![0]!;
-        await embedSystemFont(embedded, {
-            name: 'Courier',
-            fonts: [{
-                data: {
-                    src: remoteFonts.Courier,
-                    style: style.slant ? 'italic' : 'normal',
-                    weight: style.weight,
-                    ttcSubfont: ttcSubfont!,
-                },
-                chars: 'abc',
-            }],
-        }, true);
+        const fonts = await decodeFonts(remoteFonts.Courier),
+            embedded: EmbeddedFontAccumulator = { svg: [], png: null, family: [] };
+        await embedSystemFont(embedded, fontData('Courier', fonts[0]!, 'abc'), true);
         expect(embedded).toStrictEqual<typeof embedded>({
             svg: [expect.stringMatching(/^@font-face \{.*?src:url\(data:font\/woff2;charset=utf-8;base64.*?\}$/) as string],
             png: null,
@@ -617,21 +626,74 @@ describe('embedSystemFont', () => {
         });
     });
 
-    test('http error fetching a remote font', async () => {
-        nock('https://fontlib.s3.amazonaws.com').get(() => true).replyWithError('mocked network error');
-        const embedded: EmbeddedFontAccumulator = { png: null, svg: [], family: [] };
-        await embedSystemFont(embedded, fontData('Consolas', remoteFonts.Consolas, 'abc'), true);
-        expect(embedded).toStrictEqual<typeof embedded>({ svg: [], png: null, family: ['Consolas'] });
+    describe('embedding for png', () => {
+        test('specified url source', async () => {
+            const embedded: EmbeddedFontAccumulator = { png: [], svg: null, family: [] };
+            await embedSystemFont(embedded, fontData('Consolas', remoteFonts.Consolas, 'abc'), true);
+            expect(embedded).toStrictEqual<typeof embedded>({
+                png: [expect.stringMatching(/^@font-face \{.*?src:url\(https:.*?\) format\(opentype\).*?\}$/) as string],
+                svg: null,
+                family: ['Consolas'],
+            });
+        });
+
+        test('specified woff2 url source', async () => {
+            const embedded: EmbeddedFontAccumulator = { png: [], svg: null, family: [] };
+            await embedSystemFont(embedded, fontData('Cascadia Code', remoteFonts.CascadiaCodeWoff2, 'abc'), true);
+            expect(embedded).toStrictEqual<typeof embedded>({
+                png: [expect.stringMatching(/^@font-face \{.*?src:url\(https:.*?\) format\(woff2\).*?\}$/) as string],
+                svg: null,
+                family: ['Cascadia Code'],
+            });
+        });
+
+        test('specified font file sources', async () => {
+            const embedded: EmbeddedFontAccumulator = { png: [], svg: null, family: [] },
+                data = fontData('Monaco', { ...fontFiles.Monaco, installed: false, specified: true }, 'abc');
+            await embedSystemFont(embedded, data, true);
+            expect(embedded).toStrictEqual<typeof embedded>({
+                png: [expect.stringMatching(/^@font-face \{.*?src:url\(data:font\/woff2;charset=utf-8;base64.*?\}$/) as string],
+                svg: null,
+                family: ['Monaco'],
+            });
+        });
+
+        test('specified woff2 font file source', async () => {
+            const embedded: EmbeddedFontAccumulator = { png: [], svg: null, family: [] };
+            await embedSystemFont(embedded, fontData('Consolas', fontFiles.ConsolasWoff2, 'abc'), true);
+            expect(embedded).toStrictEqual<typeof embedded>({
+                png: [expect.stringMatching(/^@font-face \{.*?src:url\(data:font\/woff2;charset=utf-8;base64.*?\}$/) as string],
+                svg: null,
+                family: ['Consolas'],
+            });
+        });
     });
 
-    test('wawoff2 compression error', async () => {
-        (woff2Compress as jest.Mock).mockRejectedValueOnce(new Error('woff2 compression error'));
-        const embedded: EmbeddedFontAccumulator = { svg: [], png: null, family: [] };
-        await embedSystemFont(embedded, fontData('Monaco', fontFiles.Monaco, 'abc'), true);
-        expect(embedded).toStrictEqual<typeof embedded>({
-            svg: [expect.stringMatching(/^@font-face \{.*?src:url\(data:font\/ttf;charset=utf-8;base64.*?\}$/) as string],
-            png: null,
-            family: ['Monaco'],
+    describe('errors', () => {
+        test('http error fetching a remote font', async () => {
+            nock('https://fontlib.s3.amazonaws.com').get(() => true).replyWithError('mocked network error');
+            const embedded: EmbeddedFontAccumulator = { png: null, svg: [], family: [] };
+            await embedSystemFont(embedded, fontData('Consolas', remoteFonts.Consolas, 'abc'), true);
+            expect(embedded).toStrictEqual<typeof embedded>({ svg: [], png: null, family: ['Consolas'] });
+        });
+
+        test('http error fetching a remote ttc font collection', async () => {
+            const fonts = await decodeFonts(remoteFonts.Courier);
+            nock('https://fontlib.s3.amazonaws.com').get(() => true).replyWithError('mocked network error');
+            const embedded: EmbeddedFontAccumulator = { png: [], svg: null, family: [] };
+            await embedSystemFont(embedded, fontData('Courier', fonts[1]!, 'abc'), true);
+            expect(embedded).toStrictEqual<typeof embedded>({ png: [], svg: null, family: ['Courier'] });
+        });
+
+        test('wawoff2 compression error', async () => {
+            (woff2Compress as jest.Mock).mockRejectedValueOnce(new Error('woff2 compression error'));
+            const embedded: EmbeddedFontAccumulator = { svg: [], png: null, family: [] };
+            await embedSystemFont(embedded, fontData('Monaco', fontFiles.Monaco, 'abc'), true);
+            expect(embedded).toStrictEqual<typeof embedded>({
+                svg: [expect.stringMatching(/^@font-face \{.*?src:url\(data:font\/ttf;charset=utf-8;base64.*?\}$/) as string],
+                png: null,
+                family: ['Monaco'],
+            });
         });
     });
 });

@@ -226,9 +226,9 @@ Embed required fonts when rendering to svg, Defaults to `true`.
 <a name='options.fonts'></a>
 › &nbsp; **fonts** &nbsp;•&nbsp; `string[]`
 
-Array of font file paths or urls to resolve fonts from. These fonts will supplement any locally installed system fonts. Default is `undefined`.
+Array of font file paths or urls to resolve fonts from. These fonts will supplement any locally installed system fonts. Supported font types include ttf, otf, ttc, and woff2 formats. Default is `undefined`.
 
-**Note:** woff, woff2, and zip files are not supported.
+**Note:** woff files and zipped font folders are not supported.
 
 > ### *Capture Related Options*
 

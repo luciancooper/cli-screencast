@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import { decompress as wawoff2Decompress } from 'wawoff2';
 import { decodeString } from './encoding';
 
 export default class FontReader {
@@ -29,15 +30,15 @@ export default class FontReader {
         this.buf = Buffer.alloc(0);
     }
 
-    protected setBuffer(source: Buffer) {
+    setBuffer(source: Buffer) {
         this.buf = source;
         // reset position
         this.buf_pos = 0;
         // set the length of the buffer
         this.buf_bytes = Buffer.byteLength(source);
-        // reset file position
+        // set to end of file
         this.fd_pos = 0;
-        this.fd_eof = false;
+        this.fd_eof = true;
         // reset pointer offset
         this.fd_offset = 0;
     }
@@ -83,6 +84,27 @@ export default class FontReader {
         this.fd_eof = false;
         // reset pointer offset
         this.fd_offset = 0;
+    }
+
+    protected async decompressWoff2() {
+        // reset pointer offset
+        this.fd_offset = 0;
+        // ensure entire file is read into buffer
+        if (this.fd_pos !== 0 || !this.fd_eof) {
+            // get file handle for the underlying font file
+            const handle = await this.handle(),
+                // get size of the file in bytes
+                { size } = await handle.stat();
+            // read the entire file
+            await this.read(size, 0);
+        } else {
+            // ensure buf position is reset
+            this.buf_pos = 0;
+        }
+        // decompress woff2 buffer
+        this.buf = Buffer.from(await wawoff2Decompress(this.buf));
+        // reset length of buffer to new decompressed length
+        this.buf_bytes = Buffer.byteLength(this.buf);
     }
 
     /**

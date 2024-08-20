@@ -1,12 +1,13 @@
 import type { Optionalize } from '../types';
 import type {
-    NameRecord, FvarTable, Os2Table, HeadTable, MaxpTable, CmapTable, SfntHeader, FontData,
+    NameRecord, FvarTable, Os2Table, HeadTable, MaxpTable, CmapTable, SfntHeader, FontData, FontSource, SystemFont,
 } from './types';
 import FontReader from './reader';
 import { getEncoding } from './encoding';
 import { getLanguage, localizeNames, caselessMatch } from './names';
 import { getFontStyle, extendFontStyle } from './style';
 import { cmapCoverage, selectCmapRecord, type CmapEncodingRecord } from './cmap';
+import { fetchFont } from './utils';
 
 export default class FontDecoder extends FontReader {
     /** optional list of font family names to match */
@@ -452,7 +453,7 @@ export default class FontDecoder extends FontReader {
         return fontHeaders;
     }
 
-    private async* decodeSfntSystemFonts(header: SfntHeader, ttc: boolean): AsyncGenerator<FontData> {
+    async* decodeSfntSystemFonts(header: SfntHeader, ttc: boolean): AsyncGenerator<FontData> {
         // decode localized 'name' table
         const names = await this.decodeLocalizedNames(header),
             // decode 'OS/2' table
@@ -519,13 +520,23 @@ export default class FontDecoder extends FontReader {
     /**
      * Calls the provided decoder callback function on each font in the file
      */
-    private async* decodeAll<T>(
+    async* decodeAll<T>(
         decoder: (this: FontDecoder, header: SfntHeader, ttc: boolean) => AsyncGenerator<T>,
+        onWoff2?: () => void,
     ): AsyncGenerator<T> {
         try {
             // read first 4 bytes of the font file
             await this.read(4);
-            const type = this.buf.readUInt32BE(this.buf_pos);
+            let type = this.buf.readUInt32BE(this.buf_pos);
+            // check for wOF2
+            if (type === 0x774F4632) {
+                // call the woff2 cb
+                if (onWoff2) onWoff2();
+                // decompress the underlying data
+                await this.decompressWoff2();
+                // read new type from decompressed data
+                type = this.buf.readUInt32BE(this.buf_pos);
+            }
             switch (type) {
                 case 0x4F54544F: // 'OTTO' -> open type with CFF data (version 1 or 2)
                 case 0x74727565: // 'true'
@@ -551,8 +562,6 @@ export default class FontDecoder extends FontReader {
                 }
                 case 0x774F4646: // 'wOFF'
                     throw new Error('woff font decoding is not supported');
-                case 0x774F4632: // 'wOF2'
-                    throw new Error('woff2 font decoding is not supported');
                 case 0x504b0304:
                 case 0x504B0506:
                 case 0x504B0708:
@@ -566,15 +575,26 @@ export default class FontDecoder extends FontReader {
     }
 
     /**
-     * Decode a font file or buffer and extract font info
-     * @param source - font file or buffer to decode
+     * Decode a font file or remote font and extract system font info
+     * @param source - source of the font data to decode
      */
-    async* decodeFonts(source: string | Buffer): AsyncGenerator<FontData> {
-        // set source
-        if (typeof source === 'string') this.filePath = source;
-        else this.setBuffer(source);
+    async* decodeFonts(src: FontSource): AsyncGenerator<SystemFont> {
+        if (typeof src.file !== 'string') {
+            // download font from url
+            const buffer = await fetchFont(src.file);
+            if (!buffer) return;
+            this.setBuffer(buffer);
+        } else {
+            // set font file path
+            this.filePath = src.file;
+        }
+        const woff2 = () => {
+            src.woff2 = true;
+        };
         // decode all fonts
-        yield* this.decodeAll(this.decodeSfntSystemFonts);
+        for await (const font of this.decodeAll(this.decodeSfntSystemFonts, woff2)) {
+            yield { src, ...font };
+        }
     }
 
     /**
@@ -582,10 +602,13 @@ export default class FontDecoder extends FontReader {
      * @internal
      */
     async decodeFontsArray(source: string | Buffer): Promise<FontData[]> {
+        // set source
+        if (typeof source === 'string') this.filePath = source;
+        else this.setBuffer(source);
         // create array to store font data
         const fonts: FontData[] = [];
         // decode fonts
-        for await (const font of this.decodeFonts(source)) {
+        for await (const font of this.decodeAll(this.decodeSfntSystemFonts)) {
             fonts.push(font);
         }
         return fonts;

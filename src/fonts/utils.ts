@@ -1,7 +1,8 @@
 import { URL } from 'url';
 import https from 'https';
 import { promises as fs } from 'fs';
-import type { SystemFontData, SfntHeader } from './types';
+import { decompress } from 'wawoff2';
+import type { SystemFontData } from './types';
 import log from '../logger';
 
 /**
@@ -73,13 +74,23 @@ export async function fetchFont(url: URL) {
 }
 
 /**
- * Extract a subfont from a ttc font collection and encode it as a standalone font
+ * Returns a font buffer for a single font. If the source font is in a font collection, it will be extracted.
+ * Compressed woff2 fonts will be returned decompressed.
  */
-async function extractTtcFont(file: string | URL, header: SfntHeader): Promise<Buffer | null> {
-    // calculate byte length of subfont
+export async function getFontBuffer({ src, ttcSubfont }: Pick<SystemFontData, 'src' | 'ttcSubfont'>) {
+    if (!ttcSubfont) {
+        // get font buffer from file or url
+        let buffer = await ((typeof src.file === 'string') ? fs.readFile(src.file) : fetchFont(src.file));
+        if (!buffer) return null;
+        // decompress if src is woff2 data
+        if (src.woff2) buffer = Buffer.from(await decompress(buffer));
+        return buffer;
+    }
+    // extract subfont from a ttc font collection and encode it as a standalone font
     const tableSpans: [destOffset: number, srcOffset: number, bytes: number][] = [];
-    let size = 12 + header.tables.length * 16;
-    for (const { offset, bytes } of header.tables) {
+    // calculate byte length of subfont
+    let size = 12 + ttcSubfont.tables.length * 16;
+    for (const { offset, bytes } of ttcSubfont.tables) {
         tableSpans.push([size, offset, bytes]);
         // tables need to be properly aligned
         size += bytes + ((bytes % 4) ? (4 - (bytes % 4)) : 0);
@@ -87,13 +98,13 @@ async function extractTtcFont(file: string | URL, header: SfntHeader): Promise<B
     // allocate a dest buffer to write extracted subfont to
     const buf = Buffer.alloc(size);
     // encode header fields
-    buf.writeInt32BE(header.signature, 0);
-    buf.writeUInt16BE(header.numTables, 4);
-    buf.writeUInt16BE(header.searchRange, 6);
-    buf.writeUInt16BE(header.entrySelector, 8);
-    buf.writeUInt16BE(header.rangeShift, 10);
+    buf.writeInt32BE(ttcSubfont.signature, 0);
+    buf.writeUInt16BE(ttcSubfont.numTables, 4);
+    buf.writeUInt16BE(ttcSubfont.searchRange, 6);
+    buf.writeUInt16BE(ttcSubfont.entrySelector, 8);
+    buf.writeUInt16BE(ttcSubfont.rangeShift, 10);
     // encode each table & table record
-    for (const [i, table] of header.tables.entries()) {
+    for (const [i, table] of ttcSubfont.tables.entries()) {
         // get the remapped offset for this table
         const [offset] = tableSpans[i]!;
         // encode table record
@@ -102,40 +113,36 @@ async function extractTtcFont(file: string | URL, header: SfntHeader): Promise<B
         buf.writeUInt32BE(offset, 20 + i * 16);
         buf.writeUInt32BE(table.bytes, 24 + i * 16);
     }
-    if (typeof file !== 'string') {
-        const fontBuffer = await fetchFont(file);
-        if (!fontBuffer) return null;
-        for (const [offset, srcOffset, bytes] of tableSpans) {
-            // read table bytes from file to the dest buffer
-            fontBuffer.copy(buf, offset, srcOffset, srcOffset + bytes);
-        }
-        return buf;
-    }
-    let fd: fs.FileHandle | null = null;
-    try {
-        // open the ttc font file
-        fd = await fs.open(file, 'r');
-        // encode each table & table record
-        for (const [offset, srcOffset, bytes] of tableSpans) {
-            // read table bytes from file to the dest buffer
-            for (let read = 0; read < bytes;) {
-                const { bytesRead } = await fd.read(buf, offset + read, bytes - read, srcOffset + read);
-                read += bytesRead;
-                if (bytesRead === 0) break;
+    // check if source is a local file that is not woff2 compressed
+    if (typeof src.file === 'string' && !src.woff2) {
+        // copy table data with selective reads from the underlying file.
+        let fd: fs.FileHandle | null = null;
+        try {
+            // open the ttc font file
+            fd = await fs.open(src.file, 'r');
+            // encode each table & table record
+            for (const [offset, srcOffset, bytes] of tableSpans) {
+                // read table bytes from file to the dest buffer
+                for (let read = 0; read < bytes;) {
+                    const { bytesRead } = await fd.read(buf, offset + read, bytes - read, srcOffset + read);
+                    read += bytesRead;
+                    if (bytesRead === 0) break;
+                }
             }
+            return buf;
+        } finally {
+            await fd?.close();
         }
-        return buf;
-    } finally {
-        await fd?.close();
     }
-}
-
-export function getFontBuffer({ src, ttcSubfont }: Pick<SystemFontData, 'src' | 'ttcSubfont'>) {
-    if (ttcSubfont) {
-        return extractTtcFont(src.file, ttcSubfont);
+    // else read entire font buffer into memory
+    let fontBuffer = await ((typeof src.file === 'string') ? fs.readFile(src.file) : fetchFont(src.file));
+    if (!fontBuffer) return null;
+    // decompress if src is woff2 data
+    if (src.woff2) fontBuffer = Buffer.from(await decompress(fontBuffer));
+    // copy tables from the source data
+    for (const [offset, srcOffset, bytes] of tableSpans) {
+        // read table bytes from file to the dest buffer
+        fontBuffer.copy(buf, offset, srcOffset, srcOffset + bytes);
     }
-    if (typeof src.file === 'string') {
-        return fs.readFile(src.file);
-    }
-    return fetchFont(src.file);
+    return buf;
 }

@@ -75,6 +75,7 @@ export interface FontSource {
     file: string | URL
     specified?: boolean
     installed?: boolean
+    woff2?: boolean
 }
 
 /**
