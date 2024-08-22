@@ -29,7 +29,7 @@
     "resolveJsonModule": true
   },
   "include": ["**/*", "**/.*"],
-  "exclude": ["lib", "coverage"],
+  "exclude": ["lib", "coverage", "website"],
   "ts-node": {
     "require": ["tsconfig-paths/register"]
   }
