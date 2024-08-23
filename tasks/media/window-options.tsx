@@ -1,4 +1,3 @@
-import path from 'path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { FunctionComponent } from 'react';
 import type { TerminalOptions, OutputOptions } from '@src/types';
@@ -9,7 +8,7 @@ import Context from '@src/render/Context';
 import Window from '@src/render/Window';
 import { resolveContext, type RenderOptions } from '@src/render';
 import { writeToFile } from '@src/utils';
-import log, { setLogLevel } from '@src/logger';
+import log from '@src/logger';
 
 const labelFontProps = {
     fontSize: 12,
@@ -111,7 +110,7 @@ interface DiagramOptions extends Partial<TerminalOptions>, RenderOptions, Pick<O
     insets: [ix: number, iy: number]
 }
 
-async function render({ scaleFactor = 1, insets: [ix, iy], ...options }: DiagramOptions) {
+async function WindowOptionsDiagram({ scaleFactor = 1.25, insets: [ix, iy], ...options }: DiagramOptions) {
     const termProps = applyDefTerminalOptions({ columns: 50, rows: 10, ...options }, { cursorHidden: true }),
         renderProps = applyDefRenderOptions(options),
         title = resolveTitle(termProps.windowTitle, termProps.windowIcon),
@@ -323,7 +322,7 @@ async function render({ scaleFactor = 1, insets: [ix, iy], ...options }: Diagram
             labelFontProps.fonts,
         ),
         { svg: labelCss, fontFamily: labelFontFamily } = await embedFontCss(labelFont, { svg: true, png: false });
-    return renderToStaticMarkup(
+    return (
         <svg
             xmlns='http://www.w3.org/2000/svg'
             xmlnsXlink='http://www.w3.org/1999/xlink'
@@ -347,20 +346,14 @@ async function render({ scaleFactor = 1, insets: [ix, iy], ...options }: Diagram
                     ))}
                 </g>
             </g>
-        </svg>,
+        </svg>
     );
 }
 
-(async () => {
-    // set log level
-    setLogLevel('debug');
-    // target file path
-    const filePath = path.resolve(__dirname, '../media/window-options.svg');
-    // render window options diagram
-    try {
-        log.info('rendering window options diagram');
-        await writeToFile(filePath, await render({
-            scaleFactor: 1.25,
+export default async function render(filePath: string) {
+    log.info('rendering window options diagram');
+    await writeToFile(filePath, renderToStaticMarkup(
+        await WindowOptionsDiagram({
             fontSize: 16,
             insets: [1, 1],
             offsetX: 30,
@@ -371,9 +364,7 @@ async function render({ scaleFactor = 1, insets: [ix, iy], ...options }: Diagram
             windowTitle: 'Title',
             fontFamily: 'Cascadia Code',
             fonts: ['https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCode-Regular.ttf'],
-        }));
-        log.info('wrote window options diagram to %S', filePath);
-    } catch (e: unknown) {
-        console.log(e);
-    }
-})();
+        }),
+    ));
+    log.info('wrote window options diagram to %S', filePath);
+}

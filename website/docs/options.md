@@ -191,4 +191,4 @@ This option is ignored if [`decorations`](#decorations) is `false`.
 
 The following diagram shows how various window rendering related options function:
 
-![Window Icons](../../media/window-options.svg)
+![Window Options](./build/window-options.svg)

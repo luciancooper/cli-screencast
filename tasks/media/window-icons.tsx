@@ -1,10 +1,9 @@
-import path from 'path';
 import type { FunctionComponent, SVGProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { resolveFonts, embedFontCss } from '@src/fonts';
 import icons from '@src/render/icons.json';
 import { writeToFile } from '@src/utils';
-import log, { setLogLevel } from '@src/logger';
+import log from '@src/logger';
 
 interface IconsPreviewProps extends SVGProps<SVGElement> {
     fontSize: number
@@ -77,7 +76,8 @@ const IconsPreview: FunctionComponent<IconsPreviewProps> = ({
     );
 };
 
-async function render() {
+export default async function render(filePath: string) {
+    log.info('rendering window icons diagram');
     // create embedded font
     const { fontColumnWidth, ...resolvedFonts } = await resolveFonts(
             Object.keys(icons).map((k) => `'${k}'`).join(''),
@@ -85,7 +85,8 @@ async function render() {
             ['https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCode-Regular.ttf'],
         ),
         { svg: css, fontFamily } = await embedFontCss(resolvedFonts, { svg: true, png: false });
-    return renderToStaticMarkup(
+    // render svg and save to file
+    await writeToFile(filePath, renderToStaticMarkup(
         <IconsPreview
             fontSize={16}
             lineHeight={1.4}
@@ -100,20 +101,6 @@ async function render() {
             fontFamily={fontFamily}
             css={css}
         />,
-    );
+    ));
+    log.info('wrote window icons diagram to %S', filePath);
 }
-
-(async () => {
-    // set log level
-    setLogLevel('debug');
-    // target file path
-    const filePath = path.resolve(__dirname, '../media/window-icons.svg');
-    // render window icons diagram
-    try {
-        log.info('rendering window icons diagram');
-        await writeToFile(filePath, await render());
-        log.info('wrote window icons diagram to %S', filePath);
-    } catch (e: unknown) {
-        console.log(e);
-    }
-})();

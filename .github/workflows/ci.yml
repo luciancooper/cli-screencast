@@ -3,10 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore: ['**.md', 'website/**']
+    paths-ignore: ['**.md', 'website/**', 'tasks/**']
   pull_request:
     branches: [main]
-    paths-ignore: ['**.md', 'website/**']
+    paths-ignore: ['**.md', 'website/**', 'tasks/**']
   workflow_dispatch:
 
 jobs:

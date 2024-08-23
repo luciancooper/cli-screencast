@@ -23,7 +23,7 @@ yarn website:install
 Start the local development server from this directory:
 
 ```bash
-yarn start
+yarn docusaurus start
 ```
 
 Or from the root of the repo (one level above this directory):
@@ -34,14 +34,8 @@ yarn website:start
 
 ### Build
 
-Build the site from this directory:
+Build the site from the root of the repo (one level above this directory):
 
 ```bash
-yarn build
-```
-
-Or from the root of the repo (one level above this directory):
-
-```bash
-yarn build:start
+yarn website:build
 ```
