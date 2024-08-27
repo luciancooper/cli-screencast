@@ -10,6 +10,7 @@ const config: Config = {
     baseUrl: '/',
     onBrokenLinks: 'throw',
     onBrokenMarkdownLinks: 'warn',
+    favicon: 'build/favicon.ico',
     i18n: {
         defaultLocale: 'en',
         locales: ['en'],
@@ -34,6 +35,11 @@ const config: Config = {
         },
         navbar: {
             title: 'cli-screencast',
+            logo: {
+                alt: 'cli-screencast logo',
+                src: 'build/project-logo.svg',
+                srcDark: 'build/project-logo-dark.svg',
+            },
             items: [
                 {
                     type: 'docSidebar',
