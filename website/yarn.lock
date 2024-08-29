@@ -1498,6 +1498,17 @@
     "@docusaurus/theme-search-algolia" "3.5.2"
     "@docusaurus/types" "3.5.2"
 
+"@docusaurus/remark-plugin-npm2yarn@^3.5.2":
+  version "3.5.2"
+  resolved "https://registry.yarnpkg.com/@docusaurus/remark-plugin-npm2yarn/-/remark-plugin-npm2yarn-3.5.2.tgz#892a63a9b53475d7c59957bd67277656dcd91079"
+  integrity sha512-EAD7R/skPuhW3lWZyDhRuFs3m2EGaR008tuoe6SrFre7PifoxmSCwXk8Nb4VtVRKnnbn4IgHyqq+ma47gGmKwg==
+  dependencies:
+    mdast-util-mdx "^3.0.0"
+    npm-to-yarn "^2.2.1"
+    tslib "^2.6.0"
+    unified "^11.0.3"
+    unist-util-visit "^5.0.0"
+
 "@docusaurus/theme-classic@3.5.2":
   version "3.5.2"
   resolved "https://registry.yarnpkg.com/@docusaurus/theme-classic/-/theme-classic-3.5.2.tgz#602ddb63d987ab1f939e3760c67bc1880f01c000"
@@ -6068,6 +6079,11 @@ npm-run-path@^4.0.1:
   integrity sha512-S48WzZW777zhNIrn7gxOlISNAqi9ZC/uQFnRdbeIHhZhCA6UqpkOT8T1G7BvfdgP4Er8gF4sUbaS0i7QvIfCWw==
   dependencies:
     path-key "^3.0.0"
+
+npm-to-yarn@^2.2.1:
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/npm-to-yarn/-/npm-to-yarn-2.2.1.tgz#048843a6630621daffc6a239dfc89698b8abf7e8"
+  integrity sha512-O/j/ROyX0KGLG7O6Ieut/seQ0oiTpHF2tXAcFbpdTLQFiaNtkyTXXocM1fwpaa60dg1qpWj0nHlbNhx6qwuENQ==
 
 nprogress@^0.2.0:
   version "0.2.0"

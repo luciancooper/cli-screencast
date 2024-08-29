@@ -10,16 +10,10 @@ cli-screencast is an easy to use Node.js package for rendering terminal screensh
 
 ## Installation
 
-Install with `npm`:
+Install the module using your Node.js package manager of choice:
 
-```bash
+```bash npm2yarn
 npm install cli-screencast
-```
-
-Or with `yarn`:
-
-```bash
-yarn add cli-screencast
 ```
 
 ## Usage

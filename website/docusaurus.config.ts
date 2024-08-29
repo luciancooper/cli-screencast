@@ -1,6 +1,7 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import npm2yarnPlugin from '@docusaurus/remark-plugin-npm2yarn';
 
 const config: Config = {
     title: 'cli-screencast',
@@ -21,6 +22,9 @@ const config: Config = {
                 routeBasePath: '/',
                 sidebarPath: './sidebars.ts',
                 sidebarCollapsed: false,
+                remarkPlugins: [
+                    [npm2yarnPlugin, { sync: true }],
+                ],
             },
             blog: false,
             theme: {
