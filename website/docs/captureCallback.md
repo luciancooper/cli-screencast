@@ -15,7 +15,7 @@ Returns a promise that resolves either a `string` if the [`output`](options.md#o
 
 ### Arguments
 
-#### fn &nbsp;•&nbsp; `(capture) => any` {#fn}
+#### fn «!`(capture) => any`» {#fn}
 
 Callback function within which terminal output is captured. Can be synchronous or asynchronous. The callback function will be passed a `NodeCapture` instance.
 
@@ -23,7 +23,7 @@ Callback function within which terminal output is captured. Can be synchronous o
 Within the scope of this function, all writes to `process.stdout` and `process.stderr`, (and by extension calls to `console.log` and `console.error`) will be captured.
 :::
 
-#### options &nbsp;•&nbsp; `Object` {#options}
+#### options «!`Object`» {#options}
 
 A config object to specify the following common options, as well as the additional options listed in the next section.
 
@@ -75,10 +75,10 @@ A config object to specify the following common options, as well as the addition
 
 ### Additional Options
 
-#### silent &nbsp;•&nbsp; `boolean` {#silent}
+#### silent «`boolean`» {#silent}
 
 Silently capture output to `process.stdout` and `process.stderr`. Defaults to `true`.
 
-#### connectStdin &nbsp;•&nbsp; `boolean` {#connectStdin}
+#### connectStdin «`boolean`» {#connectStdin}
 
 Connect capture session to `process.stdin` to capture any input from the user. Defaults to `false`.

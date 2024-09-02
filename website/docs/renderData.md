@@ -15,11 +15,11 @@ Returns a promise that resolves either a `string` if the [`output`](options.md#o
 
 ### Arguments
 
-#### path &nbsp;•&nbsp; `string` {#path}
+#### path «!`string`» {#path}
 
 JSON or YAML data file path containing the screencast data to render.
 
-#### options &nbsp;•&nbsp; `Object` {#options}
+#### options «`Object`» {#options}
 
 A config object to specify the configuration options listed below.
 

@@ -15,15 +15,15 @@ Returns a promise that resolves either a `string` if the [`output`](options.md#o
 
 ### Arguments
 
-#### command &nbsp;•&nbsp; `string` {#command}
+#### command «!`string`» {#command}
 
 The command to run.
 
-#### args &nbsp;•&nbsp; `string[]` {#args}
+#### args «!`string[]`» {#args}
 
 List of string arguments.
 
-#### options &nbsp;•&nbsp; `Object` {#options}
+#### options «!`Object`» {#options}
 
 A config object to specify the following common options, as well as the additional options listed in the next section.
 
@@ -75,27 +75,27 @@ A config object to specify the following common options, as well as the addition
 
 ### Additional Options
 
-#### shell &nbsp;•&nbsp; `boolean | string` {#shell}
+#### shell «`boolean | string`» {#shell}
 
 Run the command inside of a shell. Default is `false`. If true, Unix will try to use the current shell (`process.env.SHELL`), falling back to `/bin/sh` if that fails, while Windows will try to use `process.env.ComSpec`, falling back to `cmd.exe` if that fails. Different shells can be specified using a string. The shell should understand the `-c` switch, or if the shell is `cmd.exe`, it should understand the `/d /s /c` switches.
 
-#### cwd &nbsp;•&nbsp; `string` {#cwd}
+#### cwd «`string`» {#cwd}
 
 Working directory to be set for the child process. Default is `process.cwd()`.
 
-#### env &nbsp;•&nbsp; `Object` {#env}
+#### env «`Object`» {#env}
 
 Environment key-value pairs to be set for the child process. Automatically extends from `process.env`, which can be changed by setting `extendEnv` to `false`. Default is `undefined`.
 
-#### extendEnv &nbsp;•&nbsp; `boolean` {#extendEnv}
+#### extendEnv «`boolean`» {#extendEnv}
 
 The child process environment extends from `process.env`. Defaults to `true`.
 
-#### silent &nbsp;•&nbsp; `boolean` {#silent}
+#### silent «`boolean`» {#silent}
 
 Silently capture the spawned process' stdout and stderr output. If set to `false`, the output of the spawned process will be piped to `process.stdout`. Defaults to `true`.
 
-#### connectStdin &nbsp;•&nbsp; `boolean` {#connectStdin}
+#### connectStdin «`boolean`» {#connectStdin}
 
 Connect spawn to `process.stdin` to capture any input from the user. If the spawned process requires user input to complete, this option must be enabled, or the process will hang. Defaults to `false`.
 
@@ -103,10 +103,10 @@ Connect spawn to `process.stdin` to capture any input from the user. If the spaw
 If `connectStdin` is enabled, the [`silent`](#silent) option must be set to `false`, or omitted.
 :::
 
-#### timeout &nbsp;•&nbsp; `number` {#timeout}
+#### timeout «`number`» {#timeout}
 
 The maximum amount of time the process is allowed to run in milliseconds. If greater than `0`, the spawned process will be killed if it runs longer than the timeout milliseconds. Default is `0`.
 
-#### killSignal &nbsp;•&nbsp; `string` {#killSignal}
+#### killSignal «`string`» {#killSignal}
 
 The signal to be used when the spawned process is killed by `timeout`. Default is `'SIGTERM'`.

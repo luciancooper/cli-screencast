@@ -15,11 +15,11 @@ Returns a promise that resolves either a `string` if the [`output`](options.md#o
 
 ### Arguments
 
-#### content &nbsp;•&nbsp; `string` {#content}
+#### content «!`string`» {#content}
 
 Screen content to render
 
-#### options &nbsp;•&nbsp; `Object` {#options}
+#### options «!`Object`» {#options}
 
 A config object to specify the configuration options listed below.
 

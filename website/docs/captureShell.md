@@ -19,7 +19,7 @@ Returns a promise that resolves either a `string` if the [`output`](options.md#o
 
 ### Arguments:
 
-#### options &nbsp;•&nbsp; `Object` {#options}
+#### options «!`Object`» {#options}
 
 A config object to specify the following common options, as well as the additional options listed in the next section.
 
@@ -67,18 +67,18 @@ A config object to specify the following common options, as well as the addition
 
 ### Additional Options
 
-#### shell &nbsp;•&nbsp; `string` {#shell}
+#### shell «`string`» {#shell}
 
 The shell to run. If unspecified, Unix will try to use the current shell (`process.env.SHELL`), falling back to `/bin/sh` if that fails. Windows will try to use `process.env.ComSpec`, falling back to `cmd.exe` if that fails.
 
-#### cwd &nbsp;•&nbsp; `string` {#cwd}
+#### cwd «`string`» {#cwd}
 
 Working directory to be set for the shell process. Default is `process.cwd()`.
 
-#### env &nbsp;•&nbsp; `Object` {#env}
+#### env «`Object`» {#env}
 
 Environment key-value pairs to be set for the shell process. Automatically extends from `process.env`, which can be changed by setting `extendEnv` to `false`. Default is `undefined`.
 
-#### extendEnv &nbsp;•&nbsp; `boolean` {#extendEnv}
+#### extendEnv «`boolean`» {#extendEnv}
 
 The shell process environment extends from `process.env`. Defaults to `true`.

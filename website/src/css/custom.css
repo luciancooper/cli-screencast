@@ -28,3 +28,49 @@ code {
 .pagination-nav {
     display: none;
 }
+
+.typed-header {
+    --typed-header-padding-horizontal: calc(var(--ifm-spacing-horizontal) * 0.5);
+    --typed-header-padding-vertical: calc(var(--ifm-spacing-vertical) * 0.25);
+    --typed-header-spacing-horizontal: calc(var(--ifm-spacing-horizontal) * 0.5);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.typed-header > span:first-child {
+    flex-grow: 1;
+    margin-right: var(--typed-header-spacing-horizontal);
+}
+
+.typed-header > .type-data {
+    display: flex;
+    align-items: center;
+    font-weight: normal;
+    line-height: 1;
+    border-radius: var(--ifm-global-radius);
+    padding: var(--typed-header-padding-vertical) var(--typed-header-padding-horizontal);
+    background-color: var(--ifm-color-secondary-contrast-background);
+    color: var(--ifm-color-secondary-contrast-foreground);
+    border: 0px solid var(--ifm-color-secondary-dark);
+    border-left-width: var(--ifm-alert-border-left-width);
+    box-shadow: var(--ifm-alert-shadow);
+}
+
+.typed-header > .type-data::before {
+    content: 'TYPE';
+    font-size: 80%;
+    font-weight: bold;
+    margin-right: var(--typed-header-spacing-horizontal);
+}
+
+.typed-header > .type-data.required::after {
+    content: 'REQUIRED';
+    font-size: 80%;
+    font-weight: bold;
+    border-radius: var(--ifm-global-radius);
+    padding: var(--typed-header-padding-vertical) var(--typed-header-padding-horizontal);
+    margin-left: var(--typed-header-spacing-horizontal);
+    background-color: var(--ifm-color-danger-contrast-background);
+    color: var(--ifm-color-danger-contrast-foreground);
+}

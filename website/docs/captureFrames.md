@@ -15,11 +15,11 @@ Returns a promise that resolves either a `string` if the [`output`](options.md#o
 
 ### Arguments
 
-#### frames &nbsp;•&nbsp; `Object[]` {#frames}
+#### frames «!`Object[]`» {#frames}
 
 Array of content frames in the form of `{ content: string, duration: number }`.
 
-#### options &nbsp;•&nbsp; `Object` {#options}
+#### options «!`Object`» {#options}
 
 A config object to specify the configuration options listed below.
 
