@@ -49,25 +49,22 @@ File path or array of file paths to write output to. The type of output will be 
 
 The device scale factor used when rendering to png. Default is `4`.
 
-:::note
-This option is only applicable when rendering to png.
-:::
+> [!note]
+> This option is only applicable when rendering to png.
 
 #### embedFonts «`boolean`» {#embedFonts}
 
 Embed required fonts when rendering to svg, Defaults to `true`.
 
-:::note
-This option is only applicable when rendering to svg.
-:::
+> [!note]
+> This option is only applicable when rendering to svg.
 
 #### fonts «`string[]`» {#fonts}
 
 Array of font file paths or urls to resolve fonts from. These fonts will supplement any locally installed system fonts. Supported font types include ttf, otf, ttc, and woff2 formats. Default is `undefined`.
 
-:::note
-woff files and zipped font folders are not supported.
-:::
+> [!note]
+> woff files and zipped font folders are not supported.
 
 ## Capture Options
 
@@ -91,25 +88,22 @@ Include a prompt and command string at the beginning of a captured recording, if
 
 The prompt prefix string to use when a command is captured. Default is `'> '`.
 
-:::note
-This option is only applicable when [`captureCommand`](#captureCommand) is `true`.
-:::
+> [!note]
+> This option is only applicable when [`captureCommand`](#captureCommand) is `true`.
 
 #### keystrokeAnimation «`boolean`» {#keystrokeAnimation}
 
 Include a command input keystroke animation at the start of the recording if command prompt line is captured. Defaults to `true`.
 
-:::note
-This option is only applicable when [`captureCommand`](#captureCommand) is `true`.
-:::
+> [!note]
+> This option is only applicable when [`captureCommand`](#captureCommand) is `true`.
 
 #### keystrokeAnimationInterval «`number`» {#keystrokeAnimationInterval}
 
 The delay in milliseconds between keystrokes to use when creating a command input animation. Default is `140`.
 
-:::note
-This option is only applicable when [`keystrokeAnimation`](#keystrokeAnimation) is `true`.
-:::
+> [!note]
+> This option is only applicable when [`keystrokeAnimation`](#keystrokeAnimation) is `true`.
 
 ## Debugging Options
 
@@ -175,17 +169,15 @@ Render the terminal window with stoplight buttons in the top left corner. Defaul
 
 Amount of inset space in pixels added to the top of the window frame when rendering it with decorations. Default is `40`.
 
-:::note
-This option is ignored if [`decorations`](#decorations) is `false`.
-:::
+> [!note]
+> This option is ignored if [`decorations`](#decorations) is `false`.
 
 #### insetMinor «`number`» {#insetMinor}
 
 Amount of inset space in pixels added to the left, right, and bottom of the window frame when rendering it with decorations. Default is `20`.
 
-:::note
-This option is ignored if [`decorations`](#decorations) is `false`.
-:::
+> [!note]
+> This option is ignored if [`decorations`](#decorations) is `false`.
 
 ---
 

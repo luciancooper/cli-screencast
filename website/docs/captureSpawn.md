@@ -99,9 +99,8 @@ Silently capture the spawned process' stdout and stderr output. If set to `false
 
 Connect spawn to `process.stdin` to capture any input from the user. If the spawned process requires user input to complete, this option must be enabled, or the process will hang. Defaults to `false`.
 
-:::warning
-If `connectStdin` is enabled, the [`silent`](#silent) option must be set to `false`, or omitted.
-:::
+> [!warning]
+> If `connectStdin` is enabled, the [`silent`](#silent) option must be set to `false`, or omitted.
 
 #### timeout «`number`» {#timeout}
 

@@ -11,9 +11,8 @@ pagination_prev: null
 
 Asynchronous function that captures a shell session and then renders it as an animated terminal screencast. A new shell session will be spawned and piped to `process.stdout` and `process.stdin`, then you interact with the shell until it is exited or you press `Ctrl+D`.
 
-:::tip
-The shell session recording can be stopped with `Ctrl+D`.
-:::
+> [!tip]
+> The shell session recording can be stopped with `Ctrl+D`.
 
 Returns a promise that resolves either a `string` if the [`output`](options.md#output) format option is `'svg'`, `'json'`, or `'yaml'`, or a `Buffer` if the output format is `'png'`.
 

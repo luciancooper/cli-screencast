@@ -8,9 +8,8 @@ pagination_prev: null
 
 The terminal theme can be specified by passing a theme configuration object to the [`theme`](options.md#theme) option. One or more of the properties in the table below can be specified, and any unspecified properties will be inherited from the default theme.
 
-:::note
-Color values can be configured with any color `string` or a `[number, number, number, number?]` rgba color tuple.
-:::
+> [!note]
+> Color values can be configured with any color `string` or a `[number, number, number, number?]` rgba color tuple.
 
 |Property|Description|Default|
 |:-------|:----------|:------|

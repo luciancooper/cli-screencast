@@ -19,9 +19,8 @@ Returns a promise that resolves either a `string` if the [`output`](options.md#o
 
 Callback function within which terminal output is captured. Can be synchronous or asynchronous. The callback function will be passed a `NodeCapture` instance.
 
-:::note
-Within the scope of this function, all writes to `process.stdout` and `process.stderr`, (and by extension calls to `console.log` and `console.error`) will be captured.
-:::
+> [!note]
+> Within the scope of this function, all writes to `process.stdout` and `process.stderr`, (and by extension calls to `console.log` and `console.error`) will be captured.
 
 #### options «!`Object`» {#options}
 

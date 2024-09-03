@@ -3,6 +3,7 @@ import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 import npm2yarnPlugin from '@docusaurus/remark-plugin-npm2yarn';
 import * as typedHeadings from './src/remark/typed-headings';
+import ghAlertsPlugin from './src/remark/gh-alerts';
 
 const config: Config = {
     title: 'cli-screencast',
@@ -29,6 +30,7 @@ const config: Config = {
                 remarkPlugins: [
                     [npm2yarnPlugin, { sync: true }],
                     typedHeadings.postPlugin,
+                    ghAlertsPlugin,
                 ],
             },
             blog: false,
