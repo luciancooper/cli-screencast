@@ -8,7 +8,7 @@ pagination_prev: null
 
 The rendered window box shadow can be configured by passing a configuration object to the [`boxShadow`](options.md#boxShadow) option. Any of the options in the table below can be specified, and any unspecified options will assume their default values.
 
-|Option|Description|Default|
+|Option|Description*|Default|
 |:-----|:----------|:-----:|
 | **dx** | The horizontal offset of the shadow, in pixels. Positive values will offset the shadow to the right of the window, while negative values will offset the shadow to the left. | `0` |
 | **dy** | The vertical offset of the shadow, in pixels. Positive values will offset the shadow down under the window, while negative values will offset the shadow up. | `0` |

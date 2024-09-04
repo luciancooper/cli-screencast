@@ -11,7 +11,7 @@ The terminal theme can be specified by passing a theme configuration object to t
 > [!note]
 > Color values can be configured with any color `string` or a `[number, number, number, number?]` rgba color tuple.
 
-|Property|Description|Default|
+|Property|Description*|Default|
 |:-------|:----------|:------|
 | **black** | SGR foreground code `30` and background code `40` | [`#000000`](color:000000) |
 | **red** | SGR foreground code `31` and background code `41` | [`#ff5c57`](color:ff5c57) |
