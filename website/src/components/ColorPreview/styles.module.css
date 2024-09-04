@@ -1,0 +1,50 @@
+.colorPreview {
+    --color-preview-swatch-size: 1.5rem;
+    --color-preview-spacing-horizontal: calc(var(--ifm-spacing-horizontal) * 0.3);
+    --color-preview-border-radius: var(--ifm-global-radius);
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    vertical-align: text-top; /* between this and middle */
+    white-space: pre;
+    height: var(--color-preview-swatch-size);
+    gap: var(--color-preview-spacing-horizontal);
+    padding-right: var(--color-preview-spacing-horizontal);
+    font-size: var(--ifm-code-font-size);
+    font-family: var(--ifm-font-family-monospace);
+    border-radius: var(--color-preview-border-radius);
+    background-color: var(--ifm-code-background);
+    box-shadow: var(--ifm-alert-shadow);
+}
+
+.swatch {
+    position: relative;
+    display: inline-block;
+    margin: auto;
+    overflow: clip;
+    user-select: none;
+    width: var(--color-preview-swatch-size);
+    height: var(--color-preview-swatch-size);
+    border-radius: var(--color-preview-border-radius) 0 0 var(--color-preview-border-radius);
+}
+
+.swatch::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--swatch-color);
+}
+
+.swatchAlpha::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('./alpha.svg');
+    background-size: 50%;
+}

@@ -4,6 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 import npm2yarnPlugin from '@docusaurus/remark-plugin-npm2yarn';
 import * as typedHeadings from './src/remark/typed-headings';
 import ghAlertsPlugin from './src/remark/gh-alerts';
+import colorLinksPlugin from './src/remark/color-links';
 
 const config: Config = {
     title: 'cli-screencast',
@@ -26,6 +27,7 @@ const config: Config = {
                 sidebarCollapsed: false,
                 beforeDefaultRemarkPlugins: [
                     typedHeadings.prePlugin,
+                    colorLinksPlugin,
                 ],
                 remarkPlugins: [
                     [npm2yarnPlugin, { sync: true }],
