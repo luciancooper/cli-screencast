@@ -20,6 +20,7 @@ const config: Config = {
         defaultLocale: 'en',
         locales: ['en'],
     },
+    plugins: ['docusaurus-plugin-sass'],
     presets: [
         ['classic', {
             docs: {
@@ -41,7 +42,7 @@ const config: Config = {
             },
             blog: false,
             theme: {
-                customCss: './src/css/custom.css',
+                customCss: './src/scss/custom.scss',
             },
         } satisfies Preset.Options],
     ],

@@ -29,9 +29,11 @@
     "@docusaurus/theme-common": "^3.5.2",
     "@mdx-js/react": "^3.0.0",
     "clsx": "^2.0.0",
+    "docusaurus-plugin-sass": "^0.2.5",
     "prism-react-renderer": "^2.3.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
+    "sass": "^1.78.0",
     "unist-util-visit": "^5.0.0"
   },
   "devDependencies": {

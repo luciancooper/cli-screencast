@@ -1,0 +1,76 @@
+:root {
+    --ifm-color-primary: #2e8555;
+    --ifm-color-primary-dark: #29784c;
+    --ifm-color-primary-darker: #277148;
+    --ifm-color-primary-darkest: #205d3b;
+    --ifm-color-primary-light: #33925d;
+    --ifm-color-primary-lighter: #359962;
+    --ifm-color-primary-lightest: #3cad6e;
+    --ifm-code-font-size: 95%;
+    --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+    --ifm-color-primary: #25c2a0;
+    --ifm-color-primary-dark: #21af90;
+    --ifm-color-primary-darker: #1fa588;
+    --ifm-color-primary-darkest: #1a8870;
+    --ifm-color-primary-light: #29d5b0;
+    --ifm-color-primary-lighter: #32d8b4;
+    --ifm-color-primary-lightest: #4fddbf;
+    --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+code {
+    white-space: nowrap;
+}
+
+.pagination-nav {
+    display: none;
+}
+
+.typed-header {
+    --typed-header-padding-horizontal: calc(var(--ifm-spacing-horizontal) * 0.5);
+    --typed-header-padding-vertical: calc(var(--ifm-spacing-vertical) * 0.25);
+    --typed-header-spacing-horizontal: calc(var(--ifm-spacing-horizontal) * 0.5);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    > span:first-child {
+        flex-grow: 1;
+        margin-right: var(--typed-header-spacing-horizontal);
+    }
+
+    > .type-data {
+        display: flex;
+        align-items: center;
+        font-weight: normal;
+        line-height: 1;
+        border-radius: var(--ifm-global-radius);
+        padding: var(--typed-header-padding-vertical) var(--typed-header-padding-horizontal);
+        background-color: var(--ifm-color-secondary-contrast-background);
+        color: var(--ifm-color-secondary-contrast-foreground);
+        border: 0px solid var(--ifm-color-secondary-dark);
+        border-left-width: var(--ifm-alert-border-left-width);
+        box-shadow: var(--ifm-alert-shadow);
+
+        &::before {
+            content: 'TYPE';
+            font-size: 80%;
+            font-weight: bold;
+            margin-right: var(--typed-header-spacing-horizontal);
+        }
+
+        &.required::after {
+            content: 'REQUIRED';
+            font-size: 80%;
+            font-weight: bold;
+            border-radius: var(--ifm-global-radius);
+            padding: var(--typed-header-padding-vertical) var(--typed-header-padding-horizontal);
+            margin-left: var(--typed-header-spacing-horizontal);
+            background-color: var(--ifm-color-danger-contrast-background);
+            color: var(--ifm-color-danger-contrast-foreground);
+        }
+    }
+}

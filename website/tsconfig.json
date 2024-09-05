@@ -2,6 +2,9 @@
   "extends": "@docusaurus/tsconfig",
   "compilerOptions": {
     "baseUrl": ".",
+    "types": [
+      "docusaurus-plugin-sass"
+    ],
     "typeRoots": [
       "./node_modules",
       "./node_modules/@types"

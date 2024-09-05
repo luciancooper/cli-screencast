@@ -1,7 +1,7 @@
 import type { ComponentProps, CSSProperties } from 'react';
 import clsx from 'clsx';
 import useBrokenLinks from '@docusaurus/useBrokenLinks';
-import styles from './styles.module.css';
+import styles from './styles.module.scss';
 
 interface Props extends ComponentProps<'div'> {
     color?: string

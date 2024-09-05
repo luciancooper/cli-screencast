@@ -26,16 +26,16 @@
     width: var(--color-preview-swatch-size);
     height: var(--color-preview-swatch-size);
     border-radius: var(--color-preview-border-radius) 0 0 var(--color-preview-border-radius);
-}
 
-.swatch::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--swatch-color);
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--swatch-color);
+    }
 }
 
 .swatchAlpha::before {

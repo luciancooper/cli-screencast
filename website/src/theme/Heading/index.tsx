@@ -5,7 +5,7 @@ import { useThemeConfig } from '@docusaurus/theme-common';
 import Link from '@docusaurus/Link';
 import useBrokenLinks from '@docusaurus/useBrokenLinks';
 import type { Props } from '@theme/Heading';
-import styles from './styles.module.css';
+import styles from './styles.module.scss';
 
 interface ExtendedProps extends Props {
     typeData?: ReactNode

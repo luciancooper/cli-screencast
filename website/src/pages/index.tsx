@@ -4,7 +4,7 @@ import Head from '@docusaurus/Head';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
-import styles from './index.module.css';
+import styles from './index.module.scss';
 
 export default function Home(): JSX.Element {
     const { siteConfig } = useDocusaurusContext();
