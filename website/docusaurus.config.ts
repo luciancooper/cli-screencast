@@ -69,8 +69,9 @@ const config: Config = {
                 },
                 {
                     href: 'https://github.com/luciancooper/cli-screencast',
-                    label: 'GitHub',
                     position: 'right',
+                    className: 'header-github-link',
+                    'aria-label': 'GitHub repository',
                 },
             ],
         },

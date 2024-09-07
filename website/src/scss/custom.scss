@@ -29,6 +29,24 @@ code {
     display: none;
 }
 
+.header-github-link {
+    --github-link-color: var(--ifm-navbar-link-color);
+
+    &:hover {
+        --github-link-color: var(--ifm-navbar-link-hover-color);
+    }
+
+    &::before {
+        content: '';
+        width: 24px;
+        height: 24px;
+        display: flex;
+        mask-image: url('./img/github.svg');
+        background-color: var(--github-link-color);
+        transition: background-color var(--ifm-transition-fast) var(--ifm-transition-timing-default);
+    }
+}
+
 .typed-header {
     --typed-header-padding-horizontal: calc(var(--ifm-spacing-horizontal) * 0.5);
     --typed-header-padding-vertical: calc(var(--ifm-spacing-vertical) * 0.25);
