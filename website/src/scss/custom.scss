@@ -74,3 +74,37 @@ code {
         }
     }
 }
+
+.options-reference {
+    --options-group-category-name-width: 160px;
+    --options-group-spacing-horizontal: var(--ifm-spacing-horizontal);
+    margin-bottom: var(--ifm-leading);
+    padding-left: var(--options-group-spacing-horizontal);
+
+    > .category {
+        display: flex;
+        align-items: flex-start;
+
+        @media(max-width: 900px) {
+            & {
+              flex-direction: column;
+            }
+        }
+
+        > .category-name {
+            flex: 0 0 auto;
+            font-weight: bold;
+            font-size: var(--ifm-h5-font-size);
+            color: var(--ifm-color-secondary-contrast-foreground);
+            width: var(--options-group-category-name-width);
+            margin: calc(var(--ifm-spacing-vertical) * 0.75) 0;
+        }
+
+        > .category-content {
+            flex: 1 1 auto;
+            font-family: var(--ifm-font-family-monospace);
+            margin: calc(var(--ifm-spacing-vertical) * 0.5) 0;
+            padding-left: var(--options-group-spacing-horizontal);
+        }
+    }
+}

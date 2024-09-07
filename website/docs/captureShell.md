@@ -22,47 +22,47 @@ Returns a promise that resolves either a `string` if the [`output`](options.md#o
 
 A config object to specify the following common options, as well as the additional options listed in the next section.
 
-> *Required Options:*
-[`columns`](options.md#columns),
-[`rows`](options.md#rows)
+Required
+: [columns](options.md#columns),
+  [rows](options.md#rows)
 
-> *Terminal Options:*
-[`tabSize`](options.md#tabSize),
-[`cursorHidden`](options.md#cursorHidden),
-[`windowTitle`](options.md#windowTitle),
-[`windowIcon`](options.md#windowIcon)
+Terminal Related
+: [tabSize](options.md#tabSize),
+  [cursorHidden](options.md#cursorHidden),
+  [windowTitle](options.md#windowTitle),
+  [windowIcon](options.md#windowIcon)
 
-> *Output Options:*
-[`output`](options.md#output),
-[`outputPath`](options.md#outputPath),
-[`scaleFactor`](options.md#scaleFactor),
-[`embedFonts`](options.md#embedFonts),
-[`fonts`](options.md#fonts)
+Output Related
+: [output](options.md#output),
+  [outputPath](options.md#outputPath),
+  [scaleFactor](options.md#scaleFactor),
+  [embedFonts](options.md#embedFonts),
+  [fonts](options.md#fonts)
 
-> *Capture Options:*
-[`writeMergeThreshold`](options.md#writeMergeThreshold),
-[`endTimePadding`](options.md#endTimePadding),
-[`cropStartDelay`](options.md#cropStartDelay)
+Capture Related
+: [writeMergeThreshold](options.md#writeMergeThreshold),
+  [endTimePadding](options.md#endTimePadding),
+  [cropStartDelay](options.md#cropStartDelay)
 
-> *Rendering Options:*
-[`theme`](options.md#theme),
-[`fontFamily`](options.md#fontFamily),
-[`fontSize`](options.md#fontSize),
-[`lineHeight`](options.md#lineHeight),
-[`columnWidth`](options.md#columnWidth),
-[`iconColumnWidth`](options.md#iconColumnWidth),
-[`borderRadius`](options.md#borderRadius),
-[`boxShadow`](options.md#boxShadow),
-[`offsetX`](options.md#offsetX),
-[`offsetY`](options.md#offsetY),
-[`paddingX`](options.md#paddingX),
-[`paddingY`](options.md#paddingY),
-[`decorations`](options.md#decorations),
-[`insetMajor`](options.md#insetMajor),
-[`insetMinor`](options.md#insetMinor)
+Rendering Related
+: [theme](options.md#theme),
+  [fontFamily](options.md#fontFamily),
+  [fontSize](options.md#fontSize),
+  [lineHeight](options.md#lineHeight),
+  [columnWidth](options.md#columnWidth),
+  [iconColumnWidth](options.md#iconColumnWidth),
+  [borderRadius](options.md#borderRadius),
+  [boxShadow](options.md#boxShadow),
+  [offsetX](options.md#offsetX),
+  [offsetY](options.md#offsetY),
+  [paddingX](options.md#paddingX),
+  [paddingY](options.md#paddingY),
+  [decorations](options.md#decorations),
+  [insetMajor](options.md#insetMajor),
+  [insetMinor](options.md#insetMinor)
 
-> *Debugging Options:*
-[`logLevel`](options.md#logLevel)
+Debugging
+: [logLevel](options.md#logLevel)
 
 ### Additional Options
 

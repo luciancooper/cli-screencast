@@ -6,6 +6,7 @@ import * as typedHeadings from './src/remark/typed-headings';
 import ghAlertsPlugin from './src/remark/gh-alerts';
 import colorLinksPlugin from './src/remark/color-links';
 import tablesPlugin from './src/rehype/tables';
+import deflistsPlugin from './src/remark/deflists';
 
 const config: Config = {
     title: 'cli-screencast',
@@ -35,6 +36,7 @@ const config: Config = {
                     [npm2yarnPlugin, { sync: true }],
                     typedHeadings.postPlugin,
                     ghAlertsPlugin,
+                    deflistsPlugin,
                 ],
                 rehypePlugins: [
                     tablesPlugin,
