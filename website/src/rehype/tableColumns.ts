@@ -1,3 +1,4 @@
+import type { Transformer } from 'unified';
 import type { Root, Element } from 'hast';
 import { visit } from 'unist-util-visit';
 
@@ -9,7 +10,7 @@ function allChildrenOfType(node: Element, tagName: string): Element[] {
     return node.children.filter((child) => (child.type === 'element' && child.tagName === tagName)) as Element[];
 }
 
-export default function plugin() {
+export default function plugin(): Transformer {
     return (tree: Root) => {
         visit(tree, 'element', (node) => {
             if (node.tagName !== 'table') return;

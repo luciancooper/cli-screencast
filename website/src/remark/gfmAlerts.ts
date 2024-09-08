@@ -1,4 +1,6 @@
+import type { Transformer } from 'unified';
 import type { Blockquote } from 'mdast';
+import { visit } from 'unist-util-visit';
 
 // these are the only keywords github supports. see:
 // https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts
@@ -10,9 +12,8 @@ const keywords = [
     'caution',
 ];
 
-export default function plugin() {
+export default function plugin(): Transformer {
     return async (root) => {
-        const { visit } = await import('unist-util-visit');
         visit(root, 'blockquote', (node: Blockquote) => {
             if (node.children[0]?.type !== 'paragraph' || node.children[0].children[0].type !== 'text') return;
             // match github alert syntax in first text child

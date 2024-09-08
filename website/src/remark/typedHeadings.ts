@@ -1,3 +1,4 @@
+import type { Transformer } from 'unified';
 import type { Heading, Text, PhrasingContent } from 'mdast';
 import { visit } from 'unist-util-visit';
 
@@ -6,7 +7,7 @@ interface TypeData {
     required: boolean
 }
 
-export function prePlugin() {
+export function pre(): Transformer {
     return async (root) => {
         visit(root, 'heading', (headingNode: Heading) => {
             headingNode.data ||= {};
@@ -65,7 +66,7 @@ export function prePlugin() {
     };
 }
 
-export function postPlugin() {
+export function post() {
     return async (root) => {
         visit(root, 'heading', (headingNode: Heading) => {
             if (!(headingNode.data as { typeData?: TypeData })?.typeData) return;

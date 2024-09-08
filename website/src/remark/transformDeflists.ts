@@ -1,6 +1,6 @@
 import remarkDeflist from 'remark-deflist';
-import type { Parent } from 'unist';
 import type { Transformer } from 'unified';
+import type { Parent } from 'unist';
 import { visit } from 'unist-util-visit';
 
 const deflist = remarkDeflist();

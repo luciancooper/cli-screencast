@@ -1,4 +1,6 @@
+import type { Transformer } from 'unified';
 import type { Node, Parent, Link } from 'mdast';
+import { visit } from 'unist-util-visit';
 
 function stringify(node: Node | Node[]): string {
     if ('value' in node) {
@@ -10,9 +12,8 @@ function stringify(node: Node | Node[]): string {
     return '';
 }
 
-export default function plugin() {
+export default function plugin(): Transformer {
     return async (root) => {
-        const { visit } = await import('unist-util-visit');
         visit(root, 'link', (node: Link) => {
             if (!node.url?.startsWith('color:')) return;
             // extract color info portion of the link

@@ -1,12 +1,12 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
-import npm2yarnPlugin from '@docusaurus/remark-plugin-npm2yarn';
-import * as typedHeadings from './src/remark/typed-headings';
-import ghAlertsPlugin from './src/remark/gh-alerts';
-import colorLinksPlugin from './src/remark/color-links';
-import tablesPlugin from './src/rehype/tables';
-import deflistsPlugin from './src/remark/deflists';
+import npm2yarn from '@docusaurus/remark-plugin-npm2yarn';
+import * as typedHeadings from './src/remark/typedHeadings';
+import gfmAlerts from './src/remark/gfmAlerts';
+import colorLinks from './src/remark/colorLinks';
+import transformDeflists from './src/remark/transformDeflists';
+import tableColumns from './src/rehype/tableColumns';
 
 const config: Config = {
     title: 'cli-screencast',
@@ -29,17 +29,17 @@ const config: Config = {
                 sidebarPath: './sidebars.ts',
                 sidebarCollapsed: false,
                 beforeDefaultRemarkPlugins: [
-                    typedHeadings.prePlugin,
-                    colorLinksPlugin,
+                    typedHeadings.pre,
+                    colorLinks,
                 ],
                 remarkPlugins: [
-                    [npm2yarnPlugin, { sync: true }],
-                    typedHeadings.postPlugin,
-                    ghAlertsPlugin,
-                    deflistsPlugin,
+                    [npm2yarn, { sync: true }],
+                    typedHeadings.post,
+                    gfmAlerts,
+                    transformDeflists,
                 ],
                 rehypePlugins: [
-                    tablesPlugin,
+                    tableColumns,
                 ],
             },
             blog: false,
