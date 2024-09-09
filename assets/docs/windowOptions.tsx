@@ -3,19 +3,10 @@ import type { FunctionComponent } from 'react';
 import type { TerminalOptions, OutputOptions } from '@src/types';
 import { applyDefRenderOptions, applyDefTerminalOptions } from '@src/options';
 import { resolveTitle } from '@src/parser/title';
-import { resolveFonts, embedFontCss } from '@src/fonts';
 import Context from '@src/render/Context';
 import Window from '@src/render/Window';
 import { resolveContext, type RenderOptions } from '@src/render';
-import { writeToFile } from '@src/utils';
-import log from '@src/logger';
-
-const labelFontProps = {
-    fontSize: 12,
-    lineHeight: 1.25,
-    fontFamily: 'Consolas',
-    fonts: ['https://fontlib.s3.amazonaws.com/Consolas/Consola.ttf'],
-};
+import Asset, { embedFonts } from '../asset';
 
 type DiagramLabelProps = {
     text: string
@@ -39,15 +30,15 @@ type DiagramLabelProps = {
     tick?: number
 });
 
-const DiagramLabel: FunctionComponent<DiagramLabelProps & { labelColumnWidth: number | undefined }> = ({
+const DiagramLabel: FunctionComponent<DiagramLabelProps & { grid: readonly [gw: number, gh: number] }> = ({
     text,
     coords: [x, y],
     size: [w, h],
+    grid: [gw, gh],
     position = 0.5,
     line: { angle, distance, curvature },
     textPosition = 0,
     color = '#eb3459',
-    labelColumnWidth,
     ...props
 }) => {
     let shape: JSX.Element | null = null,
@@ -86,46 +77,42 @@ const DiagramLabel: FunctionComponent<DiagramLabelProps & { labelColumnWidth: nu
         d = `M${px},${py}C${b1x},${b1y} ${b2x},${b2y} ${ex},${ey}`,
         // text box horizontal padding
         pad_x = 3,
-        // text box
-        tw = labelFontProps.fontSize * (labelColumnWidth ?? 0.6) * text.length + 2 * pad_x,
-        th = labelFontProps.fontSize * labelFontProps.lineHeight,
+        // text box width
+        tw = gw * text.length + 2 * pad_x,
         // text position
         tx = ex - (cos < 0 ? tw : 0) + (textPosition < 0 ? textPosition * tw * Math.sign(cos) : 0),
-        ty = ey - (sin > 0 ? th : 0) + (textPosition > 0 ? textPosition * th * Math.sign(sin) : 0);
+        ty = ey - (sin > 0 ? gh : 0) + (textPosition > 0 ? textPosition * gh * Math.sign(sin) : 0);
     return (
         <g className='label'>
             <g stroke={color} fill='none'>
                 {shape}
                 <path d={d}/>
             </g>
-            <rect x={tx} y={ty} width={tw} height={th} fill='#EFF1F2' rx={2}/>
-            <text x={tx + tw / 2} y={ty + th / 2 + 1} fill='#000' textAnchor='middle' dominantBaseline='middle'>
+            <rect x={tx} y={ty} width={tw} height={gh} fill='#EFF1F2' rx={2}/>
+            <text x={tx + tw / 2} y={ty + gh / 2 + 1} fill='#000' textAnchor='middle' dominantBaseline='middle'>
                 {text}
             </text>
         </g>
     );
 };
 
-interface DiagramOptions extends Partial<TerminalOptions>, RenderOptions, Pick<OutputOptions, 'scaleFactor' | 'fonts'> {
+interface DiagramOptions extends Partial<TerminalOptions>, Omit<RenderOptions, 'fontFamily'>, Pick<OutputOptions, 'scaleFactor'> {
     insets: [ix: number, iy: number]
+    labelFontSize: number
+    labelLineHeight: number
 }
 
-async function WindowOptionsDiagram({ scaleFactor = 1.25, insets: [ix, iy], ...options }: DiagramOptions) {
+async function WindowOptionsDiagram({
+    scaleFactor = 1.25,
+    insets: [ix, iy],
+    labelFontSize,
+    labelLineHeight,
+    ...options
+}: DiagramOptions) {
     const termProps = applyDefTerminalOptions({ columns: 50, rows: 10, ...options }, { cursorHidden: true }),
-        renderProps = applyDefRenderOptions(options),
         title = resolveTitle(termProps.windowTitle, termProps.windowIcon),
-        { fontColumnWidth, ...windowFont } = await resolveFonts(
-            { title, lines: [] },
-            renderProps.fontFamily,
-            options.fonts,
-        ),
-        { svg: css, fontFamily } = await embedFontCss(windowFont, { svg: true, png: false }),
-        [context, windowOptions] = resolveContext({
-            ...renderProps,
-            fontFamily,
-            fontColumnWidth,
-            css,
-        }, termProps),
+        windowFont = await embedFonts({ title, lines: [] }, Asset.fonts.cascadiaCode),
+        [context, windowOptions] = resolveContext({ ...applyDefRenderOptions(options), ...windowFont }, termProps),
         { columns, rows, grid: [dx, dy] } = context,
         {
             paddingX,
@@ -316,12 +303,8 @@ async function WindowOptionsDiagram({ scaleFactor = 1.25, insets: [ix, iy], ...o
         }
     }
     // create embedded label font css
-    const { fontColumnWidth: labelFontColumnWidth, ...labelFont } = await resolveFonts(
-            labels.map(({ text }) => text).join(''),
-            labelFontProps.fontFamily,
-            labelFontProps.fonts,
-        ),
-        { svg: labelCss, fontFamily: labelFontFamily } = await embedFontCss(labelFont, { svg: true, png: false });
+    const labelFont = await embedFonts(labels.map(({ text }) => text).join(''), Asset.fonts.consolas),
+        labelGrid = [labelFontSize * (labelFont.fontColumnWidth ?? 0.6), labelFontSize * labelLineHeight] as const;
     return (
         <svg
             xmlns='http://www.w3.org/2000/svg'
@@ -339,10 +322,10 @@ async function WindowOptionsDiagram({ scaleFactor = 1.25, insets: [ix, iy], ...o
                     <rect x={offsetX + paddingX} y={offsetY + paddingY} width={cw + side * 2} height={ch + side + top}/>
                     <rect x={0} y={0} width={width} height={height} stroke='#c4c4c4'/>
                 </g>
-                <g fontSize={labelFontProps.fontSize} fontFamily={labelFontFamily}>
-                    {labelCss ? <style dangerouslySetInnerHTML={{ __html: labelCss }}/> : null}
+                <g fontSize={labelFontSize} fontFamily={labelFont.fontFamily}>
+                    {labelFont.css ? <style dangerouslySetInnerHTML={{ __html: labelFont.css }}/> : null}
                     {labels.map((labelProps, i) => (
-                        <DiagramLabel key={`label-${i}`} labelColumnWidth={labelFontColumnWidth} {...labelProps}/>
+                        <DiagramLabel key={`label-${i}`} grid={labelGrid} {...labelProps}/>
                     ))}
                 </g>
             </g>
@@ -350,11 +333,14 @@ async function WindowOptionsDiagram({ scaleFactor = 1.25, insets: [ix, iy], ...o
     );
 }
 
-export default async function render(filePath: string) {
-    log.info('rendering window options diagram');
-    await writeToFile(filePath, renderToStaticMarkup(
+export default new Asset({
+    id: 'window-options.svg',
+    type: 'docs',
+    render: async () => renderToStaticMarkup(
         await WindowOptionsDiagram({
             fontSize: 16,
+            labelFontSize: 12,
+            labelLineHeight: 1.25,
             insets: [1, 1],
             offsetX: 30,
             offsetY: 20,
@@ -362,9 +348,6 @@ export default async function render(filePath: string) {
             decorations: true,
             windowIcon: 'shell',
             windowTitle: 'Title',
-            fontFamily: 'Cascadia Code',
-            fonts: ['https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCode-Regular.ttf'],
         }),
-    ));
-    log.info('wrote window options diagram to %S', filePath);
-}
+    ),
+});

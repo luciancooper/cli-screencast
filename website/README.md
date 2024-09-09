@@ -18,6 +18,14 @@ Or from the root of the repo (one level above this directory):
 yarn website:install
 ```
 
+### Generate Assets
+
+Generate website assets from this directory or from the root of the repo (one level above this directory) with this command:
+
+```bash
+yarn assets
+```
+
 ### Local Development
 
 Start the local development server from this directory:
@@ -32,9 +40,15 @@ Or from the root of the repo (one level above this directory):
 yarn website:start
 ```
 
-### Build
+### Build Site
 
-Build the site from the root of the repo (one level above this directory):
+Build the site from from this directory:
+
+```bash
+yarn build
+```
+
+Or from the root of the repo (one level above this directory):
 
 ```bash
 yarn website:build

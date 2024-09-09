@@ -1,9 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import PNG from '@src/image/png';
 import { createPng } from '@src/image';
-import { writeToFile } from '@src/utils';
-import log from '@src/logger';
-import { ProjectLogo } from './project-logo';
+import { ProjectLogo } from './projectLogo';
+import Asset from '../asset';
 
 async function createFavicon(svg: string, sizes: number[]): Promise<Buffer> {
     const pngs: ReturnType<typeof PNG.decodePixels>[] = [],
@@ -61,13 +60,16 @@ async function createFavicon(svg: string, sizes: number[]): Promise<Buffer> {
 
 const icoSizes = [16, 24, 32, 48, 64, 128, 256];
 
-export default async function render(filePath: string) {
-    log.info('rendering favicon');
-    // render svg icon to use as basis for each image in the ico file
-    const svg = renderToStaticMarkup(
-        <ProjectLogo size={128} window={{ width: 0.95 }} decorations={false}/>,
-    );
-    // encode ico and save to file
-    await writeToFile(filePath, await createFavicon(svg, icoSizes));
-    log.info('wrote favicon to %S', filePath);
-}
+export default new Asset({
+    id: 'favicon.ico',
+    type: 'static',
+    path: 'assets',
+    render: () => {
+        // render svg icon to use as basis for each image in the ico file
+        const svg = renderToStaticMarkup(
+            <ProjectLogo size={128} window={{ width: 0.95 }} decorations={false}/>,
+        );
+        // encode ico
+        return createFavicon(svg, icoSizes);
+    },
+});

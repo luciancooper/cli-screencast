@@ -3,7 +3,7 @@ name: Build & Deploy Website
 on:
   push:
     branches: [main]
-    paths: ['website/**', 'tasks/**']
+    paths: ['website/**', 'assets/**']
   workflow_dispatch:
 
 jobs:

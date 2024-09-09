@@ -2,8 +2,7 @@ import type { SVGProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { PickOptional } from '@src/types';
 import { applyDefaults } from '@src/options';
-import { writeToFile } from '@src/utils';
-import log from '@src/logger';
+import Asset from '../asset';
 
 interface DecorationsProps extends SVGProps<SVGGElement> {
     diameter?: number
@@ -97,16 +96,25 @@ export function ProjectLogo({ size, ...opts }: Props) {
     );
 }
 
-export default async function render(filePath: string, darkMode: boolean) {
-    log.info('rendering %s mode project logo', darkMode ? 'dark' : 'light');
-    // options specific to dark / light mode
-    const opts: Partial<Props> = darkMode ? {
-        color: { window: '#eff1f5', icon: defProps.color.window },
-        decorations: { colors: ['#b30900', '#cc8b00', '#0b5b17'] },
-    } : {};
-    // render svg and save to file
-    await writeToFile(filePath, renderToStaticMarkup(
-        <ProjectLogo size={128} {...opts}/>,
-    ));
-    log.info('wrote %s mode project logo to %S', darkMode ? 'dark' : 'light', filePath);
-}
+export default [
+    new Asset({
+        id: 'project-logo.svg',
+        type: 'static',
+        path: 'assets',
+        render: () => renderToStaticMarkup(
+            <ProjectLogo size={128}/>,
+        ),
+    }),
+    new Asset({
+        id: 'project-logo-dark.svg',
+        type: 'static',
+        path: 'assets',
+        render: () => renderToStaticMarkup(
+            <ProjectLogo
+                size={128}
+                color={{ window: '#eff1f5', icon: defProps.color.window }}
+                decorations={{ colors: ['#b30900', '#cc8b00', '#0b5b17'] }}
+            />,
+        ),
+    }),
+];

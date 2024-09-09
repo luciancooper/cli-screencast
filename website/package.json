@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
+    "assets": "yarn --cwd ../ assets",
+    "build": "yarn assets && yarn docusaurus build",
     "lint": "yarn --cwd ../ eslint ./website",
     "typecheck": "yarn --cwd ../ tsc --project ./website/tsconfig.json"
   },

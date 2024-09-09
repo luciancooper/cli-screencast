@@ -16,7 +16,7 @@ const config: Config = {
     baseUrl: '/',
     onBrokenLinks: 'throw',
     onBrokenMarkdownLinks: 'warn',
-    favicon: 'build/favicon.ico',
+    favicon: 'assets/favicon.ico',
     i18n: {
         defaultLocale: 'en',
         locales: ['en'],
@@ -57,8 +57,8 @@ const config: Config = {
             title: 'cli-screencast',
             logo: {
                 alt: 'cli-screencast logo',
-                src: 'build/project-logo.svg',
-                srcDark: 'build/project-logo-dark.svg',
+                src: 'assets/project-logo.svg',
+                srcDark: 'assets/project-logo-dark.svg',
             },
             items: [
                 {

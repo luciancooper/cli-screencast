@@ -183,4 +183,4 @@ Amount of inset space in pixels added to the left, right, and bottom of the wind
 
 The following diagram shows how various window rendering related options function:
 
-![Window Options](./build/window-options.svg)
+![Window Options](./assets/window-options.svg)

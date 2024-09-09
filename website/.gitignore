@@ -1,0 +1,10 @@
+# Docusaurus generated files
+.docusaurus
+.cache-loader
+
+# Production
+/build
+
+# Built Assets
+/docs/assets
+/static/*/

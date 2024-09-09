@@ -1,0 +1,30 @@
+import { setLogLevel } from '@src/logger';
+import type Asset from './asset';
+import favicon from './media/favicon';
+import projectLogo from './media/projectLogo';
+import windowIcons from './docs/windowIcons';
+import windowOptions from './docs/windowOptions';
+
+const assets: Asset[] = [
+    favicon,
+    ...projectLogo,
+    windowIcons,
+    windowOptions,
+];
+
+const args = process.argv.slice(2);
+
+(async () => {
+    // set log level
+    setLogLevel('debug');
+    // check for cli flags
+    const [clean, rebuild] = [args.includes('--clean'), args.includes('--rebuild')];
+    // remove assets if clean or rebuild flag is present
+    if (clean || rebuild) {
+        for (const asset of assets) await asset.remove();
+    }
+    // create all assets if clean flag is not present
+    if (!clean) {
+        for (const asset of assets) await asset.create();
+    }
+})();
