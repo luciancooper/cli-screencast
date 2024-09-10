@@ -183,11 +183,15 @@ class CaptureStream extends Writable {
         // buffer initial prompt content
         this.bufferWrite({ time: 0, content: windowEscape + this.prompt });
         // split command chars
-        for (const char of splitChars(`${command}\n`)) {
-            this.bufferWrite({ time: 0, adjustment: keystrokeInterval, content: char });
+        let adjustment = keystrokeInterval * 2;
+        for (const char of splitChars(command)) {
+            this.bufferWrite({ time: 0, adjustment, content: char });
+            adjustment = keystrokeInterval;
         }
-        // hide cursor if it is hidden at the start of the capture
-        this.bufferWrite({ time: 0, adjustment: keystrokeInterval, content: cursorEscape });
+        // write final `enter` keystroke, hiding cursor if it is hidden at the start of the capture
+        this.bufferWrite({ time: 0, adjustment: keystrokeInterval * 2, content: `\n${cursorEscape}` });
+        // add final write to pause after `enter` keystroke
+        this.bufferWrite({ time: 0, adjustment: keystrokeInterval, content: '' });
     }
 
     private finishCapture({ time, adjustment = 0, content: final }: FinishEvent) {

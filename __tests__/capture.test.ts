@@ -225,10 +225,10 @@ describe('captureSource', () => {
             }, { cursorHidden: true })).resolves.toMatchObject<PartialCaptureData>({
                 writes: [
                     { content: '> ', delay: 0 },
-                    { content: 'l', delay: 100 },
+                    { content: 'l', delay: 200 },
                     { content: 's', delay: 100 },
-                    { content: '\n', delay: 100 },
-                    { content: '\x1b[?25lfirst write', delay: 100 },
+                    { content: '\n\x1b[?25l', delay: 200 },
+                    { content: 'first write', delay: 100 },
                 ],
                 endDelay: 1000,
             });
@@ -326,9 +326,9 @@ describe('captureSource', () => {
             })).resolves.toMatchObject<PartialCaptureData>({
                 writes: [
                     { content: '> ', delay: 0 },
-                    { content: 'l', delay: 100 },
+                    { content: 'l', delay: 200 },
                     { content: 's', delay: 100 },
-                    { content: '\n', delay: 100 },
+                    { content: '\n', delay: 200 },
                 ],
                 endDelay: 600,
             });
