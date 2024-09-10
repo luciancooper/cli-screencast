@@ -126,3 +126,43 @@ code {
         }
     }
 }
+
+.code-block-group {
+    --codeblock-group-background-color: var(--ifm-color-secondary-contrast-background);
+    --codeblock-group-foreground-color: var(--ifm-color-secondary-contrast-foreground);
+    --codeblock-group-border-color: var(--ifm-color-secondary-dark);
+    --codeblock-group-box-shadow: var(--ifm-global-shadow-lw);
+    --codeblock-group-padding-vertical: var(--ifm-spacing-vertical);
+    --codeblock-group-padding-horizontal: var(--ifm-spacing-horizontal);
+    --ifm-badge-background-color: var(--ifm-color-secondary);
+    --ifm-badge-border-color: var(--ifm-badge-background-color);
+    --ifm-badge-color: var(--ifm-color-black);
+    background-color: var(--codeblock-group-background-color);
+    color: var(--codeblock-group-foreground-color);
+    border-radius: var(--ifm-global-radius);
+    box-shadow: var(--codeblock-group-box-shadow);
+    border: 1px solid var(--codeblock-group-border-color);
+    margin: 0 0 var(--ifm-leading);
+    padding: 0;
+
+    > .code-block-container {
+        padding: var(--codeblock-group-padding-vertical) var(--codeblock-group-padding-horizontal) 0;
+        border-bottom: 1px solid var(--codeblock-group-border-color);
+    }
+
+    > .code-block-result {
+        padding: var(--codeblock-group-padding-vertical) var(--codeblock-group-padding-horizontal);
+
+        .svg-file-title > span {
+            text-transform: uppercase;
+            line-height: 1;
+            font-size: 80%;
+            font-weight: var(--ifm-font-weight-bold);
+            padding: var(--ifm-badge-padding-vertical) var(--ifm-badge-padding-horizontal);
+            border-radius: var(--ifm-badge-border-radius);
+            background-color: var(--ifm-badge-background-color);
+            border: var(--ifm-badge-border-width) solid var(--ifm-badge-border-color);
+            color: var(--ifm-badge-color);
+        }
+    }
+}

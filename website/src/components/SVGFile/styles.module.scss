@@ -1,0 +1,11 @@
+.svgFile {
+    --svg-file-title-spacing: calc(var(--ifm-spacing-vertical) * 0.5);
+}
+
+.svgFileTitle {
+    margin-bottom: var(--svg-file-title-spacing);
+}
+
+.svgFileContent {
+    overflow: auto;
+}

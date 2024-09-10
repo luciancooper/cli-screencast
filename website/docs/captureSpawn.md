@@ -116,7 +116,7 @@ The signal to be used when the spawned process is killed by `timeout`. Default i
 
 Here is a basic example of capturing the output of the command `echo Hello World!`:
 
-```js
+```js result='./assets/usage--spawn.svg'
 import { captureSpawn } from 'cli-screencast';
 
 captureSpawn('echo', ['Hello World!'], {
@@ -131,15 +131,11 @@ captureSpawn('echo', ['Hello World!'], {
 });
 ```
 
-Result:
-
-![captureSpawn example](./assets/usage--spawn.svg)
-
 ### Capturing a command with a prompt
 
 Here is the same example as above, but with the [`captureCommand`](options.md#captureCommand) option enabled, which causes a command prompt with animated keystrokes to be included in the capture.
 
-```js
+```js result='./assets/usage--spawn--prompt.svg'
 import { captureSpawn } from 'cli-screencast';
 
 captureSpawn('echo', ['Hello World!'], {
@@ -153,9 +149,5 @@ captureSpawn('echo', ['Hello World!'], {
     // svg output string...
 });
 ```
-
-Result:
-
-![captureSpawn with prompt](./assets/usage--spawn--prompt.svg)
 
 The [`keystrokeAnimationInterval`](options.md#keystrokeAnimationInterval) option can be configured to customize the speed of the keystroke animation, or the prompt can be captured without the animation by disabling the [`keystrokeAnimation`](options.md#keystrokeAnimation) option. The prompt prefix can be customized via the [`prompt`](options.md#prompt) option.

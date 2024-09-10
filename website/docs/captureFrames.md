@@ -68,7 +68,7 @@ Debugging
 
 Here is a basic example of how to create a screen capture from an array of content frames:
 
-```js
+```js result='./assets/usage--frames.svg'
 import { captureFrames } from 'cli-screencast';
 
 const frames = [
@@ -82,7 +82,3 @@ captureFrames(frames, { columns: 50, rows: 10 }).then((svg) => {
     // svg output string...
 });
 ```
-
-Result:
-
-![captureFrames example](./assets/usage--frames.svg)

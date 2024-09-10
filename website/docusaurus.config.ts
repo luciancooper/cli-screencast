@@ -3,10 +3,13 @@ import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 import npm2yarn from '@docusaurus/remark-plugin-npm2yarn';
 import * as typedHeadings from './src/remark/typedHeadings';
+import { codeBlockResult } from './src/remark/codeBlocks';
 import gfmAlerts from './src/remark/gfmAlerts';
 import colorLinks from './src/remark/colorLinks';
 import transformDeflists from './src/remark/transformDeflists';
 import tableColumns from './src/rehype/tableColumns';
+
+const staticDirectories = ['static'];
 
 const config: Config = {
     title: 'cli-screencast',
@@ -14,6 +17,7 @@ const config: Config = {
     tagline: 'Capture terminal screenshots and recordings',
     url: 'https://cli-screencast.io',
     baseUrl: '/',
+    staticDirectories,
     onBrokenLinks: 'throw',
     onBrokenMarkdownLinks: 'warn',
     favicon: 'assets/favicon.ico',
@@ -34,6 +38,7 @@ const config: Config = {
                 ],
                 remarkPlugins: [
                     [npm2yarn, { sync: true }],
+                    [codeBlockResult, { siteDir: __dirname, staticDirectories }],
                     typedHeadings.post,
                     gfmAlerts,
                     transformDeflists,

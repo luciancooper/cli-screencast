@@ -91,7 +91,7 @@ Connect capture session to `process.stdin` to read input from the user. Defaults
 
 Here is an example of capturing a callback function that writes to `process.stdout`:
 
-```js
+```js result='./assets/usage--callback--stdout.svg'
 import { captureCallback } from 'cli-screencast';
 
 captureCallback((capture) => {
@@ -106,17 +106,13 @@ captureCallback((capture) => {
 });
 ```
 
-Result:
-
-![captureCallback stdout example](./assets/usage--callback--stdout.svg)
-
 ### Capturing input from `stdin`
 
 Here is an example of capturing a callback function that gets input from `process.stdin`. Input from `stdin` can be mocked using `capture.emitKeypress` and `capture.emitKeypressSequence` methods, or the [`connectStdin`](#connectStdin) option can be enabled and you can provide the input yourself. If **all** the input required by your callback function is not mocked, then [`connectStdin`](#connectStdin) **must** be enabled, or else you will not be able to interact with `process.stdin` and the capture will hang.
 
 In this example, `capture.emitKeypressSequence` is used to mock typing `Hello World!` and then hitting <kbd>return</kbd>:
 
-```js
+```js result='./assets/usage--callback--stdin.svg'
 import { captureCallback } from 'cli-screencast';
 
 captureCallback(async (capture) => {
@@ -143,15 +139,11 @@ captureCallback(async (capture) => {
 });
 ```
 
-Result:
-
-![captureCallback stdin example](./assets/usage--callback--stdin.svg)
-
 ### Emulating a command
 
 You can emulate capturing a command by passing a command string to the `capture.start` method. A command prompt with animated keystrokes will be included at the start of the capture. This capture example emulates running the command `echo Hello World!`:
 
-```js
+```js result='./assets/usage--callback--command.svg'
 import { captureCallback } from 'cli-screencast';
 
 captureCallback(async (capture) => {
@@ -161,9 +153,5 @@ captureCallback(async (capture) => {
     // svg output string...
 });
 ```
-
-Result:
-
-![captureCallback command example](./assets/usage--callback--command.svg)
 
 The [`keystrokeAnimationInterval`](options.md#keystrokeAnimationInterval) option can be configured to customize the speed of the keystroke animation, and the prompt prefix can be customized via the [`prompt`](options.md#prompt) option. The command prompt can be captured without an animation by disabling the [`keystrokeAnimation`](options.md#keystrokeAnimation) option.

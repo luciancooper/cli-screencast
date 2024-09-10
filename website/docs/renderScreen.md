@@ -64,7 +64,7 @@ Debugging
 
 Here is an example of rendering a simple screenshot to svg:
 
-```js
+```js result='./assets/usage--screen.svg'
 import { renderScreen } from 'cli-screencast';
 import chalk from 'chalk';
 
@@ -75,7 +75,3 @@ renderScreen(
     // svg output string...
 });
 ```
-
-Result:
-
-![renderScreen example](./assets/usage--screen.svg)
