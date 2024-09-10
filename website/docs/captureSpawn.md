@@ -109,3 +109,53 @@ The maximum amount of time the process is allowed to run in milliseconds. If gre
 #### killSignal «`string`» {#killSignal}
 
 The signal to be used when the spawned process is killed by `timeout`. Default is `'SIGTERM'`.
+
+## Usage
+
+### Capturing a command
+
+Here is a basic example of capturing the output of the command `echo Hello World!`:
+
+```js
+import { captureSpawn } from 'cli-screencast';
+
+captureSpawn('echo', ['Hello World!'], {
+    columns: 50,
+    rows: 10,
+    // echo must be executed in a shell on windows
+    shell: process.platform === 'win32',
+    cursorHidden: true,
+    captureCommand: false,
+}).then((svg) => {
+    // svg output string...
+});
+```
+
+Result:
+
+![captureSpawn example](./assets/usage--spawn.svg)
+
+### Capturing a command with a prompt
+
+Here is the same example as above, but with the [`captureCommand`](options.md#captureCommand) option enabled, which causes a command prompt with animated keystrokes to be included in the capture.
+
+```js
+import { captureSpawn } from 'cli-screencast';
+
+captureSpawn('echo', ['Hello World!'], {
+    columns: 50,
+    rows: 10,
+    // echo must be executed in a shell on windows
+    shell: process.platform === 'win32',
+    cursorHidden: true,
+    captureCommand: true,
+}).then((svg) => {
+    // svg output string...
+});
+```
+
+Result:
+
+![captureSpawn with prompt](./assets/usage--spawn--prompt.svg)
+
+The [`keystrokeAnimationInterval`](options.md#keystrokeAnimationInterval) option can be configured to customize the speed of the keystroke animation, or the prompt can be captured without the animation by disabling the [`keystrokeAnimation`](options.md#keystrokeAnimation) option. The prompt prefix can be customized via the [`prompt`](options.md#prompt) option.

@@ -80,4 +80,90 @@ Silently capture output to `process.stdout` and `process.stderr`. Defaults to `t
 
 #### connectStdin «`boolean`» {#connectStdin}
 
-Connect capture session to `process.stdin` to capture any input from the user. Defaults to `false`.
+Connect capture session to `process.stdin` to read input from the user. Defaults to `false`.
+
+> [!warning]
+> This option must be enabled if you want to read keyboard input from the underlying `stdin` tty stream.
+
+## Usage
+
+### Capturing writes to `stdout`
+
+Here is an example of capturing a callback function that writes to `process.stdout`:
+
+```js
+import { captureCallback } from 'cli-screencast';
+
+captureCallback((capture) => {
+    console.log('1st write...');
+    capture.wait(1500); // capture recording artificially waits 1.5s
+    process.stdout.write('2nd write...');
+    capture.wait(1500); // wait 1.5s
+    console.log('\n3rd write...');
+    capture.wait(1500); // wait 1.5s
+}, { columns: 50, rows: 10 }).then((svg) => {
+    // svg output string...
+});
+```
+
+Result:
+
+![captureCallback stdout example](./assets/usage--callback--stdout.svg)
+
+### Capturing input from `stdin`
+
+Here is an example of capturing a callback function that gets input from `process.stdin`. Input from `stdin` can be mocked using `capture.emitKeypress` and `capture.emitKeypressSequence` methods, or the [`connectStdin`](#connectStdin) option can be enabled and you can provide the input yourself. If **all** the input required by your callback function is not mocked, then [`connectStdin`](#connectStdin) **must** be enabled, or else you will not be able to interact with `process.stdin` and the capture will hang.
+
+In this example, `capture.emitKeypressSequence` is used to mock typing `Hello World!` and then hitting <kbd>return</kbd>:
+
+```js
+import { captureCallback } from 'cli-screencast';
+
+captureCallback(async (capture) => {
+    // create a readline interface
+    const rl = capture.createInterface();
+    // ask the user a question
+    const promise = new Promise((resolve) => {
+        rl.question('Write a message: ', resolve);
+    });
+    // wait 1s
+    capture.wait(1000);
+    // mock the user typing their response
+    capture.emitKeypressSequence([
+        'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!', 'return',
+    ]);
+    // wait for the response to resolve
+    const result = await promise;
+    // display the user's response
+    console.log(`Your Message: ${result}`);
+    // close the readline interface
+    rl.close();
+}, { columns: 50, rows: 10 }).then((svg) => {
+    // svg output string...
+});
+```
+
+Result:
+
+![captureCallback stdin example](./assets/usage--callback--stdin.svg)
+
+### Emulating a command
+
+You can emulate capturing a command by passing a command string to the `capture.start` method. A command prompt with animated keystrokes will be included at the start of the capture. This capture example emulates running the command `echo Hello World!`:
+
+```js
+import { captureCallback } from 'cli-screencast';
+
+captureCallback(async (capture) => {
+    capture.start('echo Hello World!');
+    console.log('Hello World!');
+}, { columns: 50, rows: 10, cursorHidden: true }).then((svg) => {
+    // svg output string...
+});
+```
+
+Result:
+
+![captureCallback command example](./assets/usage--callback--command.svg)
+
+The [`keystrokeAnimationInterval`](options.md#keystrokeAnimationInterval) option can be configured to customize the speed of the keystroke animation, and the prompt prefix can be customized via the [`prompt`](options.md#prompt) option. The command prompt can be captured without an animation by disabling the [`keystrokeAnimation`](options.md#keystrokeAnimation) option.

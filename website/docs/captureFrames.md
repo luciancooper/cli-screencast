@@ -63,3 +63,26 @@ Rendering Related
 
 Debugging
 : [logLevel](options.md#logLevel)
+
+## Usage
+
+Here is a basic example of how to create a screen capture from an array of content frames:
+
+```js
+import { captureFrames } from 'cli-screencast';
+
+const frames = [
+    { content: 'Hello World!', duration: 1500 },
+    { content: '\n1st Write...', duration: 1500 },
+    { content: '\n2nd Write...', duration: 1500 },
+    { content: '\n3rd Write...', duration: 1500 },
+];
+
+captureFrames(frames, { columns: 50, rows: 10 }).then((svg) => {
+    // svg output string...
+});
+```
+
+Result:
+
+![captureFrames example](./assets/usage--frames.svg)

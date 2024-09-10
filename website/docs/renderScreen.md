@@ -59,3 +59,23 @@ Rendering Related
 
 Debugging
 : [logLevel](options.md#logLevel)
+
+## Usage
+
+Here is an example of rendering a simple screenshot to svg:
+
+```js
+import { renderScreen } from 'cli-screencast';
+import chalk from 'chalk';
+
+renderScreen(
+    `Hello ${chalk.yellow('World!')}`,
+    { columns: 50, rows: 20 },
+).then((svg) => {
+    // svg output string...
+});
+```
+
+Result:
+
+![renderScreen example](./assets/usage--screen.svg)

@@ -4,12 +4,14 @@ import favicon from './media/favicon';
 import projectLogo from './media/projectLogo';
 import windowIcons from './docs/windowIcons';
 import windowOptions from './docs/windowOptions';
+import usageExamples from './docs/usageExamples';
 
 const assets: Asset[] = [
     favicon,
     ...projectLogo,
     windowIcons,
     windowOptions,
+    ...usageExamples,
 ];
 
 const args = process.argv.slice(2);
