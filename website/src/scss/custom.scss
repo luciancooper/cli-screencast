@@ -21,12 +21,20 @@
     --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
-code {
+code,
+kbd {
     text-wrap: nowrap;
 }
 
 .pagination-nav {
     display: none;
+}
+
+details.alert {
+    --ifm-alert-background-color: var(--ifm-color-secondary-contrast-background);
+    --ifm-alert-background-color-highlight: rgba(235, 237, 240, 0.15);
+    --ifm-alert-foreground-color: var(--ifm-color-secondary-contrast-foreground);
+    --ifm-alert-border-color: var(--ifm-color-secondary-dark);
 }
 
 .header-github-link {

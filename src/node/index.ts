@@ -73,7 +73,7 @@ export interface NodeCapture {
      * @param title - window title string
      * @param icon - window icon
      */
-    setTitle: (title: string, icon?: string | boolean) => any
+    setTitle: (title: string, icon?: string | boolean) => void
 
     /**
      * Artificially emit a keypress to the recording's input stream during the capture.
