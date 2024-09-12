@@ -7,6 +7,7 @@ import { codeBlockResult } from './src/remark/codeBlocks';
 import gfmAlerts from './src/remark/gfmAlerts';
 import colorLinks from './src/remark/colorLinks';
 import transformDeflists from './src/remark/transformDeflists';
+import transformKbd from './src/remark/transformKbd';
 import tableColumns from './src/rehype/tableColumns';
 
 const staticDirectories = ['static'];
@@ -42,6 +43,7 @@ const config: Config = {
                     typedHeadings.post,
                     gfmAlerts,
                     transformDeflists,
+                    transformKbd,
                 ],
                 rehypePlugins: [
                     tableColumns,
