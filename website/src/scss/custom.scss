@@ -167,9 +167,12 @@ details.alert {
     margin: 0 0 var(--ifm-leading);
     padding: 0;
 
+    > *:not(:last-child) {
+        border-bottom: 1px solid var(--codeblock-group-border-color);
+    }
+
     > .code-block-container {
         padding: var(--codeblock-group-padding-vertical) var(--codeblock-group-padding-horizontal) 0;
-        border-bottom: 1px solid var(--codeblock-group-border-color);
     }
 
     > .code-block-result {

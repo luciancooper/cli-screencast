@@ -18,7 +18,7 @@ export async function embedFonts(data: Parameters<typeof resolveFonts>[0], famil
 
 type AssetType = 'docs' | 'static';
 
-type RenderFunction = (this: Asset) => string | Buffer | Promise<string | Buffer>;
+type RenderFunction = (...dependencies: Asset[]) => string | Buffer | Promise<string | Buffer>;
 
 // resolve assets directory
 const paths = {
@@ -26,7 +26,12 @@ const paths = {
     static: resolve(__dirname, '../website/static'),
 } satisfies Record<AssetType, string>;
 
-export default class Asset {
+export interface Creatable {
+    create: () => Promise<void>
+    remove: () => Promise<void>
+}
+
+export default class Asset implements Creatable {
     static fonts = {
         cascadiaCode: {
             fontFamily: 'Cascadia Code',
@@ -68,6 +73,28 @@ export default class Asset {
         this.render = render;
     }
 
+    static chain(dependencyLevels: (Asset | Asset[])[]): Creatable {
+        const assets: Asset[] = [];
+        let dependencies: Asset[] | null = null;
+        for (const level of dependencyLevels) {
+            const array = Array.isArray(level) ? level : [level];
+            if (dependencies) {
+                // bind dependent assets to render functions
+                for (const asset of array) asset.render = asset.render.bind(asset, ...dependencies);
+            }
+            assets.push(...array);
+            dependencies = array;
+        }
+        return {
+            async create() {
+                for (const asset of assets) await asset.create();
+            },
+            async remove() {
+                for (const asset of assets) await asset.remove();
+            },
+        };
+    }
+
     get absPath(): string {
         return join(this.dir, this.id);
     }
@@ -77,18 +104,21 @@ export default class Asset {
     }
 
     async create() {
+        // skip render if asset file already exists
         if (this.exists()) {
-            log.info('skipping %k asset render', this.id);
+            log.info('%k skipping asset render', this.id);
             return;
         }
-        log.info('rendering asset %k', this.id);
+        log.info('%k rendering asset', this.id);
         const asset = await this.render();
         await writeToFile(this.absPath, asset);
-        log.info('wrote asset %k to %S', this.id, relative(process.cwd(), this.dir));
+        log.info('%k wrote asset to %S', this.id, relative(process.cwd(), this.dir));
     }
 
     async remove() {
+        // stop if asset file does not exist
         if (!this.exists()) return;
+        // delete asset file
         await rm(this.absPath);
         log.info('removed asset %S', relative(process.cwd(), this.absPath));
     }

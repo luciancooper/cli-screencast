@@ -3,7 +3,7 @@ import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 import npm2yarn from '@docusaurus/remark-plugin-npm2yarn';
 import * as typedHeadings from './src/remark/typedHeadings';
-import { codeBlockResult } from './src/remark/codeBlocks';
+import { codeBlockMeta, codeFileBlocks } from './src/remark/codeBlocks';
 import gfmAlerts from './src/remark/gfmAlerts';
 import colorLinks from './src/remark/colorLinks';
 import transformDeflists from './src/remark/transformDeflists';
@@ -34,12 +34,13 @@ const config: Config = {
                 sidebarPath: './sidebars.ts',
                 sidebarCollapsed: false,
                 beforeDefaultRemarkPlugins: [
+                    [codeFileBlocks, { siteDir: __dirname, staticDirectories }],
                     typedHeadings.pre,
                     colorLinks,
                 ],
                 remarkPlugins: [
                     [npm2yarn, { sync: true }],
-                    [codeBlockResult, { siteDir: __dirname, staticDirectories }],
+                    [codeBlockMeta, { siteDir: __dirname, staticDirectories }],
                     typedHeadings.post,
                     gfmAlerts,
                     transformDeflists,

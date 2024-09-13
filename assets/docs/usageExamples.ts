@@ -1,4 +1,4 @@
-import { renderScreen, captureSpawn, captureCallback, captureFrames } from '@src';
+import { renderScreen, captureSpawn, captureCallback, captureFrames, renderData } from '@src';
 import Asset from '../asset';
 
 export default [
@@ -103,4 +103,29 @@ export default [
             theme: { cursorBlink: true },
         }),
     }),
+    Asset.chain([
+        new Asset({
+            id: 'capture--data.yaml',
+            type: 'docs',
+            render: () => captureFrames([
+                { content: 'Hello World!', duration: 1500 },
+                { content: '\n1st Write...', duration: 1500 },
+                { content: '\n2nd Write...', duration: 1500 },
+                { content: '\n3rd Write...', duration: 1500 },
+            ], {
+                output: 'yaml',
+                columns: 50,
+                rows: 10,
+                cursorHidden: true,
+            }),
+        }),
+        new Asset({
+            id: 'usage--data.svg',
+            type: 'docs',
+            render: (yaml: Asset) => renderData(
+                yaml.absPath,
+                { ...Asset.fonts.cascadiaCode },
+            ),
+        }),
+    ]),
 ];

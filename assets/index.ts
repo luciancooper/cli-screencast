@@ -1,12 +1,12 @@
 import { setLogLevel } from '@src/logger';
-import type Asset from './asset';
+import type { Creatable } from './asset';
 import favicon from './media/favicon';
 import projectLogo from './media/projectLogo';
 import windowIcons from './docs/windowIcons';
 import windowOptions from './docs/windowOptions';
 import usageExamples from './docs/usageExamples';
 
-const assets: Asset[] = [
+const assets: Creatable[] = [
     favicon,
     ...projectLogo,
     windowIcons,

@@ -49,3 +49,17 @@ Rendering Related
 
 Debugging
 : [logLevel](options.md#logLevel)
+
+## Usage
+
+Here is a basic example of rendering a capture data file called `capture.yaml` to svg:
+
+![capture.yml](./assets/capture--data.yaml)
+
+```ts result='./assets/usage--data.svg' codeBlockGroup
+import { renderData } from 'cli-screencast';
+
+renderData('capture.yaml', { output: 'svg' }).then((svg) => {
+    // svg output string...
+});
+```
