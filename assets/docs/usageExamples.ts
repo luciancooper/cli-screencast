@@ -1,3 +1,4 @@
+import path from 'path';
 import { renderScreen, captureSpawn, captureCallback, captureFrames, renderData } from '@src';
 import Asset from '../asset';
 
@@ -128,4 +129,20 @@ export default [
             ),
         }),
     ]),
+    new Asset({
+        id: 'usage--shell--capture.svg',
+        type: 'docs',
+        render: () => renderData(
+            path.resolve(__dirname, './data/shell-capture.yaml'),
+            { ...Asset.fonts.cascadiaCodeNF, theme: { cursorType: 'underline', cursorBlink: true } },
+        ),
+    }),
+    new Asset({
+        id: 'usage--shell--demo.svg',
+        type: 'docs',
+        render: () => renderData(
+            path.resolve(__dirname, './data/shell-demo.yaml'),
+            { ...Asset.fonts.cascadiaCodeNF },
+        ),
+    }),
 ];

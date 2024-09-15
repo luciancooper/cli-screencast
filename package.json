@@ -37,6 +37,7 @@
     "lint": "eslint .",
     "prepublishOnly": "yarn test && yarn build",
     "assets": "ts-node assets",
+    "assets:shell": "ts-node assets/shell/demo",
     "website:install": "yarn --cwd ./website/ install",
     "website:start": "yarn --cwd ./website/ docusaurus start",
     "website:build": "yarn assets && yarn --cwd ./website/ docusaurus build",

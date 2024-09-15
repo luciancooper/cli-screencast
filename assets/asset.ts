@@ -42,6 +42,15 @@ export default class Asset implements Creatable {
                 'https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCode-BoldItalic.ttf',
             ],
         },
+        cascadiaCodeNF: {
+            fontFamily: 'Cascadia Code NF',
+            fonts: [
+                'https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCodeNF-Regular.ttf',
+                'https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCodeNF-Bold.ttf',
+                'https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCodeNF-Italic.ttf',
+                'https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCodeNF-BoldItalic.ttf',
+            ],
+        },
         consolas: {
             fontFamily: 'Consolas',
             fonts: [

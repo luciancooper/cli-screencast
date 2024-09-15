@@ -156,9 +156,6 @@ details.alert {
     --codeblock-group-box-shadow: var(--ifm-global-shadow-lw);
     --codeblock-group-padding-vertical: var(--ifm-spacing-vertical);
     --codeblock-group-padding-horizontal: var(--ifm-spacing-horizontal);
-    --ifm-badge-background-color: var(--ifm-color-secondary);
-    --ifm-badge-border-color: var(--ifm-badge-background-color);
-    --ifm-badge-color: var(--ifm-color-black);
     background-color: var(--codeblock-group-background-color);
     color: var(--codeblock-group-foreground-color);
     border-radius: var(--ifm-global-radius);
@@ -167,27 +164,31 @@ details.alert {
     margin: 0 0 var(--ifm-leading);
     padding: 0;
 
-    > *:not(:last-child) {
-        border-bottom: 1px solid var(--codeblock-group-border-color);
+    > * {
+        padding: var(--codeblock-group-padding-vertical) var(--codeblock-group-padding-horizontal);
+
+        &:not(:first-child) {
+            border-top: 1px solid var(--codeblock-group-border-color);
+        }
     }
 
     > .code-block-container {
-        padding: var(--codeblock-group-padding-vertical) var(--codeblock-group-padding-horizontal) 0;
+        padding-bottom: 0;
+
+        + .code-block-demo {
+            border-top-width: 0px;
+            padding-top: 0px;
+        }
     }
 
-    > .code-block-result {
-        padding: var(--codeblock-group-padding-vertical) var(--codeblock-group-padding-horizontal);
-
-        .svg-file-title > span {
+    > .code-block-result .svg-file-title {
+        > .badge {
             text-transform: uppercase;
-            line-height: 1;
-            font-size: 80%;
-            font-weight: var(--ifm-font-weight-bold);
-            padding: var(--ifm-badge-padding-vertical) var(--ifm-badge-padding-horizontal);
-            border-radius: var(--ifm-badge-border-radius);
-            background-color: var(--ifm-badge-background-color);
-            border: var(--ifm-badge-border-width) solid var(--ifm-badge-border-color);
-            color: var(--ifm-badge-color);
+        }
+
+        > .title-content {
+            font-size: var(--ifm-code-font-size);
+            font-weight: 500;
         }
     }
 }

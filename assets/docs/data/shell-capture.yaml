@@ -1,0 +1,65 @@
+version: 1.0.0
+type: capture
+columns: 50
+rows: 10
+tabSize: 8
+writes:
+  - content: "\e[48;5;75m\e[38;5;15m 
+      \e[0m\e[38;5;75m\e[0m\e[0m\e[38;5;176;49m\e[7m\e[0m\e[48;5;176m\e[38;5;\
+      15m ~ \e[0m\e[38;5;176m\e[0m \e[K"
+    delay: 0
+  - content: e
+    delay: 1295
+  - content: "\bec"
+    delay: 172
+  - content: h
+    delay: 243
+  - content: o
+    delay: 273
+  - content: " "
+    delay: 192
+  - content: H
+    delay: 334
+  - content: e
+    delay: 211
+  - content: l
+    delay: 151
+  - content: l
+    delay: 123
+  - content: o
+    delay: 171
+  - content: " "
+    delay: 110
+  - content: W
+    delay: 237
+  - content: o
+    delay: 144
+  - content: r
+    delay: 110
+  - content: l
+    delay: 133
+  - content: d
+    delay: 145
+  - content: "!"
+    delay: 420
+  - content: "\r
+
+      Hello World!\r
+
+      "
+    delay: 450
+  - content: "\e[48;5;75m\e[38;5;15m 
+      \e[0m\e[38;5;75m\e[0m\e[0m\e[38;5;176;49m\e[7m\e[0m\e[48;5;176m\e[38;5;\
+      15m ~ \e[0m\e[38;5;176m\e[0m \e[K"
+    delay: 89
+  - content: e
+    delay: 1083
+  - content: "\bex"
+    delay: 250
+  - content: i
+    delay: 186
+  - content: t
+    delay: 123
+  - content: "\n"
+    delay: 143
+endDelay: 1080

@@ -3,8 +3,9 @@ import { isAbsolute, dirname, join, relative, extname } from 'path';
 import { constants as fsconstants } from 'fs';
 import { access, readFile } from 'fs/promises';
 import type { Transformer } from 'unified';
-import type { MdxJsxFlowElement } from 'mdast-util-mdx-jsx';
-import type { Code, Image, Parent, RootContent } from 'mdast';
+import type { MdxJsxFlowElement, MdxJsxAttribute } from 'mdast-util-mdx-jsx';
+import type { Code, Image, Parent, RootContent, PhrasingContent } from 'mdast';
+import { fromMarkdown } from 'mdast-util-from-markdown';
 import { visit } from 'unist-util-visit';
 
 interface Context {
@@ -55,36 +56,74 @@ async function resolveAbsolutePath(filePath: string, { siteDir, staticDirectorie
     return assetPath;
 }
 
-async function processCodeResults(
-    [node, index, parent]: [node: Code, index: number, parent: Parent],
-    { resultFile, ...context }: Context & { resultFile: string },
-) {
+async function resolveSvgFile(file: string, context: Context): Promise<string | null> {
     // resolve file path
-    const filePath = parseFilePath(resultFile);
-    if (!filePath) return;
+    const filePath = parseFilePath(file);
+    if (!filePath) return null;
     // get abs path to results file
-    const absPath = await resolveAbsolutePath(filePath, context),
-        // read the raw svg file content
-        rawSvg = await readFile(absPath, { encoding: 'utf8' }),
-        // create SVGFile mdxJsxFlowElement
-        svgJsx: MdxJsxFlowElement = {
-            type: 'mdxJsxFlowElement',
-            name: 'SVGFile',
-            attributes: [
-                { type: 'mdxJsxAttribute', name: 'rawSvg', value: rawSvg },
-                { type: 'mdxJsxAttribute', name: 'title', value: 'result' },
-                { type: 'mdxJsxAttribute', name: 'className', value: 'code-block-result' },
-            ],
-            children: [],
-        };
+    const absPath = await resolveAbsolutePath(filePath, context);
+    // read the raw svg file content
+    return readFile(absPath, { encoding: 'utf8' });
+}
+
+function svgFileElement(rawSvg: string, title?: string, attr: Record<string, string> = {}): MdxJsxFlowElement {
+    let children: PhrasingContent[] = [];
+    if (title) {
+        // parse title markdown
+        const childs = fromMarkdown(title).children;
+        if (childs.length === 1 && childs[0].type === 'paragraph') ({ children } = childs[0]);
+    }
+    return {
+        type: 'mdxJsxFlowElement',
+        name: 'SVGFile',
+        attributes: [
+            { type: 'mdxJsxAttribute', name: 'rawSvg', value: rawSvg },
+            ...Object.entries(attr).map<MdxJsxAttribute>(([name, value]) => ({ type: 'mdxJsxAttribute', name, value })),
+        ],
+        children: children as MdxJsxFlowElement['children'],
+    };
+}
+
+interface CodeMeta {
+    path: string
+    title: string | undefined
+}
+
+function parseCodeMeta(meta: string, key: string): CodeMeta | null {
+    const match = new RegExp(`${key}\\s*=\\s*(['"])([^'"]+?)\\1`).exec(meta);
+    return match ? {
+        path: match[2],
+        title: (new RegExp(`${key}Title\\s*=\\s*(['"])([^'"]+?)\\1`).exec(meta) ?? [])[2],
+    } : null;
+}
+
+async function processCodeMeta(
+    [node, index, parent]: [node: Code, index: number, parent: Parent],
+    { result, demo }: { result: CodeMeta | null, demo: CodeMeta | null },
+    context: Context,
+) {
+    // create array of MdxJsxFlowElements
+    const svgJsx: MdxJsxFlowElement[] = [];
+    // resolve demo svg file asset if specified
+    if (demo) {
+        const raw = await resolveSvgFile(demo.path, context);
+        svgJsx.push(svgFileElement(raw, demo.title, { className: 'code-block-demo' }));
+    }
+    // resolve result svg file asset if specified
+    if (result) {
+        const raw = await resolveSvgFile(result.path, context);
+        svgJsx.push(svgFileElement(raw, result.title, { badge: 'result', className: 'code-block-result' }));
+    }
+    // stop if neither result nor demo asset could be resolved
+    if (!svgJsx.length) return;
     // check if parent node is not a `codeblockgroup`
     if (parent.type !== 'codeblockgroup') {
         // replace code block with a `codeblockgroup` node
-        const group = { type: 'codeblockgroup', children: [node, svgJsx] };
+        const group = { type: 'codeblockgroup', children: [node, ...svgJsx] };
         parent.children.splice(index, 1, group as RootContent);
     } else {
         // node is already in a `codeblockgroup`
-        parent.children.splice(index + 1, 0, svgJsx);
+        parent.children.splice(index + 1, 0, ...svgJsx);
     }
 }
 
@@ -127,15 +166,16 @@ export function codeBlockMeta(options: Omit<Context, 'sourcePath'>): Transformer
         visit(root, 'code', (node: Code, index: number, parent: Parent) => {
             // stop if the code node has no metadata
             if (!node.meta) return;
-            // match result='...' metadata
-            const match = /result\s*=\s*(['"])([^'"]+?)\1/.exec(node.meta ?? '');
-            if (!match) return;
-            // get result file
-            const resultFile = match[2];
+            // parse result and demo metadata
+            const result = parseCodeMeta(node.meta, 'result'),
+                demo = parseCodeMeta(node.meta, 'demo');
+            // stop if no svg asset files were found
+            if (!result && !demo) return;
             // add processing promise
-            promises.push(processCodeResults(
+            promises.push(processCodeMeta(
                 [node, index, parent],
-                { resultFile, sourcePath: vfile.path, ...options },
+                { result, demo },
+                { sourcePath: vfile.path, ...options },
             ));
         });
         // finish async processing of result metadata

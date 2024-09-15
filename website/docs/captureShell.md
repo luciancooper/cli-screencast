@@ -81,3 +81,27 @@ Environment key-value pairs to be set for the shell process. Automatically exten
 #### extendEnv «`boolean`» {#extendEnv}
 
 The shell process environment extends from `process.env`. Defaults to `true`.
+
+## Usage
+
+Here is a basic example of a script that spawns and captures a new shell process. It will run powershell on windows or zsh in unix like environments, and the shell will start from the user's home directory. The rendered screencast svg is written to a file called `capture.svg` in the current working directory using the [`outputPath`](options.md#outputPath) option.
+
+Below is an example execution that captures a zsh shell process where the user runs the command `echo Hello World!` and then exits the shell.
+
+```js title='capture.js' demo='./assets/usage--shell--demo.svg' demoTitle='*Example script execution:*' result='./assets/usage--shell--capture.svg' resultTitle='capture.svg'
+#!/usr/bin/env node
+import { homedir } from 'os';
+import { captureShell } from 'cli-screencast';
+
+captureShell({
+    // run powershell on windows or zsh on unix
+    shell: process.platform === 'win32' ? 'pwsh.exe' : 'zsh',
+    // start the shell from the user's home directory
+    cwd: homedir(),
+    columns: 50,
+    rows: 10,
+    theme: { cursorType: 'underline', cursorBlink: true },
+    // save svg to a file in the same directory as this script
+    outputPath: './capture.svg',
+});
+```
