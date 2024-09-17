@@ -57,6 +57,7 @@ const config: Config = {
         } satisfies Preset.Options],
     ],
     themeConfig: {
+        image: 'assets/social-card.png',
         tableOfContents: {
             minHeadingLevel: 2,
             maxHeadingLevel: 5,

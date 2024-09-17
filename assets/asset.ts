@@ -10,9 +10,9 @@ interface FontFamily {
     fonts: string[]
 }
 
-export async function embedFonts(data: Parameters<typeof resolveFonts>[0], family: FontFamily) {
+export async function embedFonts(data: Parameters<typeof resolveFonts>[0], family: FontFamily, png = false) {
     const { fontColumnWidth, ...resolvedFonts } = await resolveFonts(data, family.fontFamily, family.fonts),
-        { fontFamily, svg: css } = await embedFontCss(resolvedFonts, { svg: true, png: false });
+        { fontFamily, [png ? 'png' : 'svg']: css } = await embedFontCss(resolvedFonts, { svg: !png, png });
     return { fontColumnWidth, fontFamily, css };
 }
 

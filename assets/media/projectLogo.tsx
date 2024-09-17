@@ -1,6 +1,5 @@
 import type { SVGProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { PickOptional } from '@src/types';
 import { applyDefaults } from '@src/options';
 import Asset from '../asset';
 
@@ -53,22 +52,32 @@ const iconPath = 'M0.4786 0.5307'
 interface Props {
     size: number
     window?: { width?: number, aspectRatio?: number, borderRadius?: number }
-    color?: { window?: string, icon?: string }
+    colors?: { window?: string, icon?: string }
     decorations?: boolean | DecorationsProps
 }
 
-const defProps = {
-    window: { width: 1, aspectRatio: 14 / 17, borderRadius: 1 / 16 },
-    color: { window: '#282a36', icon: '#ffffff' },
-    decorations: true,
-} satisfies Required<PickOptional<Props>>;
+const defWindowProps: Required<Required<Props>['window']> = {
+    width: 1,
+    aspectRatio: 14 / 17,
+    borderRadius: 1 / 16,
+};
 
-export function ProjectLogo({ size, ...opts }: Props) {
-    const { decorations, ...props } = applyDefaults<Required<PickOptional<Props>>>(defProps, opts),
-        window = applyDefaults(defProps.window, props.window),
-        color = applyDefaults(defProps.color, props.color),
-        [w, h] = [window.width * size, window.width * window.aspectRatio * size],
-        radius = window.borderRadius * size,
+const defColorProps: Required<Required<Props>['colors']> = {
+    window: '#282a36',
+    icon: '#ffffff',
+};
+
+export function ProjectLogo({
+    size,
+    window,
+    colors,
+    decorations = true,
+    ...opts
+}: Props & SVGProps<SVGElement>) {
+    const { width, aspectRatio, borderRadius } = applyDefaults(defWindowProps, window ?? {}),
+        { window: windowColor, icon: iconColor } = applyDefaults(defColorProps, colors ?? {}),
+        [w, h] = [width * size, width * aspectRatio * size],
+        radius = borderRadius * size,
         [ix, iy] = [(size - w) / 2, (size - h) / 2],
         iconSize = Math.min(w, h),
         iconOffset = (size - iconSize) / 2;
@@ -77,13 +86,14 @@ export function ProjectLogo({ size, ...opts }: Props) {
             xmlns='http://www.w3.org/2000/svg'
             xmlnsXlink='http://www.w3.org/1999/xlink'
             viewBox={`0 0 ${size} ${size}`}
+            {...opts}
         >
             <defs>
                 <symbol id='icon' viewBox='0 0 1 1'>
-                    <path d={iconPath} fill={color.icon}/>
+                    <path d={iconPath} fill={iconColor}/>
                 </symbol>
             </defs>
-            <rect x={ix} y={iy} width={w} height={h} rx={radius} ry={radius} fill={color.window}/>
+            <rect x={ix} y={iy} width={w} height={h} rx={radius} ry={radius} fill={windowColor}/>
             {decorations ? (
                 <Decorations
                     transform={`translate(${ix},${iy})`}
@@ -112,7 +122,7 @@ export default [
         render: () => renderToStaticMarkup(
             <ProjectLogo
                 size={128}
-                color={{ window: '#eff1f5', icon: defProps.color.window }}
+                colors={{ window: '#eff1f5', icon: defColorProps.window }}
                 decorations={{ colors: ['#b30900', '#cc8b00', '#0b5b17'] }}
             />,
         ),
