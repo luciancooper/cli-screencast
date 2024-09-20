@@ -34,6 +34,8 @@ export function hexString([r, g, b]: RGBA) {
  * @param nullify - whether or not to return undefined if alpha value is 1
  * @returns alpha value
  */
+export function alphaValue(rgba: RGBA, nullify: true): number | undefined;
+export function alphaValue(rgba: RGBA, nullify?: boolean): number;
 export function alphaValue([,,, a]: RGBA, nullify = false) {
     const alpha = Math.max(Math.min(1, (a ?? 1)), 0);
     return (nullify && alpha === 1) ? undefined : alpha;

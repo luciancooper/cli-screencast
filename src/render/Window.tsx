@@ -3,7 +3,7 @@ import type { IconID, Size, Title, TitleKeyFrame } from '../types';
 import { hexString, alphaValue } from '../color';
 import iconPaths from './icons.json';
 import Context from './Context';
-import BoxShadow, { type BoxShadowOptions } from './BoxShadow';
+import createBoxShadow, { type BoxShadowOptions } from './BoxShadow';
 import WindowTitle from './WindowTitle';
 
 export interface WindowOptions {
@@ -104,7 +104,9 @@ const Window = forwardRef<Size, WindowProps>(({
         // size of the terminal window
         winSize = { width: columns * dx + paddingX * 2 + side * 2, height: rows * dy + paddingY * 2 + side + top },
         // size of the image (window size & offsets)
-        size = { width: winSize.width + offsetX * 2, height: winSize.height + offsetY * 2 };
+        size = { width: winSize.width + offsetX * 2, height: winSize.height + offsetY * 2 },
+        // create box shadow
+        [shadowId, shadowFilter] = (boxShadow && createBoxShadow(boxShadow)) || [null, null];
     // set ref value
     if (typeof ref === 'function') ref(size);
     return (
@@ -125,7 +127,7 @@ const Window = forwardRef<Size, WindowProps>(({
                     ))}
                 </defs>
             )}
-            {boxShadow ? <BoxShadow id='box-shadow' {...boxShadow}/> : null}
+            {shadowFilter}
             <rect
                 className='window-background'
                 x={offsetX}
@@ -134,7 +136,7 @@ const Window = forwardRef<Size, WindowProps>(({
                 ry={borderRadius}
                 fill={hexString(theme.background)}
                 fillOpacity={alphaValue(theme.background, true)}
-                filter={boxShadow ? 'url(#box-shadow)' : undefined}
+                filter={shadowId ? `url(#${shadowId})` : undefined}
                 {...winSize}
             />
             {title ? (

@@ -8,7 +8,7 @@ import type { KeyTime } from '@src/render/Animation';
 import Context, { type RenderContext } from '@src/render/Context';
 import Window from '@src/render/Window';
 import WindowTitle from '@src/render/WindowTitle';
-import BoxShadow, { defaultBoxShadow, type BoxShadowOptions } from '@src/render/BoxShadow';
+import createBoxShadow, { defaultBoxShadow, type BoxShadowOptions } from '@src/render/BoxShadow';
 import Text from '@src/render/Text';
 import { Cursor, CursorFrames, opacityKeyTimes, translateKeyTimes } from '@src/render/Cursor';
 import * as ansi from './helpers/ansi';
@@ -68,8 +68,8 @@ describe('<Window/>', () => {
             type: 'svg',
             children: [
                 { type: 'style' },
-                { type: 'filter', props: { id: 'box-shadow' } },
-                { type: 'rect', props: { className: 'window-background', filter: 'url(#box-shadow)' } },
+                { type: 'filter', props: { id: 'bs-d2b4-00000080' } },
+                { type: 'rect', props: { className: 'window-background', filter: 'url(#bs-d2b4-00000080)' } },
                 { type: 'svg', props: { className: 'terminal-content' } },
             ],
         });
@@ -131,7 +131,7 @@ describe('<Window/>', () => {
     });
 });
 
-describe('<BoxShadow/>', () => {
+describe('createBoxShadow', () => {
     const baseOptions: Required<BoxShadowOptions> = {
         dx: 0,
         dy: 0,
@@ -141,11 +141,17 @@ describe('<BoxShadow/>', () => {
     };
 
     test('correctly chains filter primitives', () => {
-        expect(render(
-            <BoxShadow id='shadow' {...baseOptions} dx={2} dy={2} spread={[2, 3]} blurRadius={4}/>,
-        )).toStrictEqual({
+        const [id, element] = createBoxShadow({
+            ...baseOptions,
+            dx: 2,
+            dy: 2,
+            spread: [2, 3],
+            blurRadius: 4,
+        })!;
+        expect(id).toBe('bs-d2-3x2y2b4-00000080');
+        expect(render(element)).toStrictEqual({
             type: 'filter',
-            props: { id: 'shadow', filterUnits: 'userSpaceOnUse' },
+            props: { id, filterUnits: 'userSpaceOnUse' },
             children: [
                 expect.objectContaining({
                     type: 'feMorphology',
@@ -167,14 +173,19 @@ describe('<BoxShadow/>', () => {
     });
 
     test('returns null when box shadow options are all zero', () => {
-        expect(render(<BoxShadow id='shadow' {...baseOptions}/>)).toBeNull();
+        expect(createBoxShadow(baseOptions)).toBeNull();
+    });
+
+    test('returns null when specified color is fully transparent', () => {
+        expect(createBoxShadow({ ...baseOptions, spread: 2, color: [0, 0, 0, 0] })).toBeNull();
     });
 
     test('specified color can be an rgba string', () => {
-        expect(render(
-            <BoxShadow id='shadow' {...baseOptions} blurRadius={3} color='rgba(255, 0, 0, 0.5)'/>,
-        )).toMatchObject({
+        const [id, element] = createBoxShadow({ ...baseOptions, blurRadius: 3, color: 'rgba(255, 0, 0, 0.5)' })!;
+        expect(id).toBe('bs-b3-ff000080');
+        expect(render(element)).toMatchObject({
             type: 'filter',
+            props: { id },
             children: [
                 { type: 'feGaussianBlur', props: { stdDeviation: 3, in: 'SourceAlpha', result: 'Shadow' } },
                 { type: 'feFlood', props: { floodColor: '#ff0000', floodOpacity: 0.5 } },
@@ -186,10 +197,11 @@ describe('<BoxShadow/>', () => {
 
     describe('feMorphology primitives', () => {
         test('uses `erode` operator when spread is negative', () => {
-            expect(render(
-                <BoxShadow id='shadow' {...baseOptions} spread={[0, -2]}/>,
-            )).toMatchObject({
+            const [id, element] = createBoxShadow({ ...baseOptions, spread: [0, -2] })!;
+            expect(id).toBe('bs-e0-2-00000080');
+            expect(render(element)).toMatchObject({
                 type: 'filter',
+                props: { id },
                 children: [
                     { type: 'feMorphology', props: { operator: 'erode', radius: '0,2', result: 'Shadow' } },
                     { type: 'feFlood' },
@@ -200,9 +212,9 @@ describe('<BoxShadow/>', () => {
         });
 
         test('sequential `erode` then `dilate` primitives if x radius < 0 & y radius > 0', () => {
-            expect(render(
-                <BoxShadow id='shadow' {...baseOptions} spread={[-2, 3]}/>,
-            )).toMatchObject({
+            const [id, element] = createBoxShadow({ ...baseOptions, spread: [-2, 3] })!;
+            expect(id).toBe('bs-e2d3-00000080');
+            expect(render(element)).toMatchObject({
                 type: 'filter',
                 children: [
                     { type: 'feMorphology', props: { operator: 'erode', radius: '2,0', in: 'SourceAlpha' } },
@@ -215,9 +227,9 @@ describe('<BoxShadow/>', () => {
         });
 
         test('sequential `dilate` then `erode` primitives if x radius > 0 & y radius < 0', () => {
-            expect(render(
-                <BoxShadow id='shadow' {...baseOptions} spread={[3, -3]}/>,
-            )).toMatchObject({
+            const [id, element] = createBoxShadow({ ...baseOptions, spread: [3, -3] })!;
+            expect(id).toBe('bs-d3e3-00000080');
+            expect(render(element)).toMatchObject({
                 type: 'filter',
                 children: [
                     { type: 'feMorphology', props: { operator: 'dilate', radius: '3,0', in: 'SourceAlpha' } },
