@@ -111,7 +111,9 @@ Adds the specified number of milliseconds to the capture recording.
 
 #### `capture.setTitle(title, icon)` «`(title, icon?) => void`»  {#capture.setTitle}
 
-Set the title and icon of the terminal window in the recorded capture. The `title` argument must be a `string`, while the optional `icon` argument can be either an icon id `string` (see available icons [here](window-icons.md)), or `true`, in which case the value of `title` will be used as the icon id.
+Set the title and icon of the terminal window in the recorded capture. The `title` argument must be a `string`, while the optional `icon` argument can be either an icon id `string` (see available icons [here](window.md#icon-keywords)), or `true`, in which case the value of `title` will be used as the icon id.
+
+Under the hood, this is just a convenience function that writes OSC escape sequences to change the window title and icon. See the [window title and icon configuration section](window.md#title-and-icon) for more info.
 
 #### `capture.createInterface(options)` «`(options?) => Interface`» {#capture.createInterface}
 
@@ -268,7 +270,7 @@ You can emulate capturing a command by passing a command string to the [`capture
 ```js result='./assets/usage--callback--command.svg'
 import { captureCallback } from 'cli-screencast';
 
-captureCallback(async (capture) => {
+captureCallback((capture) => {
     capture.start('echo Hello World!');
     console.log('Hello World!');
 }, { columns: 50, rows: 10, cursorHidden: true }).then((svg) => {

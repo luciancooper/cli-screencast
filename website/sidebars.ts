@@ -21,9 +21,8 @@ const sidebars: SidebarsConfig = {
         label: 'Configuration',
         items: [
             'options',
+            'window',
             'theme',
-            'box-shadow',
-            'window-icons',
         ],
     }],
 };

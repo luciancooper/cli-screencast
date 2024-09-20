@@ -29,11 +29,11 @@ Cursor is hidden in the captured terminal recording or frame. Defaults to `false
 
 #### windowTitle «`string`» {#windowTitle}
 
-Terminal window title. Default is `undefined`.
+Terminal window title. Default is `undefined`. See the [window title](window#title-and-icon) section for more details.
 
 #### windowIcon «`string | boolean`» {#windowIcon}
 
-Terminal window icon. Can be set to a keyword string to specify a specific icon (see the [window icons section](window-icons.md) for a list of keywords). If set to `true`, the value of `windowTitle` is used. Default is `undefined`.
+Icon to display next to the terminal window title. Can be set to a keyword string to specify a specific icon (see the [window icon keywords](window.md#icon-keywords) section for a list of keywords). If set to `true`, the value of [`windowTitle`](#windowTitle) is used. Default is `undefined`.
 
 ## Output Options
 
@@ -115,7 +115,7 @@ Controls how much info is logged to the console during the render process. Optio
 
 #### theme «`Object`» {#theme}
 
-Terminal theme specification object. See the [themes](theme.md) section for more details.
+Terminal theme specification object. See the [themes](theme.md) page for more details.
 
 #### fontFamily «`string`» {#fontFamily}
 
@@ -143,44 +143,38 @@ Border radius of the rendered terminal window frame. Default is `5`.
 
 #### boxShadow «`boolean | Object`» {#boxShadow}
 
-Render a box shadow around the window frame. Default is `false`. If set to `true`, a default shadow effect will be rendered. Otherwise a box shadow options object can be specified to customize the shadow effect; see the [window box shadow](box-shadow.md) section for details on the supported customization options.
+Render a box shadow around the window frame. Default is `false`. If set to `true`, a default shadow effect will be rendered. Otherwise a box shadow options object can be specified to customize the shadow effect; see the [window box shadow](window.md#box-shadow) section for details on the supported customization options.
 
 #### offsetX «`number`» {#offsetX}
 
-Space in pixels between the rendered terminal window frame and the left and right edges of the image. Default is `12`.
+Space in pixels between the rendered terminal window frame and the left and right edges of the image. Default is `12`. See the [window configuration](window.md) page for details.
 
 #### offsetY «`number`» {#offsetY}
 
-Space in pixels between the rendered terminal window frame and the top and bottom edges of the image. Default is `12`.
+Space in pixels between the rendered terminal window frame and the top and bottom edges of the image. Default is `12`. See the [window configuration](window.md) page for details.
 
 #### paddingX «`number`» {#paddingX}
 
-Amount of padding in pixels to be added to the left and right of the rendered window content box. Default is `5`.
+Amount of padding in pixels to be added to the left and right of the rendered window content box. Default is `5`. See the [window configuration](window.md) page for details.
 
 #### paddingY «`number`» {#paddingY}
 
-Amount of padding in pixels to be added to the top and bottom of the rendered window content box. Default is `5`.
+Amount of padding in pixels to be added to the top and bottom of the rendered window content box. Default is `5`. See the [window configuration](window.md) page for details.
 
 #### decorations «`boolean`» {#decorations}
 
-Render the terminal window with stoplight buttons in the top left corner. Defaults to `true`.
+Render the terminal window with stoplight buttons in the top left corner. Defaults to `true`. See the [window configuration](window.md) page for details.
 
 #### insetMajor «`number`» {#insetMajor}
 
-Amount of inset space in pixels added to the top of the window frame when rendering it with decorations. Default is `40`.
+Amount of inset space in pixels added to the top of the window frame when rendering it with decorations. Default is `40`. See the [window configuration](window.md) page for details.
 
 > [!note]
 > This option is ignored if [`decorations`](#decorations) is `false`.
 
 #### insetMinor «`number`» {#insetMinor}
 
-Amount of inset space in pixels added to the left, right, and bottom of the window frame when rendering it with decorations. Default is `20`.
+Amount of inset space in pixels added to the left, right, and bottom of the window frame when rendering it with decorations. Default is `20`. See the [window configuration](window.md) page for details.
 
 > [!note]
 > This option is ignored if [`decorations`](#decorations) is `false`.
-
----
-
-The following diagram shows how various window rendering related options function:
-
-![Window Options](./assets/window-options.svg)

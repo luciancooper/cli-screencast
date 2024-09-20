@@ -145,4 +145,57 @@ export default [
             { ...Asset.fonts.cascadiaCodeNF },
         ),
     }),
+    new Asset({
+        id: 'usage--window--title-screenshot.svg',
+        type: 'docs',
+        render: () => renderScreen('\x1b]0;node\x07Hello World!', {
+            ...Asset.fonts.cascadiaCode,
+            columns: 50,
+            rows: 10,
+            windowTitle: 'Overwritten Title',
+        }),
+    }),
+    new Asset({
+        id: 'usage--window--title-callback.svg',
+        type: 'docs',
+        render: () => captureCallback((capture) => {
+            process.stdout.write('Hello World!');
+            capture.wait(2000); // wait 2s
+            // change the title to 'Next Title' and the icon to 'node'
+            process.stdout.write('\x1b]2;Next Title\x07\x1b]1;node\x07');
+            capture.wait(2000); // wait 2s
+            // change only the title to 'Last Title'
+            capture.setTitle('Last Title');
+            capture.wait(2000); // wait 2s
+        }, {
+            ...Asset.fonts.cascadiaCode,
+            columns: 50,
+            rows: 10,
+            cursorHidden: true,
+            windowTitle: 'Initial Title',
+            windowIcon: 'shell',
+        }),
+    }),
+    new Asset({
+        id: 'usage--window--shadow.svg',
+        type: 'docs',
+        render: () => renderScreen('Hello World!', {
+            ...Asset.fonts.cascadiaCode,
+            columns: 50,
+            rows: 10,
+            windowTitle: 'Box Shadow',
+            boxShadow: true,
+        }),
+    }),
+    new Asset({
+        id: 'usage--window--shadow-offset.svg',
+        type: 'docs',
+        render: () => renderScreen('Hello World!', {
+            ...Asset.fonts.cascadiaCode,
+            columns: 50,
+            rows: 10,
+            windowTitle: 'Box Shadow with Offset',
+            boxShadow: { dx: 2, dy: 2 },
+        }),
+    }),
 ];
