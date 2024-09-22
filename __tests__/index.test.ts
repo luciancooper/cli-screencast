@@ -1,3 +1,4 @@
+import nock from 'nock';
 import { resolve } from 'path';
 import { writeFile, readFile } from 'fs/promises';
 import YAML from 'yaml';
@@ -28,6 +29,7 @@ jest.mock('fs/promises', () => {
 
 afterEach(() => {
     jest.clearAllMocks();
+    nock.cleanAll();
 });
 
 describe('renderScreen', () => {
@@ -184,14 +186,32 @@ describe('renderData', () => {
         tabSize: 8,
     };
 
-    test('throws error if file extension is not json or yaml', async () => {
+    test('throws error if local file extension is not json or yaml', async () => {
         await expect(renderData('./badpath.txt')).rejects.toThrow(
             "Unsupported data file type: './badpath.txt', must be json or yaml",
         );
     });
 
+    test('throws error if remote file extension is not json or yaml', async () => {
+        await expect(renderData('https://cli-screencast.io/badpath.txt')).rejects.toThrow(
+            "Unsupported data file type: 'https://cli-screencast.io/badpath.txt', must be json or yaml",
+        );
+    });
+
     test('throws error if file path does not exist', async () => {
         await expect(renderData('./badpath.json')).rejects.toThrow("File not found: './badpath.json'");
+    });
+
+    test('handles error if remote file does not exist', async () => {
+        nock('https://cli-screencast.io').get('/badpath.json').reply(404);
+        await expect(renderData('https://cli-screencast.io/badpath.json')).rejects.toThrow(
+            "Failed to fetch file: 'https://cli-screencast.io/badpath.json', received response status 404",
+        );
+    });
+
+    test('handles network errors when fetching remote files', async () => {
+        nock('https://cli-screencast.io').get('/capture.json').replyWithError('mocked network error');
+        await expect(renderData('https://cli-screencast.io/capture.json')).rejects.toThrow('mocked network error');
     });
 
     test('throws data validation error if file contains bad data', async () => {
@@ -216,13 +236,13 @@ describe('renderData', () => {
         await expect(renderData('./data.yaml', { embedFonts: false })).resolves.toBeString();
     });
 
-    test('renders capture data from file', async () => {
-        (readFile as jest.Mock).mockImplementationOnce(async () => JSON.stringify({
+    test('renders capture data from remote file', async () => {
+        nock('https://cli-screencast.io').get('/capture.json').reply(200, JSON.stringify({
             ...partial,
             type: 'capture',
             writes: [{ content: 'Hello World!', delay: 0 }],
             endDelay: 500,
         }));
-        await expect(renderData('./data.json', { embedFonts: false })).resolves.toBeString();
+        await expect(renderData('https://cli-screencast.io/capture.json', { embedFonts: false })).resolves.toBeString();
     });
 });

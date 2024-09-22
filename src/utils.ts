@@ -1,6 +1,8 @@
 import { resolve, extname, dirname } from 'path';
 import { mkdir, writeFile } from 'fs/promises';
 import { addAbortSignal, type Stream } from 'stream';
+import { URL } from 'url';
+import https from 'https';
 
 /**
  * Resolve a file path relative to the current working directory
@@ -28,6 +30,60 @@ export async function writeToFile(path: string, content: string | Buffer) {
     } catch {}
     // write data to file
     await writeFile(path, content);
+}
+
+/**
+ * Returns a URL instance if input string is a valid url, otherwise returns null
+ * @param path - potential url string to parse
+ */
+export function parseUrl(path: string): URL | null {
+    try {
+        const url = new URL(path);
+        return (url.protocol === 'https:' || url.protocol === 'http:') ? url : null;
+    } catch {
+        return null;
+    }
+}
+
+export interface FetchResponse {
+    /** http status code */
+    status: number
+    /** 'content-type' response header */
+    type?: string
+    /** request response data buffer */
+    data?: Buffer
+}
+
+/**
+ * Make a GET request
+ * @param req - request url or options object
+ * @returns fetched data
+ */
+export function fetchData(req: string | URL | https.RequestOptions): Promise<FetchResponse> {
+    return new Promise((res, rej) => {
+        https.get(typeof req === 'string' ? encodeURI(req) : req, (response) => {
+            const status = response.statusCode!;
+            if (status >= 400) {
+                response.on('end', () => {
+                    res({ status });
+                });
+                response.resume();
+                return;
+            }
+            const chunks: Uint8Array[] = [];
+            // handle response chunks
+            response.on('data', (chunk: Buffer) => {
+                chunks.push(chunk);
+            });
+            // response complete
+            response.on('end', () => {
+                const type = response.headers['content-type'] ?? '';
+                res({ status, type, data: Buffer.concat(chunks) });
+            });
+        }).on('error', (err) => {
+            rej(err);
+        });
+    });
 }
 
 /**

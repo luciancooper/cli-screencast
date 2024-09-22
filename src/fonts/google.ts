@@ -1,7 +1,7 @@
 import type { AnsiCode, ContentSubsets } from './content';
 import { CodePointRange, type GraphemeSet } from './range';
 import type { ResolvedFontFamily, ResolvedFontAccumulator, EmbeddedFontAccumulator } from './types';
-import { fetchData } from './utils';
+import { fetchData } from '../utils';
 import log from '../logger';
 
 const StyleID = ['400', '700', '400i', '700i'] as const;

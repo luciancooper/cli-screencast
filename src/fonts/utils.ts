@@ -1,63 +1,9 @@
-import { URL } from 'url';
-import https from 'https';
+import type { URL } from 'url';
 import { promises as fs } from 'fs';
 import { decompress } from 'wawoff2';
 import type { SystemFontData } from './types';
+import { fetchData } from '../utils';
 import log from '../logger';
-
-/**
- * Returns a URL instance if input string is a valid url, otherwise returns null
- * @param path - potential url string to parse
- */
-export function parseUrl(path: string): URL | null {
-    try {
-        const url = new URL(path);
-        return (url.protocol === 'https:' || url.protocol === 'http:') ? url : null;
-    } catch {
-        return null;
-    }
-}
-
-interface FetchResponse {
-    /** http status code */
-    status: number
-    /** 'content-type' response header */
-    type?: string
-    /** request response data buffer */
-    data?: Buffer
-}
-
-/**
- * Make a GET request
- * @param req - request url or options object
- * @returns fetched data
- */
-export function fetchData(req: string | URL | https.RequestOptions): Promise<FetchResponse> {
-    return new Promise((resolve, reject) => {
-        https.get(typeof req === 'string' ? encodeURI(req) : req, (res) => {
-            const status = res.statusCode!;
-            if (status >= 400) {
-                res.on('end', () => {
-                    resolve({ status });
-                });
-                res.resume();
-                return;
-            }
-            const chunks: Uint8Array[] = [];
-            // handle response chunks
-            res.on('data', (chunk: Buffer) => {
-                chunks.push(chunk);
-            });
-            // response complete
-            res.on('end', () => {
-                const type = res.headers['content-type'] ?? '';
-                resolve({ status, type, data: Buffer.concat(chunks) });
-            });
-        }).on('error', (err) => {
-            reject(err);
-        });
-    });
-}
 
 export async function fetchFont(url: URL) {
     try {

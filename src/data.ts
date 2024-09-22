@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import { readFile } from 'fs/promises';
+import { extname } from 'path';
 import YAML from 'yaml';
 import type { CaptureData, ScreenData } from './types';
-import { resolveFilePath } from './utils';
+import { resolveFilePath, parseUrl, fetchData } from './utils';
 import log from './logger';
 import { version } from '../package.json';
 
@@ -97,17 +98,37 @@ export function validateData(parsed: any): FileData | { errors: string[] } {
 }
 
 export async function dataFromFile(file: string): Promise<FileData> {
-    const { path, ext } = resolveFilePath(file);
+    // resolve file path or url and file extension
+    let path: string,
+        ext: string;
+    const url = parseUrl(file);
+    if (url) {
+        [path, ext] = [url.href, extname(url.pathname)];
+        if (ext.startsWith('.')) ext = ext.slice(1);
+        ext = ext.toLowerCase();
+    } else {
+        ({ path, ext } = resolveFilePath(file));
+    }
     // check data file extension
     if (ext !== 'json' && ext !== 'yaml') {
         throw new Error(`Unsupported data file type: '${file}', must be json or yaml`);
     }
     // read contents of data file
     let content: string;
-    try {
-        content = (await readFile(path)).toString();
-    } catch (err) {
-        throw new Error(`File not found: '${file}'`);
+    if (url) {
+        // fetch file content from remote source
+        const res = await fetchData(url);
+        if (res.status !== 200) {
+            throw new Error(`Failed to fetch file: '${url.href}', received response status ${res.status}`);
+        }
+        content = res.data!.toString('utf8');
+    } else {
+        // read local data file
+        try {
+            content = (await readFile(path)).toString();
+        } catch (err) {
+            throw new Error(`File not found: '${file}'`);
+        }
     }
     // validate the data
     const result = validateData(ext === 'yaml' ? YAML.parse(content) : JSON.parse(content));
@@ -115,7 +136,7 @@ export async function dataFromFile(file: string): Promise<FileData> {
     if ('errors' in result) {
         throw new Error(`Invalid data:\n${result.errors.map((e) => `\n * ${e}`).join('')}`);
     }
-    log.info('read %s data from file %S', result.type, path);
+    log.info('read %s data from %S', result.type, path);
     return result;
 }
 

@@ -7,9 +7,10 @@ import type { ContentSubsets } from './content';
 import type { SystemFont, SystemFontData, ResolvedFontFamily, ResolvedFontAccumulator, EmbeddedFontAccumulator } from './types';
 import FontDecoder from './decoder';
 import { CodePointRange, type MeasuredGraphemeSet } from './range';
-import { parseUrl, getFontBuffer } from './utils';
+import { getFontBuffer } from './utils';
 import { styleAnsiMatchPriority } from './style';
 import { subsetFontFile } from './subset';
+import { parseUrl } from '../utils';
 import log from '../logger';
 
 export async function getSystemFonts({ match, fonts = [] }: Optionalize<{ match?: string[], fonts?: string[] }> = {}) {
