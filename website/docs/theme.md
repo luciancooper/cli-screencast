@@ -36,3 +36,46 @@ The terminal theme can be specified by passing a theme configuration object to t
 | **cursorType** | Cursor style, either `'beam'`,  `'block'`, or `'underline'` | `'beam'` |
 | **cursorBlink** | Enable cursor blinking | `false` |
 | **dim** | Opacity of dim text (styled with SGR code `2`)  | `0.5` |
+
+## Previewing Themes
+
+You can preview the default theme or your own custom theme by rendering a color test screenshot using the data file available at [https://cli-screenshot.io/files/colortest.yaml](https://cli-screenshot.io/files/colortest.yaml). To do this, use the [`renderData`](renderData.md) method, passing the URL as the first argument. Below is an example of rendering a color test to preview the default theme:
+
+```js result='./assets/theme--default.svg'
+import { renderData } from 'cli-screencast';
+
+renderData('https://cli-screencast.io/files/colortest.yaml').then((svg) => {
+    // svg output string...
+});
+```
+
+Here's an example color test of a custom theme configuration based on the [Material](https://github.com/lysyi3m/macos-terminal-themes#material-download) terminal color scheme:
+
+```js result='./assets/theme--material.svg'
+import { renderData } from 'cli-screencast';
+
+renderData('https://cli-screencast.io/files/colortest.yaml', {
+    theme: {
+        black: '#212121',
+        red: '#b7141f',
+        green: '#457b24',
+        yellow: '#f6981e',
+        blue: '#134eb2',
+        magenta: '#560088',
+        cyan: '#0e717c',
+        white: '#efefef',
+        brightBlack: '#424242',
+        brightRed: '#e83b3f',
+        brightGreen: '#7aba3a',
+        brightYellow: '#ffea2e',
+        brightBlue: '#54a4f3',
+        brightMagenta: '#aa4dbc',
+        brightCyan: '#26bbd1',
+        brightWhite: '#d9d9d9',
+        background: '#eaeaea',
+        text: '#232322',
+    },
+}).then((svg) => {
+    // svg output string...
+});
+```

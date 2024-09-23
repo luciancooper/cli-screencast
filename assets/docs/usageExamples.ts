@@ -3,6 +3,7 @@ import { renderScreen, captureSpawn, captureCallback, captureFrames, renderData 
 import Asset from '../asset';
 
 export default [
+    // renderScreen.md examples
     new Asset({
         id: 'usage--screen.svg',
         type: 'docs',
@@ -11,6 +12,7 @@ export default [
             { ...Asset.fonts.cascadiaCode, columns: 50, rows: 10 },
         ),
     }),
+    // captureSpawn.md examples
     new Asset({
         id: 'usage--spawn.svg',
         type: 'docs',
@@ -35,6 +37,7 @@ export default [
             captureCommand: true,
         }),
     }),
+    // captureCallback.md examples
     new Asset({
         id: 'usage--callback--stdout.svg',
         type: 'docs',
@@ -89,6 +92,7 @@ export default [
             rows: 10,
         }),
     }),
+    // captureFrames.md examples
     new Asset({
         id: 'usage--frames.svg',
         type: 'docs',
@@ -104,6 +108,7 @@ export default [
             theme: { cursorBlink: true },
         }),
     }),
+    // renderData.md examples
     Asset.chain([
         new Asset({
             id: 'capture--data.yaml',
@@ -129,6 +134,7 @@ export default [
             ),
         }),
     ]),
+    // captureShell.md examples
     new Asset({
         id: 'usage--shell--capture.svg',
         type: 'docs',
@@ -145,6 +151,7 @@ export default [
             { ...Asset.fonts.cascadiaCodeNF },
         ),
     }),
+    // window.md examples
     new Asset({
         id: 'usage--window--title-screenshot.svg',
         type: 'docs',
@@ -198,4 +205,59 @@ export default [
             boxShadow: { dx: 2, dy: 2 },
         }),
     }),
+    // theme.md examles
+    Asset.chain([
+        new Asset({
+            id: 'colortest.yaml',
+            type: 'static',
+            path: 'files',
+            render: () => {
+                const bg = [40, 41, 42, 43, 44, 45, 46, 47],
+                    fg = [30, 90, 31, 91, 32, 92, 33, 93, 34, 94, 35, 95, 36, 96, 37, 97],
+                    line = `  gYw   ${bg.map((c) => `\x1b[${c}m  gYw  \x1b[49m`).join(' ')}\x1b[39m`;
+                return renderScreen(
+                    `      ${['       ', ...bg.map((c) => `  ${c}m  `)].join(' ')}`
+                    + `\n      ${line}`
+                    + fg.map((c) => `\n ${c}m  \x1b[${c}m${line}`).join(''),
+                    { output: 'yaml', columns: 80, rows: 18 },
+                );
+            },
+        }),
+        [
+            new Asset({
+                id: 'theme--default.svg',
+                type: 'docs',
+                render: (colortest) => renderData(colortest.absPath, {
+                    ...Asset.fonts.cascadiaCode,
+                }),
+            }),
+            new Asset({
+                id: 'theme--material.svg',
+                type: 'docs',
+                render: (colortest) => renderData(colortest.absPath, {
+                    ...Asset.fonts.cascadiaCode,
+                    theme: {
+                        black: '#212121',
+                        red: '#b7141f',
+                        green: '#457b24',
+                        yellow: '#f6981e',
+                        blue: '#134eb2',
+                        magenta: '#560088',
+                        cyan: '#0e717c',
+                        white: '#efefef',
+                        brightBlack: '#424242',
+                        brightRed: '#e83b3f',
+                        brightGreen: '#7aba3a',
+                        brightYellow: '#ffea2e',
+                        brightBlue: '#54a4f3',
+                        brightMagenta: '#aa4dbc',
+                        brightCyan: '#26bbd1',
+                        brightWhite: '#d9d9d9',
+                        background: '#eaeaea',
+                        text: '#232322',
+                    },
+                }),
+            }),
+        ],
+    ]),
 ];
