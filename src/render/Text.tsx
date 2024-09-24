@@ -66,9 +66,9 @@ const Text: FunctionComponent<TextProps> = ({
             {bgColor ? (
                 <rect
                     x={x * dx}
-                    y={y * dy}
+                    y={y * dy - 0.15}
                     width={span * dx}
-                    height={dy}
+                    height={dy + 0.3}
                     fill={hexString(bgColor)}
                     fillOpacity={alphaValue(bgColor, true)}
                 />
