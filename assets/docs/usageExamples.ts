@@ -260,4 +260,34 @@ export default [
             }),
         ],
     ]),
+    // output.md examples
+    Asset.chain([
+        new Asset({
+            id: 'usage--output--capture.yaml',
+            type: 'docs',
+            render: () => captureFrames([
+                { content: 'Hello', duration: 1500 },
+                { content: ' World!', duration: 1500 },
+            ], { output: 'yaml', columns: 50, rows: 10 }),
+        }),
+        [
+            new Asset({
+                id: 'usage--output--capture.json',
+                type: 'docs',
+                render: (data) => renderData(data.absPath, { output: 'json' }).then((json) => (
+                    JSON.stringify(JSON.parse(json as string), null, 2)
+                )),
+            }),
+            new Asset({
+                id: 'usage--output--capture.svg',
+                type: 'docs',
+                render: (data) => renderData(data.absPath, { output: 'svg', ...Asset.fonts.cascadiaCode }),
+            }),
+            new Asset({
+                id: 'usage--output--capture.png',
+                type: 'docs',
+                render: (data) => renderData(data.absPath, { output: 'png', ...Asset.fonts.cascadiaCode }),
+            }),
+        ],
+    ]),
 ];

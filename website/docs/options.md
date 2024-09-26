@@ -41,9 +41,13 @@ Icon to display next to the terminal window title. Can be set to a keyword strin
 
 The desired output format. Must be either `'svg'`, `'png'`, `'json'`, or `'yaml'`. The default is `'svg'`.
 
+For more details on controlling the output format, please refer to the [Output](output.md#the-output-option) section of this documentation.
+
 #### outputPath «`string | string[]`» {#outputPath}
 
-File path or array of file paths to write output to. The type of output will be inferred by the file extension (can be svg, png, json, or yaml). Default is `undefined`.
+File path or array of file paths to write output to. The type of output (**SVG**, **PNG**, **JSON**, or **YAML**) will be inferred by the file extension provided in each path (e.g., `.svg`, `.png`, `.json`, or `.yaml`). Default is `undefined`.
+
+For more details about saving output directly to a file, please refer to the [Output](output.md#the-outputpath-option) section of this documentation.
 
 #### scaleFactor «`number`» {#scaleFactor}
 

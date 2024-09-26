@@ -21,6 +21,7 @@ const sidebars: SidebarsConfig = {
         label: 'Configuration',
         items: [
             'options',
+            'output',
             'window',
             'theme',
         ],

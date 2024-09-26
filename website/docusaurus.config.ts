@@ -9,6 +9,7 @@ import colorLinks from './src/remark/colorLinks';
 import transformDeflists from './src/remark/transformDeflists';
 import transformKbd from './src/remark/transformKbd';
 import tableColumns from './src/rehype/tableColumns';
+import pngSize from './src/remark/pngSize';
 
 const staticDirectories = ['static'];
 
@@ -45,6 +46,7 @@ const config: Config = {
                     gfmAlerts,
                     transformDeflists,
                     transformKbd,
+                    pngSize,
                 ],
                 rehypePlugins: [
                     tableColumns,
@@ -91,6 +93,7 @@ const config: Config = {
         prism: {
             theme: prismThemes.github,
             darkTheme: prismThemes.dracula,
+            additionalLanguages: ['json'],
         },
     } satisfies Preset.ThemeConfig,
 };
