@@ -290,4 +290,16 @@ export default [
             }),
         ],
     ]),
+    // fonts.md examples
+    new Asset({
+        id: 'usage--fonts.svg',
+        type: 'docs',
+        render: () => renderScreen('\uf31b \x1b[36m~/..\ue5fe../project\x1b[39;32m \ue725 main\x1b[39m \uf105 ', {
+            columns: 80,
+            rows: 10,
+            cursorHidden: false,
+            theme: { cursorType: 'underline', cursorBlink: true },
+            ...Asset.fonts.cascadiaCodeNF,
+        }),
+    }),
 ];

@@ -23,6 +23,8 @@ export default function plugin(): Transformer {
             // find all header cells and look for '*' trailing syntax
             const cells = allChildrenOfType(tr, 'th'),
                 grow: number[] = [];
+            // track if all th cells are empty
+            let empty = true;
             for (const th of cells) {
                 // get last child of the header cell
                 const last = th.children[th.children.length - 1];
@@ -38,7 +40,10 @@ export default function plugin(): Transformer {
                     // this column does not have an '*'
                     grow.push(0);
                 }
+                if (th.children.length) empty = false;
             }
+            // add 'empty-header' className to the table element if header has no content
+            if (empty) node.properties.className = 'empty-header';
             // sum the number of grow columns found
             const count = grow.reduce((a, b) => a + b, 0);
             // stop if no table has no grow columns

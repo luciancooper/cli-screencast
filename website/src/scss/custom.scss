@@ -40,6 +40,20 @@ kbd {
     }
 }
 
+table.empty-header {
+    --ifm-table-border-width: 0px;
+
+    thead tr {
+        --ifm-table-cell-padding: 0px;
+        border-bottom-width: 0px;
+    }
+}
+
+td > img {
+    display: block;
+    margin: auto;
+}
+
 .pagination-nav {
     display: none;
 }

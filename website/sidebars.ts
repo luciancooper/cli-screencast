@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
             'output',
             'window',
             'theme',
+            'fonts',
         ],
     }],
 };

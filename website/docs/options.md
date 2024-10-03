@@ -58,17 +58,17 @@ The device scale factor used when rendering to png. Default is `4`.
 
 #### embedFonts «`boolean`» {#embedFonts}
 
-Embed required fonts when rendering to svg, Defaults to `true`.
+Embed required fonts when rendering to svg, Defaults to `true`. Read more about embedding fonts on the [fonts page](fonts.md).
 
 > [!note]
 > This option is only applicable when rendering to svg.
 
 #### fonts «`string[]`» {#fonts}
 
-Array of font file paths or urls to resolve fonts from. These fonts will supplement any locally installed system fonts. Supported font types include ttf, otf, ttc, and woff2 formats. Default is `undefined`.
+Array of font file paths or urls to resolve fonts from. These fonts will supplement any locally installed system fonts. Default is `undefined`. Supported font formats include **TTF**, **OTF**, **TTC**, and **WOFF2**. See the [supplying additional fonts](fonts.md#supplying-additional-fonts) section for more info.
 
 > [!note]
-> woff files and zipped font folders are not supported.
+> **WOFF** files and compressed **ZIP** files or directories are not supported.
 
 ## Capture Options
 
@@ -136,6 +136,8 @@ The line height of the rendered terminal output. Default is `1.2`.
 #### columnWidth «`number`» {#columnWidth}
 
 The aspect ratio used to determine the width of each terminal column, which will be calculated as this value times the [`fontSize`](#fontSize). If unspecified, the renderer will attempt to determine the aspect ratio of the specified [`fontFamily`](#fontFamily), but if that fails will fall back to the standard value `0.6`.
+
+Refer to the [column width and line height](fonts.md#column-width-and-line-height) section for more info about how fonts affect column width.
 
 #### iconColumnWidth «`number`» {#iconColumnWidth}
 

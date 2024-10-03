@@ -5,6 +5,7 @@ import projectLogo from './media/projectLogo';
 import socialCard from './media/socialCard';
 import windowIcons from './docs/windowIcons';
 import windowOptions from './docs/windowOptions';
+import fontSamples from './docs/fontSamples';
 import usageExamples from './docs/usageExamples';
 
 const assets: Creatable[] = [
@@ -13,6 +14,7 @@ const assets: Creatable[] = [
     socialCard,
     windowIcons,
     windowOptions,
+    ...fontSamples,
     ...usageExamples,
 ];
 
