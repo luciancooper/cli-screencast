@@ -1,6 +1,7 @@
 ---
 title: renderData
 description: Render a screencast or screenshot from a json or yaml data file
+keywords: [api]
 pagination_next: null
 pagination_prev: null
 ---

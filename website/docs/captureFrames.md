@@ -1,6 +1,7 @@
 ---
 title: captureFrames
 description: Create an animated terminal screen capture from an array of content frames
+keywords: [api]
 pagination_next: null
 pagination_prev: null
 ---

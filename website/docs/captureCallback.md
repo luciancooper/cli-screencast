@@ -1,6 +1,7 @@
 ---
 title: captureCallback
 description: Capture all writes within a callback function
+keywords: [api]
 pagination_next: null
 pagination_prev: null
 ---

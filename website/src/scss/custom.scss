@@ -42,6 +42,7 @@ kbd {
 
 table.empty-header {
     --ifm-table-border-width: 0px;
+    --ifm-table-stripe-background: rgba(0, 0, 0, 0.0);
 
     thead tr {
         --ifm-table-cell-padding: 0px;
@@ -129,36 +130,53 @@ details.alert {
     }
 }
 
-.options-reference {
-    --options-group-category-name-width: 160px;
-    --options-group-spacing-horizontal: var(--ifm-spacing-horizontal);
+.transformed-deflist {
+    --group-name-width: 175px;
+    --group-spacing-horizontal: var(--ifm-spacing-horizontal);
+    --group-name-spacing-top: var(--ifm-spacing-vertical);
+    --group-name-spacing-bottom: var(--ifm-spacing-vertical);
+    --group-content-spacing-vertical: calc(var(--ifm-spacing-vertical) * 0.75);
     margin-bottom: var(--ifm-leading);
-    padding-left: var(--options-group-spacing-horizontal);
+    padding-left: var(--group-spacing-horizontal);
 
-    > .category {
+    &.options-reference {
+        --group-name-width: 160px;
+        --group-name-spacing-top: calc(var(--ifm-spacing-vertical) * 0.75);
+        --group-name-spacing-bottom: calc(var(--ifm-spacing-vertical) * 0.75);
+        --group-content-spacing-vertical: calc(var(--ifm-spacing-vertical) * 0.5);
+
+        .group-name {
+            font-size: var(--ifm-h5-font-size);
+            color: var(--ifm-color-secondary-contrast-foreground);
+        }
+
+        .group-content {
+            font-family: var(--ifm-font-family-monospace);
+        }
+    }
+
+    > .group {
         display: flex;
         align-items: flex-start;
 
         @media(max-width: 900px) {
             & {
               flex-direction: column;
+              --group-name-spacing-bottom: 0;
             }
         }
 
-        > .category-name {
+        > .group-name {
             flex: 0 0 auto;
             font-weight: bold;
-            font-size: var(--ifm-h5-font-size);
-            color: var(--ifm-color-secondary-contrast-foreground);
-            width: var(--options-group-category-name-width);
-            margin: calc(var(--ifm-spacing-vertical) * 0.75) 0;
+            width: var(--group-name-width);
+            margin: var(--group-name-spacing-top) 0 var(--group-name-spacing-bottom);
         }
 
-        > .category-content {
+        > .group-content {
             flex: 1 1 auto;
-            font-family: var(--ifm-font-family-monospace);
-            margin: calc(var(--ifm-spacing-vertical) * 0.5) 0;
-            padding-left: var(--options-group-spacing-horizontal);
+            margin: var(--group-content-spacing-vertical) 0;
+            padding-left: var(--group-spacing-horizontal);
         }
     }
 }

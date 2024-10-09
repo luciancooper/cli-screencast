@@ -1,6 +1,7 @@
 ---
 title: captureShell
 description: Capture a shell session
+keywords: [api]
 pagination_next: null
 pagination_prev: null
 ---

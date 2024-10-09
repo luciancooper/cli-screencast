@@ -1,6 +1,7 @@
 ---
 title: renderScreen
 description: Render a screenshot
+keywords: [api]
 pagination_next: null
 pagination_prev: null
 ---

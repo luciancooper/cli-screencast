@@ -6,9 +6,12 @@ import { visit } from 'unist-util-visit';
 const deflist = remarkDeflist();
 
 export default function plugin(): Transformer {
-    return async (root, ...args) => {
+    return async (root, vfile, ...args) => {
+        // check for 'api' keyword in head metadata
+        const { frontMatter } = vfile.data as { frontMatter?: { keywords?: string[] } },
+            api = frontMatter?.keywords?.some((kw) => (kw.toLowerCase() === 'api')) ?? false;
         // run wrapped `remark-deflist` plugin
-        deflist(root, ...args);
+        deflist(root, vfile, ...args);
         // transform all `descriptionlist` nodes
         visit(root, 'descriptionlist', (node: Parent, idx: number, parent: Parent) => {
             if (node.children[0]?.type !== 'descriptionterm') return;
@@ -32,29 +35,32 @@ export default function plugin(): Transformer {
                     dd: node.children.slice(last + 1) as Parent[],
                 });
             }
-            // transform deflist into custom options-reference element
+            // transform deflist into custom transformed-deflist element
             const transformed: Parent = {
-                type: 'optionsReference',
-                data: { hName: 'div', hProperties: { className: 'options-reference' } },
+                type: 'transformedDeflist',
+                data: {
+                    hName: 'div',
+                    hProperties: { className: `transformed-deflist${api ? ' options-reference' : ''}` },
+                },
                 children: defs.map(({ dt, dd }) => ({
-                    type: 'optionsReferenceCategory',
-                    data: { hName: 'div', hProperties: { className: 'category' } },
+                    type: 'transformedDeflistGroup',
+                    data: { hName: 'div', hProperties: { className: 'group' } },
                     children: [{
-                        type: 'optionsReferenceCategoryName',
-                        data: { hName: 'div', hProperties: { className: 'category-name' } },
+                        type: 'transformedDeflistGroupName',
+                        data: { hName: 'div', hProperties: { className: 'group-name' } },
                         children: dt.children,
                     }, {
-                        type: 'optionsReferenceContent',
-                        data: { hName: 'div', hProperties: { className: 'category-content' } },
+                        type: 'transformedDeflistContent',
+                        data: { hName: 'div', hProperties: { className: 'group-content' } },
                         children: dd.length > 1 ? dd.map(({ children }) => ({
-                            type: 'optionsReferenceContentItem',
-                            data: { hName: 'div', hProperties: { className: 'category-content-item' } },
+                            type: 'transformedDeflistContentItem',
+                            data: { hName: 'div', hProperties: { className: 'group-content-item' } },
                             children,
                         })) : dd[0]?.children ?? [],
                     }],
                 })),
             };
-            // replace deflist with transformed options reference node
+            // replace deflist with transformed node
             parent.children.splice(idx, 1, transformed);
         });
     };

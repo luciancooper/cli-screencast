@@ -1,6 +1,7 @@
 ---
 title: captureSpawn
 description: Capture the terminal output of a spawned subprocess
+keywords: [api]
 pagination_next: null
 pagination_prev: null
 ---
