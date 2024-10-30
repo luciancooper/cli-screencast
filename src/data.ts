@@ -155,5 +155,5 @@ export function dataToJson(type: 'capture' | 'screen', data: CaptureData | Scree
 export function dataToYaml(type: 'capture', data: CaptureData): string;
 export function dataToYaml(type: 'screen', data: ScreenData): string;
 export function dataToYaml(type: 'capture' | 'screen', data: CaptureData | ScreenData): string {
-    return YAML.stringify({ version, type, ...data });
+    return YAML.stringify({ version, type, ...data }, { lineWidth: 200, blockQuote: false });
 }
