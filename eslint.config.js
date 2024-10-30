@@ -1,9 +1,17 @@
 const base = require('@lcooper/eslint-config-typescript'),
     react = require('@lcooper/eslint-config-typescript-react'),
-    jest = require('@lcooper/eslint-config-jest');
+    jest = require('@lcooper/eslint-config-jest'),
+    path = require('path');
 
 module.exports = [
-    { ignores: ['lib/**', 'coverage/**'] },
+    {
+        ignores: [
+            'lib/**',
+            'coverage/**',
+            'website/build/**',
+            'website/.docusaurus/**',
+        ],
+    },
     ...base,
     {
         languageOptions: {
@@ -26,4 +34,21 @@ module.exports = [
     react,
     { rules: { 'react/require-default-props': 0 } },
     jest,
+    // website config
+    {
+        files: ['website/**/*.?([cm])[jt]s?(x)'],
+        languageOptions: {
+            parserOptions: {
+                project: 'tsconfig.json',
+                tsconfigRootDir: path.join(__dirname, 'website'),
+            },
+        },
+        settings: {
+            'import/resolver': {
+                typescript: {
+                    project: 'website/tsconfig.json',
+                },
+            },
+        },
+    },
 ];

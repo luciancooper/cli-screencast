@@ -1,10 +1,7 @@
-import path from 'path';
 import type { FunctionComponent, SVGProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { resolveFonts, embedFontCss } from '@src/fonts';
 import icons from '@src/render/icons.json';
-import { writeToFile } from '@src/utils';
-import log, { setLogLevel } from '@src/logger';
+import Asset, { embedFonts } from '../asset';
 
 interface IconsPreviewProps extends SVGProps<SVGElement> {
     fontSize: number
@@ -12,7 +9,7 @@ interface IconsPreviewProps extends SVGProps<SVGElement> {
     iconColumnWidth: number
     cols: number
     colspan: number
-    fontFamily?: string
+    fontFamily: string
     css?: string | null
     fontColumnWidth?: number | undefined
     spacing: number
@@ -46,7 +43,7 @@ const IconsPreview: FunctionComponent<IconsPreviewProps> = ({
         <svg
             xmlns='http://www.w3.org/2000/svg'
             xmlnsXlink='http://www.w3.org/1999/xlink'
-            fontFamily={fontFamily ?? ''}
+            fontFamily={fontFamily}
             fontSize={fontSize}
             width={2 * ix + width}
             height={2 * iy + height}
@@ -77,43 +74,26 @@ const IconsPreview: FunctionComponent<IconsPreviewProps> = ({
     );
 };
 
-async function render() {
-    // create embedded font
-    const { fontColumnWidth, ...resolvedFonts } = await resolveFonts(
-            Object.keys(icons).map((k) => `'${k}'`).join(''),
-            'Cascadia Code',
-            ['https://fontlib.s3.amazonaws.com/CascadiaCode/static/CascadiaCode-Regular.ttf'],
-        ),
-        { svg: css, fontFamily } = await embedFontCss(resolvedFonts, { svg: true, png: false });
-    return renderToStaticMarkup(
-        <IconsPreview
-            fontSize={16}
-            lineHeight={1.4}
-            fontColumnWidth={fontColumnWidth}
-            iconColumnWidth={1.6}
-            cols={3}
-            colspan={150}
-            spacing={3}
-            indent={10}
-            padding={[20, 20]}
-            insets={[30, 20]}
-            fontFamily={fontFamily}
-            css={css}
-        />,
-    );
-}
-
-(async () => {
-    // set log level
-    setLogLevel('debug');
-    // target file path
-    const filePath = path.resolve(__dirname, '../media/window-icons.svg');
-    // render window icons diagram
-    try {
-        log.info('rendering window icons diagram');
-        await writeToFile(filePath, await render());
-        log.info('wrote window icons diagram to %S', filePath);
-    } catch (e: unknown) {
-        console.log(e);
-    }
-})();
+export default new Asset({
+    id: 'window-icons.svg',
+    type: 'docs',
+    render: async () => {
+        // create embedded font
+        const font = await embedFonts(Object.keys(icons).map((k) => `'${k}'`).join(''), Asset.fonts.cascadiaCode);
+        // render svg and save to file
+        return renderToStaticMarkup(
+            <IconsPreview
+                fontSize={16}
+                lineHeight={1.4}
+                iconColumnWidth={1.6}
+                cols={3}
+                colspan={150}
+                spacing={3}
+                indent={10}
+                padding={[20, 20]}
+                insets={[30, 20]}
+                {...font}
+            />,
+        );
+    },
+});

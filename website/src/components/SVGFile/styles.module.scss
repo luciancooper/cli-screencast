@@ -1,0 +1,23 @@
+.svgFile {
+    --svg-file-title-spacing: calc(var(--ifm-spacing-vertical) * 0.5);
+    --ifm-badge-background-color: var(--ifm-color-secondary);
+    --ifm-badge-border-color: var(--ifm-badge-background-color);
+    --ifm-badge-color: var(--ifm-color-black);
+}
+
+.svgFileTitle {
+    margin-bottom: var(--svg-file-title-spacing);
+}
+
+.svgFileContent {
+    overflow: auto;
+}
+
+:global(.svg-file-title > .badge) {
+    display: inline;
+    font-size: 80%;
+}
+
+:global(.svg-file-title > .title-content) {
+    padding: 0 var(--svg-file-title-spacing);
+}

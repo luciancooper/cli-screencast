@@ -10,6 +10,7 @@
 # env files
 .env
 .env.test
+.env.local
 .env.development
 .env.production
 .env.test.local
@@ -51,7 +52,7 @@ yarn-error.log*
 *.tgz
 
 # Build files
-lib
+/lib
 
 # Coverage files
-coverage
+/coverage
