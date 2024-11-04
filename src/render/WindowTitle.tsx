@@ -1,9 +1,9 @@
-import { useContext, type FunctionComponent } from 'react';
+import type { FunctionComponent } from 'react';
 import { stringWidth, sliceColumns } from 'tty-strings';
 import type { Title, KeyFrame, TextChunk } from '../types';
 import { expandAnsiProps } from '../parser';
 import { hexString, alphaValue } from '../color';
-import Context from './Context';
+import { useRenderContext } from './Context';
 import Text from './Text';
 import { Animation } from './Animation';
 
@@ -37,7 +37,7 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
         grid: [dx, dy],
         duration,
         iconColumnWidth,
-    } = useContext(Context);
+    } = useRenderContext();
     let iconX: number,
         textElement = null;
     if (title.columns) {

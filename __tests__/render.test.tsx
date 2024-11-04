@@ -5,7 +5,8 @@ import { resolveTitle } from '@src/parser';
 import { hexString } from '@src/color';
 import type { CursorKeyFrame } from '@src/types';
 import type { KeyTime } from '@src/render/Animation';
-import Context, { type RenderContext } from '@src/render/Context';
+import { resolveContext, type RenderOptions } from '@src/render';
+import Context from '@src/render/Context';
 import Window from '@src/render/Window';
 import WindowTitle from '@src/render/WindowTitle';
 import createBoxShadow, { defaultBoxShadow, type BoxShadowOptions } from '@src/render/BoxShadow';
@@ -13,29 +14,34 @@ import Text from '@src/render/Text';
 import { Cursor, CursorFrames, opacityKeyTimes, translateKeyTimes } from '@src/render/Cursor';
 import * as ansi from './helpers/ansi';
 
-const { theme: defTheme, ...defProps } = applyDefRenderOptions({});
+const defTheme = resolveTheme();
 
-const defContext: RenderContext = {
-    ...defProps,
+const defOptions: RenderOptions = {
+    fontSize: 2,
+    columnWidth: 0.5,
+    lineHeight: 1,
+};
+
+type RenderableData = Parameters<typeof resolveContext>[1];
+
+const defData: RenderableData = {
     columns: 50,
     rows: 50,
-    theme: defTheme,
-    fontSize: 1,
-    grid: [1, 2],
     duration: 0,
 };
 
-const render = (element: any, context: Partial<RenderContext> = {}) => create(
-    <Context.Provider value={{ ...defContext, ...context }}>
-        {element}
-    </Context.Provider>,
-).toJSON();
+const render = (element: any, options: RenderOptions = {}, data: Partial<RenderableData> = {}) => {
+    const context = resolveContext(applyDefRenderOptions({ ...defOptions, ...options }), { ...defData, ...data });
+    return create(
+        <Context.Provider value={context}>
+            {element}
+        </Context.Provider>,
+    ).toJSON();
+};
 
 describe('<Window/>', () => {
     test('render a root <svg> that wraps an inner content <svg> element', () => {
-        expect(render(
-            <Window {...defProps} decorations={false} paddingX={0} paddingY={0}/>,
-        )).toMatchObject({
+        expect(render(<Window/>, { decorations: false, paddingX: 0, paddingY: 0 })).toMatchObject({
             type: 'svg',
             props: { width: expect.toBeNumber(), height: expect.toBeNumber() },
             children: [
@@ -47,9 +53,7 @@ describe('<Window/>', () => {
     });
 
     test('render window decorations by default', () => {
-        expect(render(
-            <Window {...defProps} insetMajor={40} insetMinor={20}/>,
-        )).toMatchObject({
+        expect(render(<Window/>, { insetMajor: 40, insetMinor: 20 })).toMatchObject({
             type: 'svg',
             props: { width: expect.toBeNumber(), height: expect.toBeNumber() },
             children: [
@@ -62,9 +66,7 @@ describe('<Window/>', () => {
     });
 
     test('render with box shadow', () => {
-        expect(render(
-            <Window {...defProps} decorations={false} boxShadow={defaultBoxShadow}/>,
-        )).toMatchObject({
+        expect(render(<Window/>, { decorations: false, boxShadow: defaultBoxShadow })).toMatchObject({
             type: 'svg',
             children: [
                 { type: 'style' },
@@ -76,9 +78,8 @@ describe('<Window/>', () => {
     });
 
     test('render with a title', () => {
-        expect(render(
-            <Window {...defProps} decorations={false} title={resolveTitle('window title', 'node')}/>,
-        )).toMatchObject({
+        const title = resolveTitle('window title', 'node');
+        expect(render(<Window title={title}/>, { decorations: false }, { title })).toMatchObject({
             type: 'svg',
             children: [
                 { type: 'style' },
@@ -95,17 +96,11 @@ describe('<Window/>', () => {
     });
 
     test('render with title frames', () => {
-        expect(render(
-            <Window
-                {...defProps}
-                decorations={false}
-                title={[
-                    { ...resolveTitle('first title frame', 'shell'), time: 0, endTime: 1000 },
-                    { ...resolveTitle('second title frame', 'node'), time: 1000, endTime: 2000 },
-                ]}
-            />,
-            { duration: 2000 },
-        )).toMatchObject({
+        const title = [
+            { ...resolveTitle('first title frame', 'shell'), time: 0, endTime: 1000 },
+            { ...resolveTitle('second title frame', 'node'), time: 1000, endTime: 2000 },
+        ];
+        expect(render(<Window title={title}/>, { decorations: false }, { title, duration: 2000 })).toMatchObject({
             type: 'svg',
             children: [
                 { type: 'style' },
@@ -149,7 +144,7 @@ describe('createBoxShadow', () => {
             blurRadius: 4,
         })!;
         expect(id).toBe('bs-d2-3x2y2b4-00000080');
-        expect(render(element)).toStrictEqual({
+        expect(create(element).toJSON()).toStrictEqual({
             type: 'filter',
             props: { id, filterUnits: 'userSpaceOnUse' },
             children: [
@@ -183,7 +178,7 @@ describe('createBoxShadow', () => {
     test('specified color can be an rgba string', () => {
         const [id, element] = createBoxShadow({ ...baseOptions, blurRadius: 3, color: 'rgba(255, 0, 0, 0.5)' })!;
         expect(id).toBe('bs-b3-ff000080');
-        expect(render(element)).toMatchObject({
+        expect(create(element).toJSON()).toMatchObject({
             type: 'filter',
             props: { id },
             children: [
@@ -199,7 +194,7 @@ describe('createBoxShadow', () => {
         test('uses `erode` operator when spread is negative', () => {
             const [id, element] = createBoxShadow({ ...baseOptions, spread: [0, -2] })!;
             expect(id).toBe('bs-e0-2-00000080');
-            expect(render(element)).toMatchObject({
+            expect(create(element).toJSON()).toMatchObject({
                 type: 'filter',
                 props: { id },
                 children: [
@@ -214,7 +209,7 @@ describe('createBoxShadow', () => {
         test('sequential `erode` then `dilate` primitives if x radius < 0 & y radius > 0', () => {
             const [id, element] = createBoxShadow({ ...baseOptions, spread: [-2, 3] })!;
             expect(id).toBe('bs-e2d3-00000080');
-            expect(render(element)).toMatchObject({
+            expect(create(element).toJSON()).toMatchObject({
                 type: 'filter',
                 children: [
                     { type: 'feMorphology', props: { operator: 'erode', radius: '2,0', in: 'SourceAlpha' } },
@@ -229,7 +224,7 @@ describe('createBoxShadow', () => {
         test('sequential `dilate` then `erode` primitives if x radius > 0 & y radius < 0', () => {
             const [id, element] = createBoxShadow({ ...baseOptions, spread: [3, -3] })!;
             expect(id).toBe('bs-d3e3-00000080');
-            expect(render(element)).toMatchObject({
+            expect(create(element).toJSON()).toMatchObject({
                 type: 'filter',
                 children: [
                     { type: 'feMorphology', props: { operator: 'dilate', radius: '3,0', in: 'SourceAlpha' } },
@@ -265,6 +260,7 @@ describe('<WindowTitle/>', () => {
     test('truncate styled title text to fit window columns', () => {
         expect(render(
             <WindowTitle columnInset={4} title={resolveTitle(`longer ${ansi.bold('window title')}`)}/>,
+            {},
             { columns: 20 },
         )).toMatchObject({
             type: 'g',
@@ -279,6 +275,7 @@ describe('<WindowTitle/>', () => {
     test('truncate to fit title text and icon', () => {
         expect(render(
             <WindowTitle columnInset={4} title={resolveTitle('longer window title', 'shell')}/>,
+            {},
             { columns: 20 },
         )).toMatchObject({
             type: 'g',
@@ -297,6 +294,7 @@ describe('<WindowTitle/>', () => {
                 title={resolveTitle('window title frame')}
                 keyFrame={{ time: 0, endTime: 1000 }}
             />,
+            {},
             { duration: 2000 },
         )).toMatchObject({
             type: 'g',
@@ -382,7 +380,7 @@ describe('<Text/>', () => {
 describe('<Cursor/>', () => {
     test('renders with an opacity animation when `cursorBlink` theme prop is enabled', () => {
         const theme = resolveTheme({ cursorBlink: true });
-        expect(render(<Cursor line={0} column={0}/>, { theme, grid: [1, 1] })).toMatchObject({
+        expect(render(<Cursor line={0} column={0}/>, { theme })).toMatchObject({
             type: 'rect',
             children: [{ type: 'animate', props: { attributeName: 'opacity' } }],
         });
@@ -390,7 +388,7 @@ describe('<Cursor/>', () => {
 
     test('renders a beam shaped rect when the `cursorType` theme prop is set to `beam`', () => {
         const theme = resolveTheme({ cursorType: 'beam' });
-        expect(render(<Cursor line={0} column={0}/>, { theme, grid: [1, 1] })).toMatchObject({
+        expect(render(<Cursor line={0} column={0}/>, { theme, lineHeight: 0.5 })).toMatchObject({
             type: 'rect',
             props: { y: 0, width: 0.15, height: 1 },
         });
@@ -398,7 +396,7 @@ describe('<Cursor/>', () => {
 
     test('renders a block shaped rect when the `cursorType` theme prop is set to `block`', () => {
         const theme = resolveTheme({ cursorType: 'block' });
-        expect(render(<Cursor line={0} column={0}/>, { theme, grid: [1, 1] })).toMatchObject({
+        expect(render(<Cursor line={0} column={0}/>, { theme, lineHeight: 0.5 })).toMatchObject({
             type: 'rect',
             props: { y: 0, width: 1, height: 1 },
         });
@@ -406,7 +404,7 @@ describe('<Cursor/>', () => {
 
     test('renders an underline shaped rect when the `cursorType` theme prop is set to `underline`', () => {
         const theme = resolveTheme({ cursorType: 'underline' });
-        expect(render(<Cursor line={0} column={0}/>, { theme, grid: [1, 1] })).toMatchObject({
+        expect(render(<Cursor line={0} column={0}/>, { theme, lineHeight: 0.5 })).toMatchObject({
             type: 'rect',
             props: { y: 0.9, width: 1, height: 0.10 },
         });
@@ -426,7 +424,7 @@ describe('<CursorFrames/>', () => {
 
     test('renders a `rect` element with `animate` and `animateTransform` children', () => {
         const [frames, duration] = makeFrames([[0, 5], [1, 5], null, null]);
-        expect(render(<CursorFrames frames={frames}/>, { duration })).toMatchObject({
+        expect(render(<CursorFrames frames={frames}/>, {}, { duration })).toMatchObject({
             type: 'rect',
             children: [
                 { type: 'animate', children: null },

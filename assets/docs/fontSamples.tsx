@@ -1,8 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { useContext } from 'react';
 import { applyDefRenderOptions, applyDefTerminalOptions } from '@src/options';
 import { parseScreen } from '@src/parser';
-import Context from '@src/render/Context';
+import Context, { useRenderContext } from '@src/render/Context';
 import Window from '@src/render/Window';
 import Frame from '@src/render/Frame';
 import { Cursor } from '@src/render/Cursor';
@@ -10,7 +9,7 @@ import { resolveContext, type RenderOptions } from '@src/render';
 import Asset, { embedFonts } from '../asset';
 
 export function Grid({ color, thickness }: { color: string, thickness: number }) {
-    const { columns: n, rows: m, grid: [dx, dy] } = useContext(Context),
+    const { columns: n, rows: m, grid: [dx, dy] } = useRenderContext(),
         gridPath = [
             ...Array(m + 1).fill(0).map((_, i) => `M0,${i * dy}h${dx * n}`),
             ...Array(n + 1).fill(0).map((_, j) => `M${j * dx},0v${m * dy}`),
@@ -31,14 +30,16 @@ const renderOptions: RenderOptions = {
 async function renderFontSample(fontInfo: { fontFamily: string, fonts: string[] }) {
     const content = 'Hello World!',
         columns = content.length + 1,
-        font = await embedFonts(content, fontInfo),
+        { css, ...font } = await embedFonts(content, fontInfo),
         parsed = parseScreen({ ...applyDefTerminalOptions({ columns, rows: 1 }), content }),
-        [context, windowOptions] = resolveContext({ ...applyDefRenderOptions(renderOptions), ...font }, parsed);
+        context = resolveContext({ ...applyDefRenderOptions(renderOptions), ...font }, parsed);
     // adjust offset x to standardize all font sample svg sizes
-    windowOptions.offsetX += (context.fontSize * 0.65 - context.grid[0]) * columns / 2;
+    context.offset[0] += (context.fontSize * 0.65 - context.grid[0]) * columns / 2;
+    // adjust size of the image according to the adjusted x offset
+    context.size.width = context.window.width + context.offset[0] * 2;
     return renderToStaticMarkup(
         <Context.Provider value={context}>
-            <Window {...windowOptions}>
+            <Window css={css}>
                 <Frame lines={parsed.lines}/>
                 {parsed.cursor ? <Cursor {...parsed.cursor}/> : null}
                 <Grid color='#f00' thickness={1}/>

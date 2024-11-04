@@ -1,8 +1,8 @@
 import { charWidths } from 'tty-strings';
-import { useContext, type FunctionComponent, type SVGProps } from 'react';
+import type { FunctionComponent, SVGProps } from 'react';
 import type { OmitStrict, AnsiStyle, AnsiStyleProps } from '../types';
 import { themeColor, hexString, alphaValue } from '../color';
-import Context from './Context';
+import { useRenderContext } from './Context';
 
 interface TextProps extends OmitStrict<AnsiStyle, 'props'>, Partial<AnsiStyleProps>, SVGProps<SVGTextElement> {
     x: number
@@ -27,7 +27,7 @@ const Text: FunctionComponent<TextProps> = ({
     children,
     ...textProps
 }) => {
-    const { theme, grid: [dx, dy] } = useContext(Context),
+    const { theme, grid: [dx, dy] } = useRenderContext(),
         decoration = [...underline ? ['underline'] : [], strikeThrough ? ['line-through'] : []].join(' '),
         [fgc, bgc] = [themeColor(fg, theme), themeColor(bg, theme)],
         bgColor = inverted ? fgc ?? theme.text : bgc,

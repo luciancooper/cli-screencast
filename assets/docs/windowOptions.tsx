@@ -111,28 +111,21 @@ async function WindowOptionsDiagram({
 }: DiagramOptions) {
     const termProps = applyDefTerminalOptions({ columns: 50, rows: 10, ...options }, { cursorHidden: true }),
         title = resolveTitle(termProps.windowTitle, termProps.windowIcon),
-        windowFont = await embedFonts({ title, lines: [] }, Asset.fonts.cascadiaCode),
-        [context, windowOptions] = resolveContext({ ...applyDefRenderOptions(options), ...windowFont }, termProps),
-        { columns, rows, grid: [dx, dy] } = context,
+        { css, ...windowFont } = await embedFonts({ title, lines: [] }, Asset.fonts.cascadiaCode),
+        context = resolveContext({ ...applyDefRenderOptions(options), ...windowFont }, { ...termProps, title }),
         {
-            paddingX,
-            paddingY,
-            offsetX,
-            offsetY,
-        } = windowOptions,
-        top = windowOptions.decorations ? windowOptions.insetMajor : (title.icon || title.text) ? dy * 1.5 : 0,
-        side = windowOptions.decorations ? windowOptions.insetMinor : 0,
-        [cw, ch] = [columns * dx, rows * dy],
-        winW = cw + paddingX * 2 + side * 2,
-        winH = ch + paddingY * 2 + side + top,
-        width = winW + offsetX * 2,
-        height = winH + offsetY * 2,
+            padding: [paddingX, paddingY],
+            offset: [offsetX, offsetY],
+            grid: [dx, dy],
+            window,
+        } = context,
+        [cw, ch] = [context.columns * dx, context.rows * dy],
         labels: DiagramLabelProps[] = [{
             // top side padding
             text: 'paddingY',
             kind: 'bar',
             direction: 'vertical',
-            coords: [offsetX + paddingX + side, offsetY],
+            coords: [offsetX + paddingX + window.side, offsetY],
             size: [cw, paddingY],
             position: 0.8,
             line: { angle: 310, distance: 30, curvature: [-0.3, -0.8] },
@@ -142,7 +135,7 @@ async function WindowOptionsDiagram({
             text: 'offsetY',
             kind: 'bar',
             direction: 'vertical',
-            coords: [offsetX + paddingX + side, 0],
+            coords: [offsetX + paddingX + window.side, 0],
             size: [cw, offsetY],
             position: 0.85,
             line: { angle: 335, distance: 42, curvature: [-0.8, -0.5] },
@@ -152,7 +145,7 @@ async function WindowOptionsDiagram({
             text: 'paddingY',
             kind: 'bar',
             direction: 'vertical',
-            coords: [offsetX + paddingX + side, offsetY + winH - paddingY],
+            coords: [offsetX + paddingX + window.side, offsetY + window.height - paddingY],
             size: [cw, paddingY],
             position: 0.75,
             line: { angle: 60, distance: 30, curvature: [-0.3, -0.8] },
@@ -162,7 +155,7 @@ async function WindowOptionsDiagram({
             text: 'offsetY',
             kind: 'bar',
             direction: 'vertical',
-            coords: [offsetX + paddingX + side, offsetY + winH],
+            coords: [offsetX + paddingX + window.side, offsetY + window.height],
             size: [cw, offsetY],
             position: 0.8,
             line: { angle: 30, distance: 35, curvature: [-0.3, -0.8] },
@@ -172,7 +165,7 @@ async function WindowOptionsDiagram({
             text: 'paddingX',
             kind: 'bar',
             direction: 'horizontal',
-            coords: [offsetX, offsetY + paddingY + top],
+            coords: [offsetX, offsetY + paddingY + window.top],
             size: [paddingX, ch],
             line: { angle: 330, distance: 35, curvature: [0.7, 0.6] },
             textPosition: 0.5,
@@ -181,7 +174,7 @@ async function WindowOptionsDiagram({
             text: 'offsetX',
             kind: 'bar',
             direction: 'horizontal',
-            coords: [0, offsetY + paddingY + top],
+            coords: [0, offsetY + paddingY + window.top],
             size: [offsetX, ch],
             position: 0.57,
             line: { angle: 325, distance: 60, curvature: [0.8, 0.3] },
@@ -191,7 +184,7 @@ async function WindowOptionsDiagram({
             text: 'paddingX',
             kind: 'bar',
             direction: 'horizontal',
-            coords: [offsetX + winW - paddingX, offsetY + paddingY + top],
+            coords: [offsetX + window.width - paddingX, offsetY + paddingY + window.top],
             size: [paddingX, ch],
             line: { angle: 210, distance: 35, curvature: [0.7, 0.6] },
             textPosition: 0.5,
@@ -200,21 +193,21 @@ async function WindowOptionsDiagram({
             text: 'offsetX',
             kind: 'bar',
             direction: 'horizontal',
-            coords: [offsetX + winW, offsetY + paddingY + top],
+            coords: [offsetX + window.width, offsetY + paddingY + window.top],
             size: [offsetX, ch],
             position: 0.57,
             line: { angle: 215, distance: 60, curvature: [0.8, 0.3] },
             textPosition: 0.5,
         }];
     // Decoration Insets
-    if (windowOptions.decorations) {
+    if (context.decorations) {
         labels.push({
             // top side inset
             text: 'insetMajor',
             kind: 'bar',
             direction: 'vertical',
-            coords: [offsetX + paddingX + side, offsetY + paddingY],
-            size: [cw, top],
+            coords: [offsetX + paddingX + window.side, offsetY + paddingY],
+            size: [cw, window.top],
             position: 0.75,
             barPosition: 0.75,
             line: { angle: 315, distance: 30, curvature: [-0.3, -0.8] },
@@ -224,8 +217,8 @@ async function WindowOptionsDiagram({
             text: 'insetMinor',
             kind: 'bar',
             direction: 'horizontal',
-            coords: [offsetX + paddingX, offsetY + paddingY + top],
-            size: [side, ch],
+            coords: [offsetX + paddingX, offsetY + paddingY + window.top],
+            size: [window.side, ch],
             position: 0.45,
             barPosition: 0.75,
             line: { angle: 45, distance: 25, curvature: [0.3, 0.8] },
@@ -235,8 +228,8 @@ async function WindowOptionsDiagram({
             text: 'insetMinor',
             kind: 'bar',
             direction: 'horizontal',
-            coords: [offsetX + paddingX + cw + side, offsetY + paddingY + top],
-            size: [side, ch],
+            coords: [offsetX + paddingX + cw + window.side, offsetY + paddingY + window.top],
+            size: [window.side, ch],
             position: 0.45,
             barPosition: 0.25,
             line: { angle: 135, distance: 25, curvature: [0.3, 0.8] },
@@ -246,8 +239,8 @@ async function WindowOptionsDiagram({
             text: 'insetMinor',
             kind: 'bar',
             direction: 'vertical',
-            coords: [offsetX + paddingX + side, offsetY + ch + paddingY + top],
-            size: [cw, side],
+            coords: [offsetX + paddingX + window.side, offsetY + ch + paddingY + window.top],
+            size: [cw, window.side],
             position: 0.7,
             barPosition: 0.25,
             line: { angle: 135, distance: 20, curvature: [-0.3, -0.8] },
@@ -256,7 +249,7 @@ async function WindowOptionsDiagram({
             text: 'decorations',
             kind: 'rect',
             side: 'bottom',
-            coords: [offsetX + paddingX + side * 0.4, offsetY + paddingY + top * 0.2],
+            coords: [offsetX + paddingX + window.side * 0.4, offsetY + paddingY + window.top * 0.2],
             size: [52, 12],
             line: { angle: 300, distance: 40, curvature: [0.8, 0.3] },
             textPosition: 0.5,
@@ -264,16 +257,16 @@ async function WindowOptionsDiagram({
     }
     // title labels
     if (title.icon || title.text) {
-        const columnInset = windowOptions.decorations ? Math.ceil((50 - paddingX) / dx) : 0,
-            [tx, ty] = [offsetX + paddingX + side, offsetY + paddingY + (top - dy) / 2];
+        const columnInset = context.decorations ? Math.ceil((50 - paddingX) / dx) : 0,
+            [tx, ty] = [offsetX + paddingX + window.side, offsetY + paddingY + (window.top - dy) / 2];
         let iconX: number;
         if (title.columns) {
             const iconInset = title.icon ? Math.ceil(context.iconColumnWidth) + 1 : 0;
             let { columns: textSpan } = title;
-            if (textSpan + iconInset > columns - columnInset) {
-                textSpan = columns - iconInset - columnInset;
+            if (textSpan + iconInset > context.columns - columnInset) {
+                textSpan = context.columns - iconInset - columnInset;
             }
-            iconX = Math.max(Math.floor((columns - textSpan - iconInset) / 2), columnInset);
+            iconX = Math.max(Math.floor((context.columns - textSpan - iconInset) / 2), columnInset);
             labels.push({
                 text: 'windowTitle',
                 kind: 'rect',
@@ -284,7 +277,7 @@ async function WindowOptionsDiagram({
                 textPosition: -0.25,
             });
         } else {
-            iconX = Math.floor((columns - Math.ceil(context.iconColumnWidth)) / 2);
+            iconX = Math.floor((context.columns - Math.ceil(context.iconColumnWidth)) / 2);
         }
         if (title.icon) {
             const iconSize = Math.min(dx * context.iconColumnWidth, dy);
@@ -309,18 +302,28 @@ async function WindowOptionsDiagram({
         <svg
             xmlns='http://www.w3.org/2000/svg'
             xmlnsXlink='http://www.w3.org/1999/xlink'
-            viewBox={`0 0 ${width + ix * 2} ${height + iy * 2}`}
-            width={scaleFactor * (width + ix * 2)}
-            height={scaleFactor * (height + iy * 2)}
+            viewBox={`0 0 ${context.size.width + ix * 2} ${context.size.height + iy * 2}`}
+            width={scaleFactor * (context.size.width + ix * 2)}
+            height={scaleFactor * (context.size.height + iy * 2)}
         >
             <g transform={`translate(${ix},${iy})`}>
                 <Context.Provider value={context}>
-                    <Window {...windowOptions} title={(title.icon || title.text) ? title : null}/>
+                    <Window css={css} title={(title.icon || title.text) ? title : null}/>
                 </Context.Provider>
                 <g fill='none' stroke='#a88132'>
-                    <rect x={offsetX + paddingX + side} y={offsetY + paddingY + top} width={cw} height={ch}/>
-                    <rect x={offsetX + paddingX} y={offsetY + paddingY} width={cw + side * 2} height={ch + side + top}/>
-                    <rect x={0} y={0} width={width} height={height} stroke='#c4c4c4'/>
+                    <rect
+                        x={offsetX + paddingX + window.side}
+                        y={offsetY + paddingY + window.top}
+                        width={cw}
+                        height={ch}
+                    />
+                    <rect
+                        x={offsetX + paddingX}
+                        y={offsetY + paddingY}
+                        width={cw + window.side * 2}
+                        height={ch + window.side + window.top}
+                    />
+                    <rect x={0} y={0} width={context.size.width} height={context.size.height} stroke='#c4c4c4'/>
                 </g>
                 <g fontSize={labelFontSize} fontFamily={labelFont.fontFamily}>
                     {labelFont.css ? <style dangerouslySetInnerHTML={{ __html: labelFont.css }}/> : null}

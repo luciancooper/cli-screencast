@@ -1,7 +1,7 @@
-import { useContext, type FunctionComponent, type SVGProps } from 'react';
+import type { FunctionComponent, SVGProps } from 'react';
 import type { TerminalLine, KeyFrame } from '../types';
 import { expandAnsiProps } from '../parser';
-import Context from './Context';
+import { useRenderContext } from './Context';
 import Text from './Text';
 import { Animation } from './Animation';
 
@@ -11,7 +11,7 @@ interface FrameProps extends SVGProps<SVGGElement> {
 }
 
 const Frame: FunctionComponent<FrameProps> = ({ lines, keyFrame, ...svgProps }) => {
-    const { duration } = useContext(Context);
+    const { duration } = useRenderContext();
     return (
         <g className='frame' dominantBaseline='central' {...svgProps}>
             {lines.flatMap(({ chunks }, i) => (

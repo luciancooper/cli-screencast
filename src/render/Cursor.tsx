@@ -1,7 +1,7 @@
-import { useContext, type FunctionComponent, type SVGProps } from 'react';
+import type { FunctionComponent, SVGProps } from 'react';
 import type { CursorLocation, CursorKeyFrame } from '../types';
 import { hexString, alphaValue } from '../color';
-import Context from './Context';
+import { useRenderContext } from './Context';
 import { Animation, TransformAnimation, KeyTime } from './Animation';
 
 interface CursorProps extends SVGProps<SVGRectElement>, CursorLocation {}
@@ -12,7 +12,7 @@ export const Cursor: FunctionComponent<CursorProps> = ({
     children,
     ...props
 }: CursorProps) => {
-    const { theme: { cursorColor, cursorType, cursorBlink }, fontSize, grid: [dx, dy] } = useContext(Context),
+    const { theme: { cursorColor, cursorType, cursorBlink }, fontSize, grid: [dx, dy] } = useRenderContext(),
         w = (cursorType === 'beam' ? 0.15 : 1) * dx,
         lh = Math.min(dy, fontSize * 1.2),
         [cy, h] = cursorType === 'underline' ? [lh * 0.9, lh * 0.1] : [0, lh],
@@ -56,7 +56,7 @@ export function opacityKeyTimes(frames: CursorKeyFrame[], duration: number) {
     return times;
 }
 
-export function translateKeyTimes(frames: CursorKeyFrame[], duration: number, [dx, dy]: readonly [number, number]) {
+export function translateKeyTimes(frames: CursorKeyFrame[], duration: number, [dx, dy]: [number, number]) {
     const times: KeyTime<string>[] = [],
         [first, ...subsequent] = frames,
         [cy, cx] = [first!.line, first!.column];
@@ -78,7 +78,7 @@ interface CursorFramesProps extends SVGProps<SVGRectElement> {
 }
 
 export const CursorFrames: FunctionComponent<CursorFramesProps> = ({ frames, ...props }) => {
-    const { grid, duration } = useContext(Context),
+    const { grid, duration } = useRenderContext(),
         first = frames[0]!,
         opacity = opacityKeyTimes(frames, duration),
         translate = translateKeyTimes(frames, duration, grid);
