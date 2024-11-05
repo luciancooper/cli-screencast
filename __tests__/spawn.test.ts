@@ -363,7 +363,14 @@ describe('readableShell', () => {
     });
 
     test('subprocess shell env will not extend process.env if `extendEnv` is false', async () => {
-        const source = readableShell({ ...dimensions, env: {}, extendEnv: false }, ac);
+        const source = readableShell({
+            ...dimensions,
+            // specify /bin/sh on macos, or else this test will hang on zsh shell: zsh takes too long to start up
+            // and sends a write before the shell is initialized so the exit command below is sent too early
+            ...(process.platform === 'darwin' ? { shell: '/bin/sh' } : null),
+            env: {},
+            extendEnv: false,
+        }, ac);
         // send mocks stdin after first write to stdout
         await stdout.nextWrite().then(() => {
             stdin.send('exit\r\n');
