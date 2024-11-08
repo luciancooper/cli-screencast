@@ -3,6 +3,7 @@ import type { Creatable } from './asset';
 import favicon from './media/favicon';
 import projectLogo from './media/projectLogo';
 import socialCard from './media/socialCard';
+import homepageFeatures from './media/homepageFeatures';
 import windowIcons from './docs/windowIcons';
 import windowOptions from './docs/windowOptions';
 import fontSamples from './docs/fontSamples';
@@ -12,6 +13,7 @@ const assets: Creatable[] = [
     favicon,
     ...projectLogo,
     socialCard,
+    ...homepageFeatures,
     windowIcons,
     windowOptions,
     ...fontSamples,

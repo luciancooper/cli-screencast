@@ -2,6 +2,7 @@ import type { SVGProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { applyDefaults } from '@src/options';
 import Asset from '../asset';
+import TerminalIcon from './icons/Terminal';
 
 interface DecorationsProps extends SVGProps<SVGGElement> {
     diameter?: number
@@ -30,24 +31,6 @@ function Decorations({
         </g>
     );
 }
-
-const iconPath = 'M0.4786 0.5307'
-    + 'c-0.0464 0.0739 -0.1086 0.1366 -0.1821 0.1836'
-    + 'c-0.0239 0.0148 -0.0539 0.0156 -0.0785 0.0021'
-    + 's-0.04 -0.0393 -0.0404 -0.0674'
-    + 's0.0145 -0.0542 0.0389 -0.0682'
-    + 'c0.0381 -0.024 0.0719 -0.0541 0.1 -0.0893'
-    + 'c-0.0288 -0.0343 -0.0625 -0.0641 -0.1 -0.0886'
-    + 'c-0.0371 -0.0221 -0.0492 -0.0701 -0.0271 -0.1071'
-    + 's0.0701 -0.0492 0.1071 -0.0271'
-    + 'c0.0734 0.0466 0.1356 0.1088 0.1821 0.1821'
-    + 'c0.0147 0.0246 0.0147 0.0554 0 0.08z'
-    + 'M0.7571 0.7143'
-    + 'h-0.1929'
-    + 'c-0.0357 0 -0.0643 -0.0182 -0.0643 -0.0536'
-    + 's0.0289 -0.0536 0.0643 -0.0536h0.1929'
-    + 'c0.0357 0 0.0643 0.0182 0.0643 0.0536'
-    + 's-0.0289 0.0536 -0.0643 0.0536z';
 
 interface Props {
     size: number
@@ -89,9 +72,7 @@ export function ProjectLogo({
             {...opts}
         >
             <defs>
-                <symbol id='icon' viewBox='0 0 1 1'>
-                    <path d={iconPath} fill={iconColor}/>
-                </symbol>
+                <TerminalIcon id='terminal-icon'/>
             </defs>
             <rect x={ix} y={iy} width={w} height={h} rx={radius} ry={radius} fill={windowColor}/>
             {decorations ? (
@@ -101,7 +82,14 @@ export function ProjectLogo({
                     {...(decorations === true ? {} : decorations)}
                 />
             ) : null}
-            <use xlinkHref='#icon' x={iconOffset} y={iconOffset} width={iconSize} height={iconSize}/>
+            <use
+                xlinkHref='#terminal-icon'
+                x={iconOffset}
+                y={iconOffset}
+                width={iconSize}
+                height={iconSize}
+                fill={iconColor}
+            />
         </svg>
     );
 }

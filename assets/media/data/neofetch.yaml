@@ -1,0 +1,44 @@
+version: 1.0.0
+type: screen
+columns: 74
+rows: 20
+tabSize: 8
+cursorHidden: true
+content: "\e[1;32m                    'c.\e[39;22m          \e[1;32mlucian\e[39;22m@\e[1;32mMacBookPro.lan\e[39;22m\ 
+
+  \e[1;32m                 ,xNMM.\e[39;22m          ---------------------\ 
+
+  \e[1;32m               .OMMMMo\e[39;22m           \e[1;33mOS\e[39;22m: macOS 15.0 24A335 x86_64\ 
+
+  \e[1;32m               OMMM0,\e[39;22m            \e[1;33mHost\e[39;22m: MacBookPro16,2\ 
+
+  \e[1;32m     .;loddo:' loolloddol;.\e[39;22m      \e[1;33mKernel\e[39;22m: 24.0.0\ 
+
+  \e[1;32m   cKMMMMMMMMMMNWMMMMMMMMMM0:\e[39;22m    \e[1;33mUptime\e[39;22m: 8 days, 16 hours, 55 mins\ 
+
+  \e[1;33m .KMMMMMMMMMMMMMMMMMMMMMMMWd.\e[39;22m    \e[1;33mPackages\e[39;22m: 68 (brew)\ 
+
+  \e[1;33m XMMMMMMMMMMMMMMMMMMMMMMMX.\e[39;22m      \e[1;33mShell\e[39;22m: zsh 5.9\ 
+
+  \e[1;31m;MMMMMMMMMMMMMMMMMMMMMMMM:\e[39;22m       \e[1;33mResolution\e[39;22m: 1680x1050@2x\ 
+
+  \e[1;31m:MMMMMMMMMMMMMMMMMMMMMMMM:\e[39;22m       \e[1;33mDE\e[39;22m: Aqua\ 
+
+  \e[1;31m.MMMMMMMMMMMMMMMMMMMMMMMMX.\e[39;22m      \e[1;33mWM\e[39;22m: Quartz Compositor\ 
+
+  \e[1;31m kMMMMMMMMMMMMMMMMMMMMMMMMWd.\e[39;22m    \e[1;33mWM Theme\e[39;22m: Blue (Light)\ 
+
+  \e[1;31m \e[39;22m\e[1;35m.XMMMMMMMMMMMMMMMMMMMMMMMMMMk\e[39;22m   \e[1;33mTerminal\e[39;22m: iTerm2\ 
+
+  \e[1;35m  .XMMMMMMMMMMMMMMMMMMMMMMMMK.\e[39;22m   \e[1;33mTerminal Font\e[39;22m: CascadiaCodeNF-Regular 12\ 
+
+  \e[1;35m    \e[39;22m\e[1;34mkMMMMMMMMMMMMMMMMMMMMMMd\e[39;22m     \e[1;33mCPU\e[39;22m: Intel i7-1068NG7 (8) @ 2.30GHz\ 
+
+  \e[1;34m     ;KMMMMMMMWXXWMMMMMMMk.\e[39;22m      \e[1;33mGPU\e[39;22m: Intel Iris Plus Graphics\ 
+
+  \e[1;34m       .cooc,.    .,coo:.\e[39;22m        \e[1;33mMemory\e[39;22m: 16866MiB / 32768MiB\ 
+
+
+  \                                 \e[30;40m   \e[49;39m\e[31;41m   \e[49;39m\e[32;42m   \e[49;39m\e[33;43m   \e[49;39m\e[34;44m   \e[49;39m\e[35;45m   \e[49;39m\e[36;46m   \e[49;39m\e[37;47m   \e[49;39m
+
+  \                                 \e[90;100m   \e[49;39m\e[91;101m   \e[49;39m\e[92;102m   \e[49;39m\e[93;103m   \e[49;39m\e[94;104m   \e[49;39m\e[95;105m   \e[49;39m\e[96;106m   \e[49;39m\e[97;107m   \e[49;39m"
