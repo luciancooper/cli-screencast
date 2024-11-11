@@ -422,13 +422,31 @@ describe('<CursorFrames/>', () => {
         stages.length * stageDuration,
     ] as const;
 
-    test('renders a `rect` element with `animate` and `animateTransform` children', () => {
-        const [frames, duration] = makeFrames([[0, 5], [1, 5], null, null]);
+    test('renders cursor with an `animateTransform` child if it moves', () => {
+        const [frames, duration] = makeFrames([[0, 5], [1, 5]]);
         expect(render(<CursorFrames frames={frames}/>, {}, { duration })).toMatchObject({
             type: 'rect',
             children: [
-                { type: 'animate', children: null },
                 { type: 'animateTransform', children: null },
+            ],
+        });
+    });
+
+    test('renders cursor without an `animateTransform` child if it does not move', () => {
+        const [frames, duration] = makeFrames([[0, 5]]);
+        expect(render(<CursorFrames frames={frames}/>, {}, { duration })).toMatchObject({
+            type: 'rect',
+            children: null,
+        });
+    });
+
+    test('wraps cursor in a `g` element with an `animate` sibling if cursor visibility changes', () => {
+        const [frames, duration] = makeFrames([[0, 5], [1, 5], null, null]);
+        expect(render(<CursorFrames frames={frames}/>, {}, { duration })).toMatchObject({
+            type: 'g',
+            children: [
+                { type: 'rect', children: [{ type: 'animateTransform', children: null }] },
+                { type: 'animate', props: { attributeName: 'opacity' }, children: null },
             ],
         });
     });

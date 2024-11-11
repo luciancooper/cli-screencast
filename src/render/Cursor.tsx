@@ -81,15 +81,19 @@ export const CursorFrames: FunctionComponent<CursorFramesProps> = ({ frames, ...
     const { grid, duration } = useRenderContext(),
         first = frames[0]!,
         opacity = opacityKeyTimes(frames, duration),
-        translate = translateKeyTimes(frames, duration, grid);
-    return (
-        <Cursor line={first.line} column={first.column} {...props}>
-            {opacity.length > 0 && (
-                <Animation attribute='opacity' keyFrames={opacity} duration={duration}/>
-            )}
-            {translate.length > 0 && (
-                <TransformAnimation keyFrames={translate} duration={duration}/>
-            )}
-        </Cursor>
-    );
+        translate = translateKeyTimes(frames, duration, grid),
+        cursor = (
+            <Cursor line={first.line} column={first.column} {...props}>
+                {translate.length > 0 && (
+                    <TransformAnimation keyFrames={translate} duration={duration}/>
+                )}
+            </Cursor>
+        );
+    // wrap cursor in a <g> element to prevent opacity animation conflicts when cursor blink is enabled
+    return opacity.length > 0 ? (
+        <g>
+            {cursor}
+            <Animation attribute='opacity' keyFrames={opacity} duration={duration}/>
+        </g>
+    ) : cursor;
 };
