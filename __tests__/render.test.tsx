@@ -4,7 +4,7 @@ import { resolveTheme } from '@src/theme';
 import { resolveTitle } from '@src/parser';
 import { hexString } from '@src/color';
 import type { CursorKeyFrame } from '@src/types';
-import type { KeyTime } from '@src/render/Animation';
+import { KeyFrameAnimation, type KeyTime } from '@src/render/Animation';
 import { resolveContext, type RenderOptions } from '@src/render';
 import Context from '@src/render/Context';
 import Window from '@src/render/Window';
@@ -453,48 +453,76 @@ describe('<CursorFrames/>', () => {
 
     describe('opacityKeyTimes', () => {
         test('returns array of cursor opacity values and times', () => {
-            expect(opacityKeyTimes(...makeFrames([null, [0, 5], null, [1, 10]]))).toEqual<KeyTime<number>[]>([
+            expect(opacityKeyTimes(...makeFrames([null, [0, 5], null, [1, 10]], 500))).toEqual<KeyTime<number>[]>([
                 { value: 0, time: 0 },
-                { value: 1, time: 0.25 },
-                { value: 0, time: 0.5 },
-                { value: 1, time: 0.75 },
+                { value: 1, time: 500 },
+                { value: 0, time: 1000 },
+                { value: 1, time: 1500 },
             ]);
             // ends with a null frame
-            expect(opacityKeyTimes(...makeFrames([null, null, [1, 10], null]))).toEqual<KeyTime<number>[]>([
+            expect(opacityKeyTimes(...makeFrames([null, null, [1, 10], null], 500))).toEqual<KeyTime<number>[]>([
                 { value: 0, time: 0 },
-                { value: 1, time: 0.5 },
-                { value: 0, time: 0.75 },
+                { value: 1, time: 1000 },
+                { value: 0, time: 1500 },
             ]);
         });
 
         test('returns an empty array if cursor visibility never changes', () => {
-            const [frames, duration] = makeFrames([[0, 5], [1, 5]]);
-            expect(opacityKeyTimes(frames, duration)).toHaveLength(0);
+            expect(opacityKeyTimes(...makeFrames([[0, 5], [1, 5]]))).toHaveLength(0);
         });
     });
 
     describe('transformKeyTimes', () => {
         test('returns array of cursor translation values and times', () => {
-            const [frames, duration] = makeFrames([[0, 5], [1, 5], [1, 10], [2, 5]]);
-            expect(translateKeyTimes(frames, duration, [1, 1])).toEqual<KeyTime<string>[]>([
+            const [frames] = makeFrames([[0, 5], [1, 5], [1, 10], [2, 5]], 500);
+            expect(translateKeyTimes(frames, [1, 1])).toEqual<KeyTime<string>[]>([
                 { value: '0,0', time: 0 },
-                { value: '0,1', time: 0.25 },
-                { value: '5,1', time: 0.5 },
-                { value: '0,2', time: 0.75 },
+                { value: '0,1', time: 500 },
+                { value: '5,1', time: 1000 },
+                { value: '0,2', time: 1500 },
             ]);
         });
 
         test('does not include position changes when cursor is hidden', () => {
-            const [frames, duration] = makeFrames([[0, 5], [1, 5], null, [1, 5]]);
-            expect(translateKeyTimes(frames, duration, [1, 1])).toEqual<KeyTime<string>[]>([
+            const [frames] = makeFrames([[0, 5], [1, 5], null, [1, 5]], 500);
+            expect(translateKeyTimes(frames, [1, 1])).toEqual<KeyTime<string>[]>([
                 { value: '0,0', time: 0 },
-                { value: '0,1', time: 0.25 },
+                { value: '0,1', time: 500 },
             ]);
         });
 
         test('returns empty array when cursor is only visible during a single frame', () => {
-            const [frames, duration] = makeFrames([null, null, [1, 10], null]);
-            expect(translateKeyTimes(frames, duration, [1, 1])).toHaveLength(0);
+            const [frames] = makeFrames([null, null, [1, 10], null]);
+            expect(translateKeyTimes(frames, [1, 1])).toHaveLength(0);
+        });
+    });
+});
+
+describe('<KeyFrameAnimation/>', () => {
+    test('renders with 0;1;0 key times if keyframe is mid animation', () => {
+        expect(render(
+            <KeyFrameAnimation time={200} endTime={500} duration={1000}/>,
+        )).toMatchObject({
+            type: 'animate',
+            props: { attributeName: 'opacity', values: '0;1;0', keyTimes: '0;0.2;0.5' },
+        });
+    });
+
+    test('renders with 1;0 key times when keyframe is first', () => {
+        expect(render(
+            <KeyFrameAnimation time={0} endTime={500} duration={1000}/>,
+        )).toMatchObject({
+            type: 'animate',
+            props: { attributeName: 'opacity', values: '1;0', keyTimes: '0;0.5' },
+        });
+    });
+
+    test('renders with 0;1 key times when keyframe is last', () => {
+        expect(render(
+            <KeyFrameAnimation time={500} endTime={1000} duration={1000}/>,
+        )).toMatchObject({
+            type: 'animate',
+            props: { attributeName: 'opacity', values: '0;1', keyTimes: '0;0.5' },
         });
     });
 });

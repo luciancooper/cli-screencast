@@ -5,7 +5,7 @@ import { expandAnsiProps } from '../parser';
 import { hexString, alphaValue } from '../color';
 import { useRenderContext } from './Context';
 import Text from './Text';
-import { Animation } from './Animation';
+import { KeyFrameAnimation } from './Animation';
 
 interface WindowTitleProps {
     title: Title
@@ -70,17 +70,7 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
                 />
             ) : null}
             {textElement}
-            {keyFrame ? (
-                <Animation
-                    attribute='opacity'
-                    duration={duration}
-                    keyFrames={[
-                        { value: 0, time: 0 },
-                        { value: 1, time: keyFrame.time / duration },
-                        { value: 0, time: keyFrame.endTime / duration },
-                    ]}
-                />
-            ) : null}
+            {keyFrame ? <KeyFrameAnimation {...keyFrame} duration={duration}/> : null}
         </g>
     );
 };

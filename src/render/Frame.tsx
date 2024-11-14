@@ -3,7 +3,7 @@ import type { TerminalLine, KeyFrame } from '../types';
 import { expandAnsiProps } from '../parser';
 import { useRenderContext } from './Context';
 import Text from './Text';
-import { Animation } from './Animation';
+import { KeyFrameAnimation } from './Animation';
 
 interface FrameProps extends SVGProps<SVGGElement> {
     lines: TerminalLine[]
@@ -21,17 +21,7 @@ const Frame: FunctionComponent<FrameProps> = ({ lines, keyFrame, ...svgProps }) 
                     </Text>
                 ))
             ))}
-            {keyFrame ? (
-                <Animation
-                    attribute='opacity'
-                    duration={duration}
-                    keyFrames={[
-                        { value: 0, time: 0 },
-                        { value: 1, time: keyFrame.time / duration },
-                        { value: 0, time: keyFrame.endTime / duration },
-                    ]}
-                />
-            ) : null}
+            {keyFrame ? <KeyFrameAnimation {...keyFrame} duration={duration}/> : null}
         </g>
     );
 };

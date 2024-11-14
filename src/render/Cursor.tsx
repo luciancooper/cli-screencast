@@ -2,7 +2,7 @@ import type { FunctionComponent, SVGProps } from 'react';
 import type { CursorLocation, CursorKeyFrame } from '../types';
 import { hexString, alphaValue } from '../color';
 import { useRenderContext } from './Context';
-import { Animation, TransformAnimation, KeyTime } from './Animation';
+import { Animation, TransformAnimation, type KeyTime } from './Animation';
 
 interface CursorProps extends SVGProps<SVGRectElement>, CursorLocation {}
 
@@ -11,7 +11,7 @@ export const Cursor: FunctionComponent<CursorProps> = ({
     column,
     children,
     ...props
-}: CursorProps) => {
+}) => {
     const { theme: { cursorColor, cursorType, cursorBlink }, fontSize, grid: [dx, dy] } = useRenderContext(),
         w = (cursorType === 'beam' ? 0.15 : 1) * dx,
         lh = Math.min(dy, fontSize * 1.2),
@@ -31,7 +31,7 @@ export const Cursor: FunctionComponent<CursorProps> = ({
                 <Animation
                     attribute='opacity'
                     duration={1000}
-                    keyFrames={[{ value: 1, time: 0 }, { value: 0, time: 0.5 }]}
+                    keyTimes={[{ value: 1, time: 0 }, { value: 0, time: 500 }]}
                 />
             ) : null}
             {children}
@@ -48,29 +48,31 @@ export function opacityKeyTimes(frames: CursorKeyFrame[], duration: number) {
     const times: KeyTime<number>[] = [];
     let last = 0;
     for (const { time, endTime } of frames) {
-        if (time > last) times.push({ value: 0, time: last / duration });
-        if (time > last || last === 0) times.push({ value: 1, time: time / duration });
+        if (time > last) times.push({ value: 0, time: last });
+        if (time > last || last === 0) times.push({ value: 1, time });
         last = endTime;
     }
-    if (last < duration) times.push({ value: 0, time: last / duration });
+    if (last < duration) times.push({ value: 0, time: last });
     return times;
 }
 
-export function translateKeyTimes(frames: CursorKeyFrame[], duration: number, [dx, dy]: [number, number]) {
-    const times: KeyTime<string>[] = [],
-        [first, ...subsequent] = frames,
-        [cy, cx] = [first!.line, first!.column];
+export function translateKeyTimes(frames: CursorKeyFrame[], [dx, dy]: [number, number]) {
+    const keyTimes: KeyTime<string>[] = [],
+        [first, ...subsequent] = frames as [CursorKeyFrame, ...CursorKeyFrame[]],
+        [cy, cx] = [first.line, first.column];
     let [py, px] = [cy, cx];
     for (const { time, line, column } of subsequent) {
+        // continue if cursor position does not change
         if (py === line && px === column) continue;
-        times.push({
+        // cursor position has changed, add a key frame
+        keyTimes.push({
             value: [(column - cx) * dx, (line - cy) * dy].join(','),
-            time: time / duration,
+            time,
         });
         [py, px] = [line, column];
     }
-    if (times.length) times.unshift({ value: [0, 0].join(','), time: 0 });
-    return times;
+    if (keyTimes.length) keyTimes.unshift({ value: [0, 0].join(','), time: 0 });
+    return keyTimes;
 }
 
 interface CursorFramesProps extends SVGProps<SVGRectElement> {
@@ -81,11 +83,11 @@ export const CursorFrames: FunctionComponent<CursorFramesProps> = ({ frames, ...
     const { grid, duration } = useRenderContext(),
         first = frames[0]!,
         opacity = opacityKeyTimes(frames, duration),
-        translate = translateKeyTimes(frames, duration, grid),
+        translate = translateKeyTimes(frames, grid),
         cursor = (
             <Cursor line={first.line} column={first.column} {...props}>
                 {translate.length > 0 && (
-                    <TransformAnimation keyFrames={translate} duration={duration}/>
+                    <TransformAnimation keyTimes={translate} duration={duration}/>
                 )}
             </Cursor>
         );
@@ -93,7 +95,7 @@ export const CursorFrames: FunctionComponent<CursorFramesProps> = ({ frames, ...
     return opacity.length > 0 ? (
         <g>
             {cursor}
-            <Animation attribute='opacity' keyFrames={opacity} duration={duration}/>
+            <Animation attribute='opacity' keyTimes={opacity} duration={duration}/>
         </g>
     ) : cursor;
 };
