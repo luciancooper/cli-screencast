@@ -1,5 +1,5 @@
 import type { FunctionComponent, SVGProps } from 'react';
-import type { IconID, Title, TitleKeyFrame } from '../types';
+import type { IconID, Title, KeyFrame } from '../types';
 import { hexString, alphaValue } from '../color';
 import iconPaths from './icons.json';
 import { useRenderContext } from './Context';
@@ -7,7 +7,7 @@ import createBoxShadow from './BoxShadow';
 import WindowTitle from './WindowTitle';
 
 interface WindowProps extends SVGProps<SVGSVGElement> {
-    title?: Title | TitleKeyFrame[] | null
+    title?: Title | KeyFrame<Title>[] | null
     css?: string | null
 }
 

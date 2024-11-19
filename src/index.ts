@@ -8,10 +8,9 @@ import { readableFrames, type SourceFrame } from './source';
 import { readableSpawn, readableShell, type SpawnOptions, type ShellOptions } from './spawn';
 import readableCallback, { type CallbackOptions, type NodeCapture } from './node';
 import captureSource, { type CaptureOptions } from './capture';
-import extractCaptureFrames from './frames';
 import { resolveFonts, embedFontCss, type ResolvedFontData, type EmbeddedFontData } from './fonts';
-import { renderScreenSvg, renderCaptureSvg, renderCaptureFrames, type RenderOptions } from './render';
-import { createPng, createAnimatedPng } from './image';
+import { renderScreenSvg, renderScreenFrames, renderCaptureSvg, renderCaptureFrames, type RenderOptions } from './render';
+import { createPng } from './image';
 import { dataToJson, dataToYaml, dataFromFile } from './data';
 import { writeToFile } from './utils';
 
@@ -45,14 +44,13 @@ async function renderScreenData(screen: ScreenData, options: OutputOptions & Ren
                     svg: outputProps.embedFonts && outputs.some(({ type: t }) => t === 'svg'),
                 });
                 const { [type]: css, fontFamily } = cssData,
-                    rendered = renderScreenSvg(parsed, {
-                        ...props,
-                        fontColumnWidth,
-                        css,
-                        fontFamily,
-                    });
-                if (type === 'svg') cache[type] = rendered.svg;
-                else cache[type] = await createPng(rendered, outputProps.scaleFactor);
+                    fontProps = { fontColumnWidth, css, fontFamily };
+                if (type === 'png') {
+                    const frames = renderScreenFrames(parsed, { ...props, ...fontProps });
+                    cache[type] = await createPng(frames, outputProps.scaleFactor);
+                } else {
+                    cache[type] = renderScreenSvg(parsed, { ...props, ...fontProps });
+                }
             }
         }
         if (path) {
@@ -88,9 +86,8 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
                 const { [type]: css, fontFamily } = cssData,
                     fontProps = { fontColumnWidth, css, fontFamily };
                 if (type === 'png') {
-                    const frames = extractCaptureFrames(parsed),
-                        svgFrames = renderCaptureFrames(frames, { ...props, ...fontProps });
-                    cache[type] = await createAnimatedPng(svgFrames, ouputProps.scaleFactor);
+                    const frames = renderCaptureFrames(parsed, { ...props, ...fontProps });
+                    cache[type] = await createPng(frames, ouputProps.scaleFactor);
                 } else {
                     cache[type] = renderCaptureSvg(parsed, { ...props, ...fontProps });
                 }

@@ -8,7 +8,7 @@ async function createFavicon(svg: string, sizes: number[]): Promise<Buffer> {
     const pngs: ReturnType<typeof PNG.decodePixels>[] = [],
         n = sizes.length;
     for (const size of sizes) {
-        const png = await createPng({ svg, width: size, height: size }, 1);
+        const png = await createPng({ frame: svg, width: size, height: size }, 1);
         pngs.push(PNG.decodePixels(png));
     }
     // allocate buffer for ico

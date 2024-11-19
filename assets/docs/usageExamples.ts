@@ -148,7 +148,7 @@ export default [
         type: 'docs',
         render: () => renderData(
             path.resolve(__dirname, './data/shell-demo.yaml'),
-            { ...Asset.fonts.cascadiaCodeNF },
+            { ...Asset.fonts.cascadiaCodeNF, theme: { cursorBlink: true } },
         ),
     }),
     // window.md examples

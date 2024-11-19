@@ -108,7 +108,7 @@ const remoteFonts = {
 } satisfies Record<string, FontSource>;
 
 const fixtures = {
-    frame: {
+    screen: {
         title: resolveTitle('abc'),
         lines: [
             { index: 0, ...makeLine('cde', ['efg', { bold: true }]) },
@@ -122,15 +122,6 @@ const fixtures = {
         ],
         title: [resolveTitle('abc')],
     },
-    frames: {
-        frames: [{
-            title: resolveTitle('abc'),
-            lines: [{ index: 0, ...makeLine('cde', ['efg', { bold: true }]) }],
-        }, {
-            title: resolveTitle('abc'),
-            lines: [{ index: 0, ...makeLine(['ghi', { bold: true, italic: true }], ['ijk', { italic: true }]) }],
-        }],
-    },
 };
 
 describe('extractContentSubsets', () => {
@@ -141,22 +132,15 @@ describe('extractContentSubsets', () => {
         subsets: cp.subsets.map(([ansi, chars]) => [ansi, GraphemeSet.from(chars)]),
     });
 
-    test('extracts codepoint subsets from terminal frame data', () => {
-        expect(extractContentSubsets(fixtures.frame)).toEqual<ContentSubsets>(makeExpected({
+    test('extracts char subsets from parsed screen data', () => {
+        expect(extractContentSubsets(fixtures.screen)).toEqual<ContentSubsets>(makeExpected({
             coverage: 'abcdefghijk',
             subsets: [[0, 'abcde'], [1, 'efg'], [2, 'ijk'], [3, 'ghi']],
         }));
     });
 
-    test('extracts char subsets terminal capture data', () => {
+    test('extracts char subsets parsed capture data', () => {
         expect(extractContentSubsets(fixtures.capture)).toEqual<ContentSubsets>(makeExpected({
-            coverage: 'abcdefghijk',
-            subsets: [[0, 'abcde'], [1, 'efg'], [2, 'ijk'], [3, 'ghi']],
-        }));
-    });
-
-    test('extracts char subsets terminal frames data', () => {
-        expect(extractContentSubsets(fixtures.frames)).toEqual<ContentSubsets>(makeExpected({
             coverage: 'abcdefghijk',
             subsets: [[0, 'abcde'], [1, 'efg'], [2, 'ijk'], [3, 'ghi']],
         }));
@@ -440,7 +424,7 @@ describe('resolveFonts', () => {
     });
 
     test('handles generic families or families that are not installed or google fonts', async () => {
-        await expect(resolveFonts(fixtures.frame, 'Courier,monospace')).resolves.toStrictEqual<ResolvedFontData>({
+        await expect(resolveFonts(fixtures.screen, 'Courier,monospace')).resolves.toStrictEqual<ResolvedFontData>({
             fontFamilies: [
                 { name: 'Courier', type: null },
                 { name: 'monospace', type: 'generic' },

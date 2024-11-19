@@ -1,12 +1,12 @@
 import type { FunctionComponent, SVGProps } from 'react';
-import type { TerminalLine, KeyFrame } from '../types';
+import type { TextChunk, KeyFrame } from '../types';
 import { expandAnsiProps } from '../parser';
 import { useRenderContext } from './Context';
 import Text from './Text';
 import { KeyFrameAnimation } from './Animation';
 
 interface FrameProps extends SVGProps<SVGGElement> {
-    lines: TerminalLine[]
+    lines: { chunks: TextChunk[] }[]
     keyFrame?: KeyFrame
 }
 

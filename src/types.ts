@@ -155,6 +155,10 @@ export interface CursorLocation {
     column: number
 }
 
+export interface CursorState extends CursorLocation {
+    visible: boolean
+}
+
 export interface TextChunk {
     str: string
     style: AnsiStyle
@@ -185,36 +189,29 @@ export interface ScreenData extends Required<TerminalOptions> {
     content: string
 }
 
-export interface ParsedScreenData extends Dimensions, TerminalLines {
+export interface ParsedFrame extends TerminalLines {
     cursor: CursorLocation | null
     title: Title
 }
 
-export interface KeyFrame {
-    time: number
-    endTime: number
-}
+export interface ParsedScreenData extends Dimensions, ParsedFrame {}
 
-export interface ContentKeyFrame extends KeyFrame, TerminalLines {}
-
-export interface CursorKeyFrame extends KeyFrame, CursorLocation {}
-
-export interface TitleKeyFrame extends KeyFrame, Title {}
+export type KeyFrame<T extends {} = {}> = T & { time: number, endTime: number };
 
 export interface ParsedCaptureData extends Dimensions {
-    content: ContentKeyFrame[]
-    cursor: CursorKeyFrame[]
-    title: TitleKeyFrame[]
+    /**
+     * Array of key frames for each content frame in the capture, continuous with no gaps
+    */
+    content: KeyFrame<TerminalLines>[]
+    /**
+     * Array of key frames for each cursor frame in the capture, continuous with no gaps
+    */
+    cursor: KeyFrame<CursorState>[]
+    /**
+     * Array of key frames for each title frame in the capture, can have gaps.
+    */
+    title: KeyFrame<Title>[]
     duration: number
-}
-
-export interface CaptureKeyFrame extends KeyFrame, TerminalLines {
-    cursor: CursorLocation | null
-    title: Title
-}
-
-export interface ParsedCaptureFrames extends Dimensions {
-    frames: CaptureKeyFrame[]
 }
 
 export interface Size {
@@ -222,14 +219,4 @@ export interface Size {
     height: number
 }
 
-export interface SVGData extends Size {
-    svg: string
-}
-
-export interface SVGKeyFrame extends KeyFrame {
-    svg: string
-}
-
-export interface SVGCaptureData extends Size {
-    frames: SVGKeyFrame[]
-}
+export type SVGFrameData = Size & ({ frame: string } | { frames: KeyFrame<{ frame: string }>[] });

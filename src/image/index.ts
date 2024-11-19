@@ -1,5 +1,5 @@
 import { launch, type Browser } from 'puppeteer';
-import type { Size, SVGData, SVGCaptureData } from '../types';
+import type { Size, SVGFrameData } from '../types';
 import PNG from './png';
 import log from '../logger';
 
@@ -37,39 +37,35 @@ async function createImageRenderer(size: Size, deviceScaleFactor: number) {
     return render;
 }
 
-export async function createPng({ svg, ...size }: SVGData, scale: number): Promise<Buffer> {
-    log.info('rendering png from svg');
-    const renderer = await createImageRenderer(size, scale),
-        // render screenshot
-        buffer = await renderer(svg);
-    // close renderer
-    await renderer.close();
-    // decode png
-    const png = new PNG(buffer);
+export async function createPng({ width, height, ...data }: SVGFrameData, scale: number): Promise<Buffer> {
+    let png: PNG;
+    // create image renderer
+    const renderer = await createImageRenderer({ width, height }, scale);
+    try {
+        if ('frames' in data) {
+            log.info('rendering animated png from svg (%k total frames)', data.frames.length);
+            // create empty png
+            png = new PNG();
+            // render png buffer for each frame
+            for (const [idx, { frame, time, endTime }] of data.frames.entries()) {
+                log.info('adding frame %k of %k', idx + 1, data.frames.length);
+                png.addFrame(await renderer(frame), endTime - time);
+            }
+        } else {
+            log.info('rendering png from svg');
+            // render screenshot
+            const buffer = await renderer(data.frame);
+            // decode png
+            png = new PNG(buffer);
+        }
+    } finally {
+        // close renderer
+        await renderer.close();
+    }
     // set png pixels per inch
     png.setPixelDensity(scale * 72);
     png.setText('Software', 'cli-screencast');
     // return encoded png buffer
     log.info('packing png');
-    return png.pack();
-}
-
-export async function createAnimatedPng({ frames, ...size }: SVGCaptureData, scale: number): Promise<Buffer> {
-    log.info('rendering animated png from svg (%k total frames)', frames.length);
-    const png = new PNG(),
-        // create renderer
-        renderer = await createImageRenderer(size, scale);
-    // render png buffer for each frame
-    for (const [idx, { svg, time, endTime }] of frames.entries()) {
-        log.info('adding frame %k of %k', idx + 1, frames.length);
-        png.addFrame(await renderer(svg), endTime - time);
-    }
-    // close renderer
-    await renderer.close();
-    // set png pixels per inch
-    png.setPixelDensity(scale * 72);
-    png.setText('Software', 'cli-screencast');
-    // return encoded png buffer
-    log.info('packing animated png');
     return png.pack();
 }

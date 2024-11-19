@@ -3,15 +3,15 @@ import { applyDefRenderOptions } from '@src/options';
 import { resolveTheme } from '@src/theme';
 import { resolveTitle } from '@src/parser';
 import { hexString } from '@src/color';
-import type { CursorKeyFrame } from '@src/types';
-import { KeyFrameAnimation, type KeyTime } from '@src/render/Animation';
+import { KeyFrameAnimation } from '@src/render/Animation';
 import { resolveContext, type RenderOptions } from '@src/render';
 import Context from '@src/render/Context';
 import Window from '@src/render/Window';
 import WindowTitle from '@src/render/WindowTitle';
 import createBoxShadow, { defaultBoxShadow, type BoxShadowOptions } from '@src/render/BoxShadow';
 import Text from '@src/render/Text';
-import { Cursor, CursorFrames, opacityKeyTimes, translateKeyTimes } from '@src/render/Cursor';
+import { Cursor, CursorFrames } from '@src/render/Cursor';
+import { makeCursorFrames } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 
 const defTheme = resolveTheme();
@@ -378,122 +378,117 @@ describe('<Text/>', () => {
 });
 
 describe('<Cursor/>', () => {
-    test('renders with an opacity animation when `cursorBlink` theme prop is enabled', () => {
-        const theme = resolveTheme({ cursorBlink: true });
-        expect(render(<Cursor line={0} column={0}/>, { theme })).toMatchObject({
-            type: 'rect',
-            children: [{ type: 'animate', props: { attributeName: 'opacity' } }],
-        });
-    });
-
     test('renders a beam shaped rect when the `cursorType` theme prop is set to `beam`', () => {
-        const theme = resolveTheme({ cursorType: 'beam' });
-        expect(render(<Cursor line={0} column={0}/>, { theme, lineHeight: 0.5 })).toMatchObject({
+        expect(render(<Cursor line={0} column={0}/>, {
+            theme: { cursorType: 'beam' },
+            lineHeight: 0.5,
+        })).toMatchObject({
             type: 'rect',
             props: { y: 0, width: 0.15, height: 1 },
         });
     });
 
     test('renders a block shaped rect when the `cursorType` theme prop is set to `block`', () => {
-        const theme = resolveTheme({ cursorType: 'block' });
-        expect(render(<Cursor line={0} column={0}/>, { theme, lineHeight: 0.5 })).toMatchObject({
+        expect(render(<Cursor line={0} column={0}/>, {
+            theme: { cursorType: 'block' },
+            lineHeight: 0.5,
+        })).toMatchObject({
             type: 'rect',
             props: { y: 0, width: 1, height: 1 },
         });
     });
 
     test('renders an underline shaped rect when the `cursorType` theme prop is set to `underline`', () => {
-        const theme = resolveTheme({ cursorType: 'underline' });
-        expect(render(<Cursor line={0} column={0}/>, { theme, lineHeight: 0.5 })).toMatchObject({
+        expect(render(<Cursor line={0} column={0}/>, {
+            theme: { cursorType: 'underline' },
+            lineHeight: 0.5,
+        })).toMatchObject({
             type: 'rect',
             props: { y: 0.9, width: 1, height: 0.10 },
+        });
+    });
+
+    describe('context with `cursorBlink` theme prop enabled', () => {
+        test('does not render with a blink animation if `animateBlink` is not specified', () => {
+            expect(render(<Cursor line={0} column={0}/>, { theme: { cursorBlink: true } })).toMatchObject({
+                type: 'rect',
+                children: null,
+            });
+        });
+
+        test('renders with a blink animation when `animateBlink` is specified', () => {
+            expect(render(<Cursor animateBlink line={0} column={0}/>, { theme: { cursorBlink: true } })).toMatchObject({
+                type: 'rect',
+                children: [{ type: 'animate', props: { attributeName: 'opacity' } }],
+            });
         });
     });
 });
 
 describe('<CursorFrames/>', () => {
-    const makeFrames = (stages: ([line: number, col: number] | null)[], stageDuration = 500) => [
-        stages.map<CursorKeyFrame | null>((stage, i) => (stage ? {
-            time: i * stageDuration,
-            endTime: (i + 1) * stageDuration,
-            line: stage[0],
-            column: stage[1],
-        } : null)).filter((frame) => frame !== null) as CursorKeyFrame[],
-        stages.length * stageDuration,
-    ] as const;
+    const gridOpts = { fontSize: 1, columnWidth: 1, lineHeight: 1 };
 
-    test('renders cursor with an `animateTransform` child if it moves', () => {
-        const [frames, duration] = makeFrames([[0, 5], [1, 5]]);
-        expect(render(<CursorFrames frames={frames}/>, {}, { duration })).toMatchObject({
-            type: 'rect',
-            children: [
-                { type: 'animateTransform', children: null },
-            ],
-        });
+    test('does not render if cursor is never visible', () => {
+        const [frames, duration] = makeCursorFrames([[500, 0], [500,,, 1], [500,,, 2]], true);
+        expect(render(<CursorFrames frames={frames}/>, {}, { duration })).toBeNull();
     });
 
-    test('renders cursor without an `animateTransform` child if it does not move', () => {
-        const [frames, duration] = makeFrames([[0, 5]]);
-        expect(render(<CursorFrames frames={frames}/>, {}, { duration })).toMatchObject({
+    test('renders without any animations if cursor is always visible and does not move', () => {
+        const [frames, duration] = makeCursorFrames([[1000, 1, 0, 2]], true);
+        expect(render(<CursorFrames frames={frames}/>, gridOpts, { duration })).toMatchObject({
             type: 'rect',
+            props: { x: 2, y: 0 },
             children: null,
         });
     });
 
-    test('wraps cursor in a `g` element with an `animate` sibling if cursor visibility changes', () => {
-        const [frames, duration] = makeFrames([[0, 5], [1, 5], null, null]);
-        expect(render(<CursorFrames frames={frames}/>, {}, { duration })).toMatchObject({
-            type: 'g',
+    test('renders with a transform animation if cursor moves', () => {
+        const [frames, duration] = makeCursorFrames([[500], [500,,, 5], [500,,1, 10], [500,,2]], true);
+        expect(render(<CursorFrames frames={frames}/>, gridOpts, { duration })).toMatchObject({
+            type: 'rect',
+            props: { x: 0, y: 0 },
             children: [
-                { type: 'rect', children: [{ type: 'animateTransform', children: null }] },
-                { type: 'animate', props: { attributeName: 'opacity' }, children: null },
+                { type: 'animateTransform', props: { values: '0,0;5,0;10,1;10,2', keyTimes: '0;0.25;0.5;0.75' } },
             ],
         });
     });
 
-    describe('opacityKeyTimes', () => {
-        test('returns array of cursor opacity values and times', () => {
-            expect(opacityKeyTimes(...makeFrames([null, [0, 5], null, [1, 10]], 500))).toEqual<KeyTime<number>[]>([
-                { value: 0, time: 0 },
-                { value: 1, time: 500 },
-                { value: 0, time: 1000 },
-                { value: 1, time: 1500 },
-            ]);
-            // ends with a null frame
-            expect(opacityKeyTimes(...makeFrames([null, null, [1, 10], null], 500))).toEqual<KeyTime<number>[]>([
-                { value: 0, time: 0 },
-                { value: 1, time: 1000 },
-                { value: 0, time: 1500 },
-            ]);
-        });
-
-        test('returns an empty array if cursor visibility never changes', () => {
-            expect(opacityKeyTimes(...makeFrames([[0, 5], [1, 5]]))).toHaveLength(0);
+    test('renders without transform animation when cursor is only visible at a single position', () => {
+        const [frames, duration] = makeCursorFrames([[500, 0], [500, 0,, 5], [500, 1,, 10], [500, 0]], true);
+        expect(render(<CursorFrames frames={frames}/>, gridOpts, { duration })).toMatchObject({
+            type: 'rect',
+            props: { x: 10, y: 0 },
+            children: [
+                { type: 'animate', props: { values: '0;1;0', keyTimes: '0;0.5;0.75' } },
+            ],
         });
     });
 
-    describe('transformKeyTimes', () => {
-        test('returns array of cursor translation values and times', () => {
-            const [frames] = makeFrames([[0, 5], [1, 5], [1, 10], [2, 5]], 500);
-            expect(translateKeyTimes(frames, [1, 1])).toEqual<KeyTime<string>[]>([
-                { value: '0,0', time: 0 },
-                { value: '0,1', time: 500 },
-                { value: '5,1', time: 1000 },
-                { value: '0,2', time: 1500 },
-            ]);
+    test('filters out unnecessary position changes when cursor is hidden', () => {
+        const [frames, duration] = makeCursorFrames([[500,,, 5], [500,, 1], [500, 0, 2], [500, 1, 1]], true);
+        expect(render(<CursorFrames frames={frames}/>, gridOpts, { duration })).toMatchObject({
+            type: 'rect',
+            props: { x: 5, y: 0 },
+            children: [
+                { type: 'animateTransform', props: { values: '0,0;0,1', keyTimes: '0;0.25' } },
+                { type: 'animate', props: { values: '1;0;1', keyTimes: '0;0.5;0.75' } },
+            ],
         });
+    });
 
-        test('does not include position changes when cursor is hidden', () => {
-            const [frames] = makeFrames([[0, 5], [1, 5], null, [1, 5]], 500);
-            expect(translateKeyTimes(frames, [1, 1])).toEqual<KeyTime<string>[]>([
-                { value: '0,0', time: 0 },
-                { value: '0,1', time: 500 },
-            ]);
-        });
-
-        test('returns empty array when cursor is only visible during a single frame', () => {
-            const [frames] = makeFrames([null, null, [1, 10], null]);
-            expect(translateKeyTimes(frames, [1, 1])).toHaveLength(0);
+    test('renders with blink animation when `cursorBlink` theme prop enabled', () => {
+        const [frames, duration] = makeCursorFrames([[750], [750,,, 1], [500, 0]], true);
+        expect(render(
+            <CursorFrames frames={frames}/>,
+            { ...gridOpts, theme: { cursorBlink: true } },
+            { duration },
+        )).toMatchObject({
+            type: 'rect',
+            props: { x: 0, y: 0 },
+            children: [
+                { type: 'animateTransform', props: { values: '0,0;1,0', keyTimes: '0;0.375' } },
+                { type: 'animate', props: { values: '1;0;1;0', keyTimes: '0;0.25;0.375;0.625' } },
+            ],
         });
     });
 });

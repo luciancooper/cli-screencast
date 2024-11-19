@@ -104,7 +104,7 @@ export default new Asset({
             header = 'cli-screencast',
             font = await embedFonts(createContentSubsets([text.join(''), header]), Asset.fonts.cascadiaCode, true);
         let size = { width: NaN, height: NaN };
-        const svg = renderToStaticMarkup(
+        const frame = renderToStaticMarkup(
             <SocialCard
                 ref={(s) => { size = s!; }}
                 width={1200}
@@ -118,6 +118,6 @@ export default new Asset({
                 {...font}
             />,
         );
-        return createPng({ svg, ...size }, 1);
+        return createPng({ frame, ...size }, 1);
     },
 });

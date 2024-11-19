@@ -1,6 +1,4 @@
-import type {
-    PartialExcept, DeepPartial, ScreenData, ParsedScreenData, CaptureData, ParsedCaptureData, TitleKeyFrame,
-} from '@src/types';
+import type { PartialExcept, DeepPartial, ScreenData, ParsedScreenData, CaptureData, ParsedCaptureData } from '@src/types';
 import { applyDefTerminalOptions } from '@src/options';
 import { parseScreen, parseCapture, resolveTitle } from '@src/parser';
 import { clone } from '@src/parser/utils';
@@ -63,24 +61,27 @@ describe('parseCapture', () => {
                 { time: 500, endTime: 1000, lines: [makeLine('yyyyyyyyyy')] },
             ],
             cursor: [
-                { time: 0, endTime: 500, ...makeCursor(0, 20) },
-                { time: 500, endTime: 1000, ...makeCursor(0, 10) },
+                { time: 0, endTime: 500, ...makeCursor(0, 20, true) },
+                { time: 500, endTime: 1000, ...makeCursor(0, 10, true) },
             ],
             duration: 1000,
         }));
     });
 
-    test('produces no cursor keyframes if cursor is hidden', () => {
+    test('produces cursor state keyframes when cursor is hidden', () => {
         expect(parseCaptureTest({
             writes: [
                 { content: '\x1b[?25lxxxxxxxxxxxxxxxxxxxx', delay: 0 },
                 { content: 'yyyyyyyyyyyyyyyyyyyy', delay: 500 },
             ],
             endDelay: 500,
-        }).cursor).toHaveLength(0);
+        }).cursor).toEqual<ParsedCaptureData['cursor']>([
+            { time: 0, endTime: 500, ...makeCursor(0, 20, false) },
+            { time: 500, endTime: 1000, ...makeCursor(0, 40, false) },
+        ]);
     });
 
-    test('toggled cursor visibility produces gaps in cursor keyframes', () => {
+    test('changes in cursor visibility are reflected in cursor keyframes', () => {
         expect(parseCaptureTest({
             writes: [
                 { content: 'xxxxxxxxxxxxxxxxxxxx', delay: 0 },
@@ -89,14 +90,16 @@ describe('parseCapture', () => {
                 { content: '\x1b[?25h', delay: 500 }, // show cursor
             ],
             endDelay: 500,
-        })).toMatchObject<PartialParsedCaptureData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>({
             content: [{ time: 0, endTime: 2000, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] }],
             cursor: [
-                { time: 0, endTime: 500, ...makeCursor(0, 20) },
-                { time: 1500, endTime: 2000, ...makeCursor(0, 4) },
+                { time: 0, endTime: 500, ...makeCursor(0, 20, true) },
+                { time: 500, endTime: 1000, ...makeCursor(0, 20, false) },
+                { time: 1000, endTime: 1500, ...makeCursor(0, 4, false) },
+                { time: 1500, endTime: 2000, ...makeCursor(0, 4, true) },
             ],
             duration: 2000,
-        }));
+        });
     });
 
     test('produces title keyframes when window title and icon changes', () => {
@@ -107,7 +110,7 @@ describe('parseCapture', () => {
                 { content: '\x1b]2;window title without icon\x07\x1b]1;\x07', delay: 500 },
             ],
             endDelay: 500,
-        }).title).toEqual<TitleKeyFrame[]>([
+        }).title).toEqual<ParsedCaptureData['title']>([
             { time: 0, endTime: 500, ...resolveTitle(undefined, 'shell') },
             { time: 500, endTime: 1000, ...resolveTitle('window title', 'shell') },
             { time: 1000, endTime: 1500, ...resolveTitle('window title without icon') },
@@ -129,9 +132,9 @@ describe('parseCapture', () => {
                 { time: 1500, endTime: 2000, lines: [makeLine('yyyyyyyyyyxxxxxxxxxx')] },
             ],
             cursor: [
-                { time: 0, endTime: 500, ...makeCursor(0, 20) },
-                { time: 500, endTime: 1500, ...makeCursor(0, 0) },
-                { time: 1500, endTime: 2000, ...makeCursor(0, 10) },
+                { time: 0, endTime: 500, ...makeCursor(0, 20, true) },
+                { time: 500, endTime: 1500, ...makeCursor(0, 0, true) },
+                { time: 1500, endTime: 2000, ...makeCursor(0, 10, true) },
             ],
             title: [
                 { time: 0, endTime: 1000, ...resolveTitle('window title') },
@@ -149,17 +152,17 @@ describe('parseCapture', () => {
                 { content: 'zzzzz\n', delay: 0 },
             ],
             endDelay: 500,
-        })).toMatchObject<PartialParsedCaptureData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>({
             content: [
                 { time: 0, endTime: 500, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] },
                 { time: 500, endTime: 1000, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx'), makeLine('yyyyyzzzzz')] },
             ],
             cursor: [
-                { time: 0, endTime: 500, ...makeCursor(1, 0) },
-                { time: 500, endTime: 1000, ...makeCursor(2, 0) },
+                { time: 0, endTime: 500, ...makeCursor(1, 0, true) },
+                { time: 500, endTime: 1000, ...makeCursor(2, 0, true) },
             ],
             duration: 1000,
-        }));
+        });
     });
 
     test('ignores last write if data has no end delay', () => {
@@ -169,51 +172,51 @@ describe('parseCapture', () => {
                 { content: 'yyyyyyyyyy', delay: 500 },
             ],
             endDelay: 0,
-        })).toMatchObject<PartialParsedCaptureData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>({
             content: [{ time: 0, endTime: 500, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] }],
-            cursor: [{ time: 0, endTime: 500, ...makeCursor(1, 0) }],
+            cursor: [{ time: 0, endTime: 500, ...makeCursor(1, 0, true) }],
             duration: 500,
-        }));
+        });
     });
 
     test('first write has delay', () => {
         expect(parseCaptureTest({
             writes: [{ content: 'xxxxxxxxxxxxxxxxxxxx', delay: 500 }],
             endDelay: 500,
-        })).toMatchObject<PartialParsedCaptureData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>({
             content: [
                 { time: 0, endTime: 500, lines: [] },
                 { time: 500, endTime: 1000, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] },
             ],
             cursor: [
-                { time: 0, endTime: 500, ...makeCursor(0, 0) },
-                { time: 500, endTime: 1000, ...makeCursor(0, 20) },
+                { time: 0, endTime: 500, ...makeCursor(0, 0, true) },
+                { time: 500, endTime: 1000, ...makeCursor(0, 20, true) },
             ],
             duration: 1000,
-        }));
+        });
     });
 
     test('capture data with no writes and end delay', () => {
         expect(parseCaptureTest({
             writes: [],
             endDelay: 500,
-        })).toMatchObject<PartialParsedCaptureData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>({
             content: [{ time: 0, endTime: 500, lines: [] }],
-            cursor: [{ time: 0, endTime: 500, ...makeCursor(0, 0) }],
+            cursor: [{ time: 0, endTime: 500, ...makeCursor(0, 0, true) }],
             title: [],
             duration: 500,
-        }));
+        });
     });
 
     test('capture data with no writes and no end delay', () => {
         expect(parseCaptureTest({
             writes: [],
             endDelay: 0,
-        })).toMatchObject<PartialParsedCaptureData>(clone({
+        })).toMatchObject<PartialParsedCaptureData>({
             content: [],
             cursor: [],
             title: [],
             duration: 0,
-        }));
+        });
     });
 });

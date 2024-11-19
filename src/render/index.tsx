@@ -1,8 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import type {
-    RGBA, Dimensions, Title, ParsedCaptureData, ParsedScreenData, ParsedCaptureFrames, SVGData, SVGCaptureData,
-} from '../types';
+import type { RGBA, Dimensions, Title, ParsedCaptureData, ParsedScreenData, SVGFrameData } from '../types';
 import type { Theme } from '../theme';
+import { extractCaptureFrames } from '../frames';
 import Context, { type RenderContext } from './Context';
 import Window from './Window';
 import type { BoxShadowOptions } from './BoxShadow';
@@ -107,10 +106,6 @@ interface RenderProps extends Required<RenderOptions> {
     css?: string | null
 }
 
-type RenderableData = Dimensions & { duration?: number } & (
-    { frames?: { title: Title }[] } | { title?: Title | Title[] }
-);
-
 export function resolveContext({
     theme,
     fontFamily,
@@ -132,21 +127,14 @@ export function resolveContext({
     columns,
     rows,
     duration = 0,
-    ...data
-}: RenderableData): RenderContext {
+    title,
+}: Dimensions & { duration?: number, title?: Title | Title[] }): RenderContext {
     // calculate grid
-    const [gx, gy] = [fontSize * (columnWidth ?? fontColumnWidth ?? 0.6), fontSize * lineHeight];
-    // determine if data has title
-    let titleInset = false;
-    if ('frames' in data) {
-        // ParsedCaptureFrames
-        titleInset = data.frames.some(({ title }) => (!!title.icon || !!title.text));
-    } else if ('title' in data) {
-        // ParsedCaptureData / ParsedScreenData
-        titleInset = Array.isArray(data.title) ? data.title.length > 0 : (!!data.title.icon || !!data.title.text);
-    }
-    // window top
-    const top = decorations ? insetMajor : titleInset ? gy * 1.5 : 0,
+    const [gx, gy] = [fontSize * (columnWidth ?? fontColumnWidth ?? 0.6), fontSize * lineHeight],
+        // determine if data has title ParsedCaptureData / ParsedScreenData
+        titleInset = title ? (Array.isArray(title) ? title.length > 0 : (!!title.icon || !!title.text)) : false,
+        // window top
+        top = decorations ? insetMajor : titleInset ? gy * 1.5 : 0,
         // window side
         side = decorations ? insetMinor : 0,
         // size of the terminal window
@@ -195,37 +183,65 @@ export function renderCaptureSvg(data: ParsedCaptureData, { css, ...props }: Ren
     );
 }
 
-export function renderScreenSvg(data: ParsedScreenData, { css, ...props }: RenderProps): SVGData {
+export function renderScreenSvg(data: ParsedScreenData, { css, ...props }: RenderProps): string {
+    const { lines, title, cursor } = data;
+    return renderToStaticMarkup(
+        <Context.Provider value={resolveContext(props, data)}>
+            <Window css={css ?? null} title={(title.icon || title.text) ? title : null}>
+                <Frame lines={lines}/>
+                {cursor ? <Cursor animateBlink {...cursor}/> : null}
+            </Window>
+        </Context.Provider>,
+    );
+}
+
+export function renderCaptureFrames(data: ParsedCaptureData, { css, ...props }: RenderProps): SVGFrameData {
+    const context = resolveContext(props, data),
+        frames: Extract<SVGFrameData, { frames: any }>['frames'] = [];
+    for (const { time, endTime, ...frame } of extractCaptureFrames(data, context.theme.cursorBlink)) {
+        // render and add svg frame
+        frames.push({
+            time,
+            endTime,
+            frame: renderToStaticMarkup(
+                <Context.Provider value={context}>
+                    <Window css={css ?? null} title={(frame.title.icon || frame.title.text) ? frame.title : null}>
+                        <Frame lines={frame.lines}/>
+                        {frame.cursor ? <Cursor {...frame.cursor}/> : null}
+                    </Window>
+                </Context.Provider>,
+            ),
+        });
+    }
+    return { ...context.size, frames };
+}
+
+export function renderScreenFrames(data: ParsedScreenData, { css, ...props }: RenderProps): SVGFrameData {
     const { lines, title, cursor } = data,
-        context = resolveContext(props, data);
-    return {
-        ...context.size,
-        svg: renderToStaticMarkup(
+        context = resolveContext(props, data),
+        frame = renderToStaticMarkup(
             <Context.Provider value={context}>
                 <Window css={css ?? null} title={(title.icon || title.text) ? title : null}>
                     <Frame lines={lines}/>
                     {cursor ? <Cursor {...cursor}/> : null}
                 </Window>
             </Context.Provider>,
-        ),
-    };
-}
-
-export function renderCaptureFrames(data: ParsedCaptureFrames, { css, ...props }: RenderProps): SVGCaptureData {
-    const context = resolveContext(props, data),
-        frames = [];
-    for (const { time, endTime, ...frame } of data.frames) {
-        // render svg frame
-        const svg = renderToStaticMarkup(
-            <Context.Provider value={context}>
-                <Window css={css ?? null} title={(frame.title.icon || frame.title.text) ? frame.title : null}>
-                    <Frame lines={frame.lines}/>
-                    {frame.cursor ? <Cursor {...frame.cursor}/> : null}
-                </Window>
-            </Context.Provider>,
         );
-        // push rendered frame
-        frames.push({ time, endTime, svg });
-    }
-    return { ...context.size, frames };
+    return {
+        ...context.size,
+        ...((cursor && context.theme.cursorBlink) ? {
+            // add additional frame for blinking cursor
+            frames: [{ time: 0, endTime: 500, frame }, {
+                time: 500,
+                endTime: 1000,
+                frame: renderToStaticMarkup(
+                    <Context.Provider value={context}>
+                        <Window css={css ?? null} title={(title.icon || title.text) ? title : null}>
+                            <Frame lines={lines}/>
+                        </Window>
+                    </Context.Provider>,
+                ),
+            }],
+        } : { frame }),
+    };
 }

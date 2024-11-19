@@ -1,5 +1,5 @@
 import type {
-    ScreenData, ParsedScreenData, CaptureData, Title, CursorLocation, TerminalLine, ParsedCaptureData,
+    ScreenData, ParsedScreenData, CaptureData, Title, CursorState, TerminalLine, ParsedCaptureData,
 } from '../types';
 import parse, { type ParseContext, type ParseState } from './parse';
 import { resolveTitle } from './title';
@@ -29,10 +29,11 @@ export function parseCapture({
     rows,
 }: CaptureData): ParsedCaptureData {
     const context: ParseContext = { columns, rows, tabSize },
+        initialCursor: CursorState = { line: 0, column: 0, visible: true },
         state: ParseState = {
             lines: [],
-            cursor: { line: 0, column: 0 },
-            cursorHidden: false,
+            cursor: { line: initialCursor.line, column: initialCursor.column },
+            cursorHidden: !initialCursor.visible,
             title: resolveTitle(),
         },
         data: ParsedCaptureData = {
@@ -48,9 +49,10 @@ export function parseCapture({
             serialized: serialize.lines([]),
             state: [],
         },
-        lastCursor: { time: number, loc: CursorLocation | null } = {
+        lastCursor: { time: number, serialized: string, state: CursorState } = {
             time: 0,
-            loc: clone(state.cursor),
+            serialized: serialize.cursor(initialCursor),
+            state: initialCursor,
         },
         lastTitle: { time: number, serialized: string, state: Title } = {
             time: 0,
@@ -73,14 +75,14 @@ export function parseCapture({
             lastContent = { time: wtime, serialized: slines, state: clone(state.lines) };
         }
         // push cursor
-        const cursor = !state.cursorHidden ? state.cursor : null,
+        const cursor = { ...state.cursor, visible: !state.cursorHidden },
             scursor = serialize.cursor(cursor);
         // compare updated cursor location to the last cursor location
-        if (serialize.cursor(lastCursor.loc) !== scursor) {
-            if (lastCursor.loc && wtime > lastCursor.time) {
-                data.cursor.push({ time: lastCursor.time, endTime: wtime, ...lastCursor.loc });
+        if (lastCursor.serialized !== scursor) {
+            if (wtime > lastCursor.time) {
+                data.cursor.push({ time: lastCursor.time, endTime: wtime, ...lastCursor.state });
             }
-            lastCursor = { time: wtime, loc: cursor && clone(cursor) };
+            lastCursor = { time: wtime, serialized: scursor, state: cursor };
         }
         // push title
         const stitle = serialize.title(state.title);
@@ -101,8 +103,8 @@ export function parseCapture({
         data.content.push({ time: lastContent.time, endTime: time, lines: lastContent.state });
     }
     // add last cursor keyframe if cursor is visible or if keyframes array is not empty
-    if (time > lastCursor.time && lastCursor.loc) {
-        data.cursor.push({ time: lastCursor.time, endTime: time, ...lastCursor.loc });
+    if (time > lastCursor.time) {
+        data.cursor.push({ time: lastCursor.time, endTime: time, ...lastCursor.state });
     }
     // add last title keyframe if title is not empty
     if (time > lastTitle.time && lastTitle.serialized) {

@@ -1,14 +1,18 @@
 import type { FunctionComponent, SVGProps } from 'react';
-import type { CursorLocation, CursorKeyFrame } from '../types';
+import type { CursorLocation, CursorState, KeyFrame } from '../types';
 import { hexString, alphaValue } from '../color';
+import { processCursorFrames } from '../frames';
 import { useRenderContext } from './Context';
 import { Animation, TransformAnimation, type KeyTime } from './Animation';
 
-interface CursorProps extends SVGProps<SVGRectElement>, CursorLocation {}
+interface CursorProps extends CursorLocation, SVGProps<SVGRectElement> {
+    animateBlink?: boolean
+}
 
 export const Cursor: FunctionComponent<CursorProps> = ({
     line,
     column,
+    animateBlink = false,
     children,
     ...props
 }) => {
@@ -27,7 +31,7 @@ export const Cursor: FunctionComponent<CursorProps> = ({
             fillOpacity={alphaValue(cursorColor, true)}
             {...props}
         >
-            {cursorBlink ? (
+            {(animateBlink && cursorBlink) ? (
                 <Animation
                     attribute='opacity'
                     duration={1000}
@@ -39,63 +43,58 @@ export const Cursor: FunctionComponent<CursorProps> = ({
     );
 };
 
-export function opacityKeyTimes(frames: CursorKeyFrame[], duration: number) {
-    // determine if the cursor hidden at some point
-    const isHidden = frames.some(({ time, endTime }, i) => (
-        (i === 0 && time > 0) || (endTime < (i === frames.length - 1 ? duration : frames[i + 1]!.time))
-    ));
-    if (!isHidden) return [];
-    const times: KeyTime<number>[] = [];
-    let last = 0;
-    for (const { time, endTime } of frames) {
-        if (time > last) times.push({ value: 0, time: last });
-        if (time > last || last === 0) times.push({ value: 1, time });
-        last = endTime;
+export const CursorFrames: FunctionComponent<{ frames: KeyFrame<CursorState>[] }> = ({ frames }) => {
+    const { grid: [dx, dy], duration, theme: { cursorBlink } } = useRenderContext(),
+        // process cursor frames, incorporating cursor blink animation if enabled
+        extracted = processCursorFrames(frames, cursorBlink);
+    // filter to only visible frames
+    let visibleFrames = extracted.filter((frame) => frame.visible);
+    // stop if cursor is never visible
+    if (!visibleFrames.length) return null;
+    // initial position of the cursor
+    let line: number,
+        column: number;
+    // extract cursor movement key frames for each moment that the cursor's position changes while it's visible
+    const translate: KeyTime<string>[] = [];
+    {
+        // separate out first visible cursor
+        [{ line, column }, ...visibleFrames] = visibleFrames as [CursorLocation, ...KeyFrame<CursorState>[]];
+        // loop through all subsequent visible frames, looking for times where cursor moves
+        let prev: CursorLocation = { line, column };
+        for (const frame of visibleFrames) {
+            // continue if cursor position does not change
+            if (prev.line === frame.line && prev.column === frame.column) continue;
+            // cursor position has changed, add a translation key frame
+            translate.push({
+                value: [(frame.column - column) * dx, (frame.line - line) * dy].join(','),
+                time: frame.time,
+            });
+            prev = frame;
+        }
+        // add initial key frame if there are any translation key frames
+        if (translate.length) translate.unshift({ value: [0, 0].join(','), time: 0 });
     }
-    if (last < duration) times.push({ value: 0, time: last });
-    return times;
-}
-
-export function translateKeyTimes(frames: CursorKeyFrame[], [dx, dy]: [number, number]) {
-    const keyTimes: KeyTime<string>[] = [],
-        [first, ...subsequent] = frames as [CursorKeyFrame, ...CursorKeyFrame[]],
-        [cy, cx] = [first.line, first.column];
-    let [py, px] = [cy, cx];
-    for (const { time, line, column } of subsequent) {
-        // continue if cursor position does not change
-        if (py === line && px === column) continue;
-        // cursor position has changed, add a key frame
-        keyTimes.push({
-            value: [(column - cx) * dx, (line - cy) * dy].join(','),
-            time,
-        });
-        [py, px] = [line, column];
+    let opacity: KeyTime<number>[] | null = null;
+    // if cursor is not visible at some point, we need an opacity animation
+    if (extracted.some(({ visible }) => !visible)) {
+        // determine opacity key times for each moment that the cursor's visibility changes
+        const [first, ...subsequent] = extracted as [KeyFrame<CursorState>, ...KeyFrame<CursorState>[]];
+        // add initial key frame with first frame's opacity value
+        let value = Number(first.visible);
+        opacity = [{ value, time: first.time }];
+        // loop through all subsequent frames
+        for (const { time, visible } of subsequent) {
+            // continue if visible status does not change
+            if (Number(visible) === value) continue;
+            // change in visible status, add an opacity key frame
+            value ^= 1;
+            opacity.push({ value, time });
+        }
     }
-    if (keyTimes.length) keyTimes.unshift({ value: [0, 0].join(','), time: 0 });
-    return keyTimes;
-}
-
-interface CursorFramesProps extends SVGProps<SVGRectElement> {
-    frames: CursorKeyFrame[]
-}
-
-export const CursorFrames: FunctionComponent<CursorFramesProps> = ({ frames, ...props }) => {
-    const { grid, duration } = useRenderContext(),
-        first = frames[0]!,
-        opacity = opacityKeyTimes(frames, duration),
-        translate = translateKeyTimes(frames, grid),
-        cursor = (
-            <Cursor line={first.line} column={first.column} {...props}>
-                {translate.length > 0 && (
-                    <TransformAnimation keyTimes={translate} duration={duration}/>
-                )}
-            </Cursor>
-        );
-    // wrap cursor in a <g> element to prevent opacity animation conflicts when cursor blink is enabled
-    return opacity.length > 0 ? (
-        <g>
-            {cursor}
-            <Animation attribute='opacity' keyTimes={opacity} duration={duration}/>
-        </g>
-    ) : cursor;
+    return (
+        <Cursor line={line} column={column}>
+            {translate.length ? <TransformAnimation keyTimes={translate} duration={duration}/> : null}
+            {opacity ? <Animation attribute='opacity' keyTimes={opacity} duration={duration}/> : null}
+        </Cursor>
+    );
 };

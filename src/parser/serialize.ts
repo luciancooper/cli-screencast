@@ -1,4 +1,4 @@
-import type { RGBA, TextChunk, TerminalLine, CursorLocation, Title } from '../types';
+import type { RGBA, TextChunk, TerminalLine, CursorState, Title } from '../types';
 import { hexString } from '../color';
 
 const escapeString = (str?: string): string => (
@@ -18,9 +18,10 @@ export const lines = (array: TerminalLine[]): string => (
     array.map(({ chunks }) => chunks.map(chunk).join(' ')).join('\n')
 );
 
-export const cursor = (loc: CursorLocation | null) => (
-    loc ? `${loc.line}:${loc.column}` : ''
-);
+export const cursor = ({ line, column, visible }: CursorState) => {
+    const loc = `${line}:${column}`;
+    return visible ? `[${loc}]` : `(${loc})`;
+};
 
 export const title = ({ icon, text }: Title) => (
     (icon || text) ? `${icon ?? ''}:${text ?? ''}` : ''

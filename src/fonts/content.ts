@@ -1,4 +1,4 @@
-import type { TerminalLines, Title } from '../types';
+import type { TextLine } from '../types';
 import { GraphemeSet } from './range';
 
 /**
@@ -14,20 +14,16 @@ export interface ContentSubsets {
     subsets: [ansi: AnsiCode, subset: GraphemeSet][]
 }
 
-type TermScreen = TerminalLines & { title: Title };
-
-export type FrameData = TermScreen | { frames: TermScreen[] } | { content: TerminalLines[], title: Title[] };
+export type FrameData = {
+    lines: TextLine[]
+    title: TextLine
+} | {
+    content: { lines: TextLine[] }[]
+    title: TextLine[]
+};
 
 function* extractChunks(data: FrameData) {
-    if ('frames' in data) {
-        // ParsedCaptureFrames
-        for (const frame of data.frames) {
-            yield* frame.title.chunks;
-            for (const line of frame.lines) {
-                yield* line.chunks;
-            }
-        }
-    } else if ('content' in data) {
+    if ('content' in data) {
         // ParsedCaptureData
         for (const frame of data.title) {
             yield* frame.chunks;

@@ -69,7 +69,7 @@ export default [
                     <Context.Provider value={context}>
                         <Window css={css}>
                             <Frame lines={parsed.lines}/>
-                            {parsed.cursor ? <Cursor {...parsed.cursor}/> : null}
+                            {parsed.cursor ? <Cursor animateBlink {...parsed.cursor}/> : null}
                         </Window>
                         <CaptureBorder strokeWidth={5} dash={16}/>
                     </Context.Provider>

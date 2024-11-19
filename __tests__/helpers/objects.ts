@@ -1,5 +1,7 @@
 import { stringWidth } from 'tty-strings';
-import type { OmitStrict, AnsiStyle, AnsiStyleProps, CursorLocation, TextChunk, TextLine } from '@src/types';
+import type {
+    OmitStrict, AnsiStyle, AnsiStyleProps, CursorLocation, CursorState, KeyFrame, TextChunk, TextLine,
+} from '@src/types';
 
 export type StylePartial = OmitStrict<AnsiStyle, 'props'> & Partial<AnsiStyleProps>;
 
@@ -20,8 +22,40 @@ export function makeStyle({
     };
 }
 
-export function makeCursor(line: number, column: number): CursorLocation {
-    return { line, column };
+export function makeCursor(line: number, column: number): CursorLocation;
+export function makeCursor(line: number, column: number, visible: boolean): CursorState;
+export function makeCursor(line: number, column: number, visible?: boolean): CursorLocation | CursorState {
+    return visible === undefined ? { line, column } : { line, column, visible };
+}
+
+export function makeKeyFrames<T extends {}>(spans: [ms: number, data: T | null][]): KeyFrame<T>[];
+export function makeKeyFrames<T extends {}>(spans: [ms: number, data: T | null][], dur: true): [KeyFrame<T>[], number];
+export function makeKeyFrames<T extends {}>(spans: [ms: number, data: T | null][], dur?: true) {
+    const [frames, duration] = spans.reduce<[KeyFrame<T>[], number]>(([acc, time], [ms, data]) => {
+        if (data !== null) acc.push({ time, endTime: time + ms, ...data });
+        return [acc, time + ms];
+    }, [[], 0]);
+    return dur ? [frames, duration] : frames;
+}
+
+type CursorFrameSpan = [ms: number, visible?: number, line?: number, col?: number][];
+
+export function makeCursorFrames(testFrames: CursorFrameSpan): KeyFrame<CursorState>[];
+export function makeCursorFrames(testFrames: CursorFrameSpan, dur: true): [KeyFrame<CursorState>[], number];
+export function makeCursorFrames(testFrames: CursorFrameSpan, dur?: true) {
+    const [frames, duration] = testFrames.reduce<[KeyFrame<CursorState>[], number, CursorState]>(
+        ([acc, time, last], [ms, vis, line, col]) => {
+            const next = makeCursor(
+                line ?? last.line,
+                col ?? last.column,
+                vis === undefined ? last.visible : Boolean(vis),
+            );
+            acc.push({ time, endTime: time + ms, ...next });
+            return [acc, time + ms, next];
+        },
+        [[], 0, { line: 0, column: 0, visible: true }],
+    );
+    return dur ? [frames, duration] : frames;
 }
 
 export function makeLine(...args: (string | number | undefined | [string, StylePartial])[]): TextLine {
