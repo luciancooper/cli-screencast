@@ -128,13 +128,6 @@ export function processCursorFrames(frames: KeyFrame<CursorState>[], blink: bool
     return extracted;
 }
 
-const emptyTitle = (): Title => ({
-    icon: undefined,
-    text: undefined,
-    columns: 0,
-    chunks: [],
-});
-
 export function extractCaptureFrames({ columns, rows, ...capture }: ParsedCaptureData, blink: boolean) {
     // process cursor frames
     const cursorFrames = processCursorFrames(capture.cursor, blink).map<KeyFrame<{ loc: CursorLocation | null }>>(({
@@ -153,15 +146,15 @@ export function extractCaptureFrames({ columns, rows, ...capture }: ParsedCaptur
         } else i += 1;
     }
     // fill title frames
-    const titleFrames: KeyFrame<{ data: Title }>[] = [];
+    const titleFrames: KeyFrame<{ data: Title | null }>[] = [];
     {
         let last = 0;
         for (const { time, endTime, ...data } of capture.title) {
-            if (last < time) titleFrames.push({ time: last, endTime: time, data: emptyTitle() });
+            if (last < time) titleFrames.push({ time: last, endTime: time, data: null });
             titleFrames.push({ time, endTime, data });
             last = endTime;
         }
-        if (last < capture.duration) titleFrames.push({ time: last, endTime: capture.duration, data: emptyTitle() });
+        if (last < capture.duration) titleFrames.push({ time: last, endTime: capture.duration, data: null });
     }
     const contentFrames = capture.content.slice();
     // extract gif frames

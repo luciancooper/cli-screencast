@@ -1,8 +1,7 @@
 import type { PartialExcept, DeepPartial, ScreenData, ParsedScreenData, CaptureData, ParsedCaptureData } from '@src/types';
 import { applyDefTerminalOptions } from '@src/options';
 import { parseScreen, parseCapture, resolveTitle } from '@src/parser';
-import { clone } from '@src/parser/utils';
-import { makeLine, makeCursor } from './helpers/objects';
+import { makeLine, makeCursor, makeKeyFrames } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 
 function parseScreenTest({ content, ...options }: PartialExcept<ScreenData, 'content'>) {
@@ -55,17 +54,17 @@ describe('parseCapture', () => {
                 { content: `${ansi.eraseLine}${ansi.cursorColumn(0)}yyyyyyyyyy`, delay: 500 },
             ],
             endDelay: 500,
-        })).toMatchObject<PartialParsedCaptureData>(clone({
-            content: [
-                { time: 0, endTime: 500, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] },
-                { time: 500, endTime: 1000, lines: [makeLine('yyyyyyyyyy')] },
-            ],
-            cursor: [
-                { time: 0, endTime: 500, ...makeCursor(0, 20, true) },
-                { time: 500, endTime: 1000, ...makeCursor(0, 10, true) },
-            ],
+        })).toMatchObject<PartialParsedCaptureData>({
+            content: makeKeyFrames([
+                [500, { lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] }],
+                [500, { lines: [makeLine('yyyyyyyyyy')] }],
+            ]),
+            cursor: makeKeyFrames([
+                [500, makeCursor(0, 20, true)],
+                [500, makeCursor(0, 10, true)],
+            ]),
             duration: 1000,
-        }));
+        });
     });
 
     test('produces cursor state keyframes when cursor is hidden', () => {
@@ -75,10 +74,10 @@ describe('parseCapture', () => {
                 { content: 'yyyyyyyyyyyyyyyyyyyy', delay: 500 },
             ],
             endDelay: 500,
-        }).cursor).toEqual<ParsedCaptureData['cursor']>([
-            { time: 0, endTime: 500, ...makeCursor(0, 20, false) },
-            { time: 500, endTime: 1000, ...makeCursor(0, 40, false) },
-        ]);
+        }).cursor).toEqual<ParsedCaptureData['cursor']>(makeKeyFrames([
+            [500, makeCursor(0, 20, false)],
+            [500, makeCursor(0, 40, false)],
+        ]));
     });
 
     test('changes in cursor visibility are reflected in cursor keyframes', () => {
@@ -92,12 +91,12 @@ describe('parseCapture', () => {
             endDelay: 500,
         })).toMatchObject<PartialParsedCaptureData>({
             content: [{ time: 0, endTime: 2000, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] }],
-            cursor: [
-                { time: 0, endTime: 500, ...makeCursor(0, 20, true) },
-                { time: 500, endTime: 1000, ...makeCursor(0, 20, false) },
-                { time: 1000, endTime: 1500, ...makeCursor(0, 4, false) },
-                { time: 1500, endTime: 2000, ...makeCursor(0, 4, true) },
-            ],
+            cursor: makeKeyFrames([
+                [500, makeCursor(0, 20, true)],
+                [500, makeCursor(0, 20, false)],
+                [500, makeCursor(0, 4, false)],
+                [500, makeCursor(0, 4, true)],
+            ]),
             duration: 2000,
         });
     });
@@ -110,11 +109,11 @@ describe('parseCapture', () => {
                 { content: '\x1b]2;window title without icon\x07\x1b]1;\x07', delay: 500 },
             ],
             endDelay: 500,
-        }).title).toEqual<ParsedCaptureData['title']>([
-            { time: 0, endTime: 500, ...resolveTitle(undefined, 'shell') },
-            { time: 500, endTime: 1000, ...resolveTitle('window title', 'shell') },
-            { time: 1000, endTime: 1500, ...resolveTitle('window title without icon') },
-        ]);
+        }).title).toEqual<ParsedCaptureData['title']>(makeKeyFrames([
+            [500, resolveTitle(undefined, 'shell')],
+            [500, resolveTitle('window title', 'shell')],
+            [500, resolveTitle('window title without icon')],
+        ]));
     });
 
     test('interleaves content, title, and cursor changes', () => {
@@ -126,22 +125,22 @@ describe('parseCapture', () => {
                 { content: 'yyyyyyyyyy', delay: 500 },
             ],
             endDelay: 500,
-        })).toMatchObject<PartialParsedCaptureData>(clone({
-            content: [
-                { time: 0, endTime: 1500, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] },
-                { time: 1500, endTime: 2000, lines: [makeLine('yyyyyyyyyyxxxxxxxxxx')] },
-            ],
-            cursor: [
-                { time: 0, endTime: 500, ...makeCursor(0, 20, true) },
-                { time: 500, endTime: 1500, ...makeCursor(0, 0, true) },
-                { time: 1500, endTime: 2000, ...makeCursor(0, 10, true) },
-            ],
-            title: [
-                { time: 0, endTime: 1000, ...resolveTitle('window title') },
-                { time: 1000, endTime: 2000, ...resolveTitle('title change') },
-            ],
+        })).toMatchObject<PartialParsedCaptureData>({
+            content: makeKeyFrames([
+                [1500, { lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] }],
+                [500, { lines: [makeLine('yyyyyyyyyyxxxxxxxxxx')] }],
+            ]),
+            cursor: makeKeyFrames([
+                [500, makeCursor(0, 20, true)],
+                [1000, makeCursor(0, 0, true)],
+                [500, makeCursor(0, 10, true)],
+            ]),
+            title: makeKeyFrames([
+                [1000, resolveTitle('window title')],
+                [1000, resolveTitle('title change')],
+            ]),
             duration: 2000,
-        }));
+        });
     });
 
     test('writes with no delay are merged with the previous write', () => {
@@ -153,14 +152,14 @@ describe('parseCapture', () => {
             ],
             endDelay: 500,
         })).toMatchObject<PartialParsedCaptureData>({
-            content: [
-                { time: 0, endTime: 500, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] },
-                { time: 500, endTime: 1000, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx'), makeLine('yyyyyzzzzz')] },
-            ],
-            cursor: [
-                { time: 0, endTime: 500, ...makeCursor(1, 0, true) },
-                { time: 500, endTime: 1000, ...makeCursor(2, 0, true) },
-            ],
+            content: makeKeyFrames([
+                [500, { lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] }],
+                [500, { lines: [makeLine('xxxxxxxxxxxxxxxxxxxx'), makeLine('yyyyyzzzzz')] }],
+            ]),
+            cursor: makeKeyFrames([
+                [500, makeCursor(1, 0, true)],
+                [500, makeCursor(2, 0, true)],
+            ]),
             duration: 1000,
         });
     });
@@ -184,14 +183,14 @@ describe('parseCapture', () => {
             writes: [{ content: 'xxxxxxxxxxxxxxxxxxxx', delay: 500 }],
             endDelay: 500,
         })).toMatchObject<PartialParsedCaptureData>({
-            content: [
-                { time: 0, endTime: 500, lines: [] },
-                { time: 500, endTime: 1000, lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] },
-            ],
-            cursor: [
-                { time: 0, endTime: 500, ...makeCursor(0, 0, true) },
-                { time: 500, endTime: 1000, ...makeCursor(0, 20, true) },
-            ],
+            content: makeKeyFrames([
+                [500, { lines: [] }],
+                [500, { lines: [makeLine('xxxxxxxxxxxxxxxxxxxx')] }],
+            ]),
+            cursor: makeKeyFrames([
+                [500, makeCursor(0, 0, true)],
+                [500, makeCursor(0, 20, true)],
+            ]),
             duration: 1000,
         });
     });

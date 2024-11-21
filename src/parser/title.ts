@@ -38,10 +38,21 @@ export function parseTitle(title: string): TextLine {
     return { columns: x + width, chunks };
 }
 
-export function resolveTitle(text?: string, icon?: string | boolean): Title {
-    return {
-        text,
-        icon: icon ? matchIcon(typeof icon === 'boolean' ? text ?? '' : icon) : undefined,
+export function resolveTitle(text?: string, icon?: string | boolean): Title | null {
+    return (text || icon) ? {
         ...parseTitle(text ?? ''),
-    };
+        icon: icon ? matchIcon(typeof icon === 'boolean' ? text ?? '' : icon) : null,
+    } : null;
+}
+
+/**
+ * Apply title escape sequence to update title state.
+ * - code 0: sets both title and icon
+ * - code 1: sets only icon
+ * - code 2: sets only title
+ */
+export function applyTitleEscape(title: Title | null, code: 0 | 1 | 2, value: string): Title | null {
+    const icon = code === 2 ? (title?.icon ?? null) : (value ? matchIcon(value) : null),
+        text = code === 1 ? title ?? parseTitle('') : parseTitle(value);
+    return (text.columns || icon) ? { ...text, icon } : null;
 }

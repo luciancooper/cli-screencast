@@ -88,7 +88,7 @@ const makeParsedCaptureData = (
         ), true),
         // fill title frames
         [title, titleDuration] = makeKeyFrames(titles.map(
-            ([ms, text]) => [ms, text ? { icon: undefined, text, ...makeLine(text) } : null],
+            ([ms, text]) => [ms, text ? { icon: null, ...makeLine(text) } : null],
         ), true);
     return {
         columns: 10,
@@ -103,7 +103,7 @@ const makeParsedCaptureData = (
 const makeScreen = (line: string, cursor: [line: number, column: number] | null, title?: string): ParsedFrame => ({
     lines: [{ index: 0, ...makeLine(line) }],
     cursor: cursor ? { line: cursor[0], column: cursor[1] } : null,
-    title: { icon: undefined, text: title, ...makeLine(title) },
+    title: title ? { icon: null, ...makeLine(title) } : null,
 });
 
 describe('extractCaptureFrames', () => {

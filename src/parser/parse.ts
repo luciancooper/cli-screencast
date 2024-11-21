@@ -3,11 +3,11 @@ import type {
     Dimensions, TerminalLines, TerminalLine, Title, CursorLocation, TextLine, TextChunk,
 } from '../types';
 import parseAnsi, { stylesEqual } from './ansi';
-import { matchIcon, parseTitle } from './title';
+import { applyTitleEscape } from './title';
 import { regexChunks } from './utils';
 
 export interface ParseState extends TerminalLines {
-    title: Title
+    title: Title | null
     cursor: CursorLocation
     cursorHidden: boolean
 }
@@ -394,10 +394,9 @@ function parseEscape({ columns, rows }: ParseContext, state: ParseState, esc: st
     // set window title
     m = /^\x1b\]([012]);(.+)?\x07$/.exec(esc);
     if (m) {
-        const code = m[1]! as '0' | '1' | '2',
-            value = m[2] ?? undefined,
-            icon = code !== '2' ? (value !== undefined ? matchIcon(value) : value) : title.icon;
-        state.title = code !== '1' ? { icon, text: value, ...parseTitle(value ?? '') } : { ...title, icon };
+        const code = Number(m[1]!) as 0 | 1 | 2,
+            value = m[2] ?? '';
+        state.title = applyTitleEscape(title, code, value);
     }
     // unsupported escapes fallthrough to here
 }

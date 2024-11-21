@@ -1,5 +1,5 @@
 import type { Title, TextLine } from '@src/types';
-import { matchIcon, parseTitle, resolveTitle } from '@src/parser/title';
+import { matchIcon, parseTitle, resolveTitle, applyTitleEscape } from '@src/parser/title';
 import { makeLine } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 
@@ -42,22 +42,50 @@ describe('parseTitle', () => {
 
 describe('resolveTitle', () => {
     test('no icon argument', () => {
-        expect(resolveTitle('title'))
-            .toEqual<Title>({ text: 'title', icon: undefined, ...makeLine('title') });
+        expect(resolveTitle('title')).toEqual<Title>({ icon: null, ...makeLine('title') });
     });
 
     test('icon argument is a string', () => {
-        expect(resolveTitle('title', 'node'))
-            .toEqual<Title>({ text: 'title', icon: 'node', ...makeLine('title') });
+        expect(resolveTitle('title', 'node')).toEqual<Title>({ icon: 'node', ...makeLine('title') });
     });
 
     test('icon argument is `true`', () => {
-        expect(resolveTitle('node cmd', true))
-            .toEqual<Title>({ text: 'node cmd', icon: 'node', ...makeLine('node cmd') });
+        expect(resolveTitle('node cmd', true)).toEqual<Title>({ icon: 'node', ...makeLine('node cmd') });
     });
 
     test('text argument is undefined', () => {
-        expect(resolveTitle(undefined, true))
-            .toEqual<Title>({ text: undefined, icon: 'shell', ...makeLine() });
+        expect(resolveTitle(undefined, true)).toEqual<Title>({ icon: 'shell', ...makeLine() });
+    });
+
+    test('text and icon are undefined', () => {
+        expect(resolveTitle()).toBeNull();
+    });
+});
+
+describe('applyTitleEscape', () => {
+    test('apply escape to change a title', () => {
+        const title: Title = { icon: 'node', ...makeLine('title') };
+        expect(applyTitleEscape(title, 0, 'new title')).toEqual<Title>({ icon: 'shell', ...makeLine('new title') });
+        expect(applyTitleEscape(title, 1, 'search')).toEqual<Title>({ ...title, icon: 'search' });
+        expect(applyTitleEscape(title, 2, 'new title')).toEqual<Title>({ ...title, ...makeLine('new title') });
+    });
+
+    test('apply escape to an empty title', () => {
+        expect(applyTitleEscape(null, 0, 'title')).toEqual<Title>({ icon: 'shell', ...makeLine('title') });
+        expect(applyTitleEscape(null, 1, 'node')).toEqual<Title>({ icon: 'node', ...makeLine() });
+        expect(applyTitleEscape(null, 2, 'title')).toEqual<Title>({ icon: null, ...makeLine('title') });
+    });
+
+    test('apply empty escapes', () => {
+        const title: Title = { icon: 'node', ...makeLine('title') };
+        expect(applyTitleEscape(title, 0, '')).toBeNull();
+        expect(applyTitleEscape(title, 1, '')).toEqual<Title>({ ...title, icon: null });
+        expect(applyTitleEscape(title, 2, '')).toEqual<Title>({ ...title, ...makeLine() });
+    });
+
+    test('apply empty escape to an empty title', () => {
+        expect(applyTitleEscape(null, 0, '')).toBeNull();
+        expect(applyTitleEscape(null, 1, '')).toBeNull();
+        expect(applyTitleEscape(null, 2, '')).toBeNull();
     });
 });

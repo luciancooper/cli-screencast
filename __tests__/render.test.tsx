@@ -11,7 +11,7 @@ import WindowTitle from '@src/render/WindowTitle';
 import createBoxShadow, { defaultBoxShadow, type BoxShadowOptions } from '@src/render/BoxShadow';
 import Text from '@src/render/Text';
 import { Cursor, CursorFrames } from '@src/render/Cursor';
-import { makeCursorFrames } from './helpers/objects';
+import { makeKeyFrames, makeCursorFrames } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 
 const defTheme = resolveTheme();
@@ -85,21 +85,17 @@ describe('<Window/>', () => {
                 { type: 'style' },
                 { type: 'defs', children: [{ type: 'symbol', props: { id: 'node' } }] },
                 { type: 'rect', props: { className: 'window-background' } },
-                {
-                    type: 'svg',
-                    props: { className: 'window-title' },
-                    children: [{ type: 'g', props: { className: 'title-frame' } }],
-                },
+                { type: 'g', props: { className: 'window-title' }, children: [{ type: 'use' }, { type: 'text' }] },
                 { type: 'svg', props: { className: 'terminal-content' } },
             ],
         });
     });
 
     test('render with title frames', () => {
-        const title = [
-            { ...resolveTitle('first title frame', 'shell'), time: 0, endTime: 1000 },
-            { ...resolveTitle('second title frame', 'node'), time: 1000, endTime: 2000 },
-        ];
+        const title = makeKeyFrames([
+            [1000, resolveTitle('first title frame', 'shell')],
+            [1000, resolveTitle('second title frame', 'node')],
+        ]);
         expect(render(<Window title={title}/>, { decorations: false }, { title, duration: 2000 })).toMatchObject({
             type: 'svg',
             children: [
@@ -113,7 +109,7 @@ describe('<Window/>', () => {
                 },
                 { type: 'rect', props: { className: 'window-background' } },
                 {
-                    type: 'svg',
+                    type: 'g',
                     props: { className: 'window-title' },
                     children: [
                         { type: 'g', props: { className: 'title-frame' } },
@@ -241,10 +237,10 @@ describe('createBoxShadow', () => {
 describe('<WindowTitle/>', () => {
     test('render centered title text and icon', () => {
         expect(render(
-            <WindowTitle columnInset={0} title={resolveTitle('window title', 'shell')}/>,
+            <WindowTitle columnInset={0} title={resolveTitle('window title', 'shell')!}/>,
         )).toMatchObject({
             type: 'g',
-            props: { className: 'title-frame' },
+            props: { className: 'window-title' },
             children: [
                 { type: 'use', props: { x: 17.2 } },
                 { type: 'text', props: { x: 20 }, children: ['window title'] },
@@ -253,18 +249,18 @@ describe('<WindowTitle/>', () => {
     });
 
     test('render only icon', () => {
-        expect(render(<WindowTitle columnInset={0} title={resolveTitle(undefined, 'shell')}/>))
+        expect(render(<WindowTitle columnInset={0} title={resolveTitle(undefined, 'shell')!}/>))
             .toMatchObject({ type: 'g', children: [{ type: 'use', props: { x: 24.2 } }] });
     });
 
     test('truncate styled title text to fit window columns', () => {
         expect(render(
-            <WindowTitle columnInset={4} title={resolveTitle(`longer ${ansi.bold('window title')}`)}/>,
+            <WindowTitle columnInset={4} title={resolveTitle(`longer ${ansi.bold('window title')}`)!}/>,
             {},
             { columns: 20 },
         )).toMatchObject({
             type: 'g',
-            props: { className: 'title-frame' },
+            props: { className: 'window-title' },
             children: [
                 { type: 'text', props: { x: 4 }, children: ['longer '] },
                 { type: 'text', props: { x: 11 }, children: ['window t…'] },
@@ -274,12 +270,12 @@ describe('<WindowTitle/>', () => {
 
     test('truncate to fit title text and icon', () => {
         expect(render(
-            <WindowTitle columnInset={4} title={resolveTitle('longer window title', 'shell')}/>,
+            <WindowTitle columnInset={4} title={resolveTitle('longer window title', 'shell')!}/>,
             {},
             { columns: 20 },
         )).toMatchObject({
             type: 'g',
-            props: { className: 'title-frame' },
+            props: { className: 'window-title' },
             children: [
                 { type: 'use', props: { x: 4.2 } },
                 { type: 'text', props: { x: 7 }, children: ['longer windo…'] },
@@ -287,23 +283,42 @@ describe('<WindowTitle/>', () => {
         });
     });
 
-    test('render with animation keyframe', () => {
-        expect(render(
-            <WindowTitle
-                columnInset={0}
-                title={resolveTitle('window title frame')}
-                keyFrame={{ time: 0, endTime: 1000 }}
-            />,
-            {},
-            { duration: 2000 },
-        )).toMatchObject({
+    test('render multiple keyframes', () => {
+        const title = makeKeyFrames([
+            [500, resolveTitle('title frame 1')],
+            [500, resolveTitle('title frame 2', 'shell')],
+        ]);
+        expect(render(<WindowTitle columnInset={0} title={title}/>, {}, { duration: 1000 })).toMatchObject({
             type: 'g',
-            props: { className: 'title-frame' },
-            children: [
-                { type: 'text', props: { x: 16 }, children: ['window title frame'] },
-                { type: 'animate', props: { attributeName: 'opacity' }, children: null },
-            ],
+            props: { className: 'window-title' },
+            children: [{
+                type: 'g',
+                children: [
+                    { type: 'text', children: ['title frame 1'] },
+                    { type: 'animate', props: { attributeName: 'opacity' }, children: null },
+                ],
+            }, {
+                type: 'g',
+                children: [
+                    { type: 'use' },
+                    { type: 'text', children: ['title frame 2'] },
+                    { type: 'animate', props: { attributeName: 'opacity' }, children: null },
+                ],
+            }],
         });
+    });
+
+    test('render a single title frame that spans the entire capture without animation', () => {
+        const title = [{ time: 0, endTime: 1000, ...resolveTitle('title frame')! }];
+        expect(render(<WindowTitle columnInset={0} title={title}/>, {}, { duration: 1000 })).toMatchObject({
+            type: 'g',
+            props: { className: 'window-title' },
+            children: [{ type: 'text', children: ['title frame'] }],
+        });
+    });
+
+    test('checks for empty title keyframe arrays', () => {
+        expect(render(<WindowTitle columnInset={0} title={[]}/>, {}, { duration: 1000 })).toBeNull();
     });
 });
 

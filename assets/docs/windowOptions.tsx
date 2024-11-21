@@ -256,7 +256,7 @@ async function WindowOptionsDiagram({
         });
     }
     // title labels
-    if (title.icon || title.text) {
+    if (title) {
         const columnInset = context.decorations ? Math.ceil((50 - paddingX) / dx) : 0,
             [tx, ty] = [offsetX + paddingX + window.side, offsetY + paddingY + (window.top - dy) / 2];
         let iconX: number;
@@ -308,7 +308,7 @@ async function WindowOptionsDiagram({
         >
             <g transform={`translate(${ix},${iy})`}>
                 <Context.Provider value={context}>
-                    <Window css={css} title={(title.icon || title.text) ? title : null}/>
+                    <Window css={css} title={title}/>
                 </Context.Provider>
                 <g fill='none' stroke='#a88132'>
                     <rect

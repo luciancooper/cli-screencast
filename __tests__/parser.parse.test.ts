@@ -1,5 +1,6 @@
 import type { Dimensions, CursorLocation, Title, TerminalLine } from '@src/types';
 import { clone } from '@src/parser/utils';
+import { resolveTitle } from '@src/parser/title';
 import parse, { type ParseContext, type ParseState } from '@src/parser/parse';
 import { makeLine } from './helpers/objects';
 import * as ansi from './helpers/ansi';
@@ -10,19 +11,13 @@ interface Parser {
     prev: ParseState
 }
 
-const makeParser = (dim: Dimensions, cursorHidden = false, title: Partial<Title> = {}): Parser => {
+const makeParser = (dim: Dimensions, cursorHidden = false): Parser => {
     const context: ParseContext = { ...dim, tabSize: 8 },
         state = {
             lines: [],
             cursor: { line: 0, column: 0 },
             cursorHidden,
-            title: {
-                columns: 0,
-                chunks: [],
-                text: undefined,
-                icon: undefined,
-                ...title,
-            },
+            title: null,
         },
         parser = Object.assign((...content: string[]) => {
             parser.prev = clone(state);
@@ -72,22 +67,22 @@ describe('escape sequences', () => {
 
     test('set window title and icon', () => {
         const parser = makeParser({ columns: 40, rows: 10 });
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: undefined, text: undefined });
+        expect(parser.state.title).toBeNull();
         // set both title & icon
         parser('\x1b]0;title\x07');
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: 'shell', text: 'title' });
+        expect(parser.state.title).toEqual<Title>(resolveTitle('title', 'shell')!);
         // set only icon
         parser('\x1b]1;node\x07');
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: 'node', text: 'title' });
+        expect(parser.state.title).toEqual<Title>(resolveTitle('title', 'node')!);
         // set only title
         parser('\x1b]2;new title\x07');
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: 'node', text: 'new title' });
+        expect(parser.state.title).toEqual<Title>(resolveTitle('new title', 'node')!);
         // nullify icon
         parser('\x1b]1;\x07');
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: undefined, text: 'new title' });
+        expect(parser.state.title).toEqual<Title>(resolveTitle('new title')!);
         // nullify title
         parser('\x1b]2;\x07');
-        expect(parser.state.title).toMatchObject<Partial<Title>>({ icon: undefined, text: undefined });
+        expect(parser.state.title).toBeNull();
     });
 });
 

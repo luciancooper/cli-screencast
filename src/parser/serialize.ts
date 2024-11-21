@@ -23,6 +23,6 @@ export const cursor = ({ line, column, visible }: CursorState) => {
     return visible ? `[${loc}]` : `(${loc})`;
 };
 
-export const title = ({ icon, text }: Title) => (
-    (icon || text) ? `${icon ?? ''}:${text ?? ''}` : ''
+export const title = (data: Title | null) => (
+    data ? `${data.icon ?? ''}:${data.chunks.map(chunk).join(' ')}` : ''
 );

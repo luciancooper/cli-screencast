@@ -120,7 +120,7 @@ const fixtures = {
             { lines: [{ index: 0, ...makeLine('cde', ['efg', { bold: true }]) }] },
             { lines: [{ index: 0, ...makeLine(['ghi', { bold: true, italic: true }], ['ijk', { italic: true }]) }] },
         ],
-        title: [resolveTitle('abc')],
+        title: [resolveTitle('abc')!],
     },
 };
 

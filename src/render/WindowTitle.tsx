@@ -1,17 +1,10 @@
-import type { FunctionComponent } from 'react';
+import type { SVGProps, FunctionComponent } from 'react';
 import { stringWidth, sliceColumns } from 'tty-strings';
 import type { Title, KeyFrame, TextChunk } from '../types';
 import { expandAnsiProps } from '../parser';
-import { hexString, alphaValue } from '../color';
 import { useRenderContext } from './Context';
 import Text from './Text';
 import { KeyFrameAnimation } from './Animation';
-
-interface WindowTitleProps {
-    title: Title
-    columnInset: number
-    keyFrame?: KeyFrame
-}
 
 function truncateTitle(chunks: TextChunk[], cols: number): readonly [chunks: TextChunk[], columns: number] {
     const truncated: TextChunk[] = [];
@@ -30,14 +23,8 @@ function truncateTitle(chunks: TextChunk[], cols: number): readonly [chunks: Tex
     return [truncated, tcols];
 }
 
-const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, keyFrame }) => {
-    const {
-        columns,
-        theme,
-        grid: [dx, dy],
-        duration,
-        iconColumnWidth,
-    } = useRenderContext();
+const WindowTitleFrame: FunctionComponent<{ title: Title, columnInset: number }> = ({ title, columnInset }) => {
+    const { columns, grid: [dx, dy], iconColumnWidth } = useRenderContext();
     let iconX: number,
         textElement = null;
     if (title.columns) {
@@ -57,7 +44,7 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
     }
     const iconSize = Math.min(dx * iconColumnWidth, dy);
     return (
-        <g className='title-frame' dominantBaseline='central'>
+        <>
             {title.icon ? (
                 <use
                     xlinkHref={`#${title.icon}`}
@@ -65,12 +52,42 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
                     y={(dy - iconSize) / 2}
                     width={iconSize}
                     height={iconSize}
-                    fill={hexString(theme.iconColor)}
-                    fillOpacity={alphaValue(theme.iconColor, true)}
                 />
             ) : null}
             {textElement}
-            {keyFrame ? <KeyFrameAnimation {...keyFrame} duration={duration}/> : null}
+        </>
+    );
+};
+
+interface WindowTitleProps extends SVGProps<SVGGElement> {
+    title: Title | KeyFrame<Title>[]
+    columnInset: number
+}
+
+const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, ...svgProps }) => {
+    const { duration } = useRenderContext();
+    let content: JSX.Element | JSX.Element[];
+    if (Array.isArray(title)) {
+        // check if keyframe array is empty
+        if (!title.length) return null;
+        // if one frame spans the entire capture, just render the content
+        if (title.length === 1 && title[0]?.time === 0 && title[0].endTime === duration) {
+            content = <WindowTitleFrame columnInset={columnInset} title={title[0]}/>;
+        } else {
+            // otherwise render as frames
+            content = title.map(({ time, endTime, ...data }, i) => (
+                <g key={i} className='title-frame'>
+                    <WindowTitleFrame columnInset={columnInset} title={data}/>
+                    <KeyFrameAnimation time={time} endTime={endTime} duration={duration}/>
+                </g>
+            ));
+        }
+    } else {
+        content = <WindowTitleFrame columnInset={columnInset} title={title}/>;
+    }
+    return (
+        <g className='window-title' dominantBaseline='central' {...svgProps}>
+            {content}
         </g>
     );
 };

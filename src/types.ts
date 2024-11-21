@@ -177,8 +177,7 @@ export interface TerminalLine extends TextLine {
 export type IconID = keyof typeof icons;
 
 export interface Title extends TextLine {
-    icon: IconID | undefined
-    text: string | undefined
+    icon: IconID | null
 }
 
 export interface TerminalLines {
@@ -191,7 +190,7 @@ export interface ScreenData extends Required<TerminalOptions> {
 
 export interface ParsedFrame extends TerminalLines {
     cursor: CursorLocation | null
-    title: Title
+    title: Title | null
 }
 
 export interface ParsedScreenData extends Dimensions, ParsedFrame {}

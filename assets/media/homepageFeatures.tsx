@@ -67,7 +67,7 @@ export default [
             return renderToStaticMarkup(
                 <SVGImage {...context.size}>
                     <Context.Provider value={context}>
-                        <Window css={css}>
+                        <Window css={css} title={parsed.title}>
                             <Frame lines={parsed.lines}/>
                             {parsed.cursor ? <Cursor animateBlink {...parsed.cursor}/> : null}
                         </Window>
@@ -141,7 +141,6 @@ export default [
             const { type, data } = await dataFromFile(path.resolve(__dirname, './data/neofetch.yaml'));
             if (type !== 'screen') throw new Error('neofetch data is not screenshot');
             const parsed = parseScreen(data),
-                title = (parsed.title.icon || parsed.title.text) ? parsed.title : null,
                 { css, ...font } = await embedFonts(parsed, Asset.fonts.cascadiaCode),
                 props = applyDefRenderOptions({ boxShadow: true, fontSize: 14 }),
                 context = resolveContext({ ...props, ...font }, parsed),
@@ -172,12 +171,12 @@ export default [
                 <SVGImage width={context.size.width * (1 + offsetX)} height={context.size.height * (1 + offsetY)}>
                     <style dangerouslySetInnerHTML={{ __html: css ?? '' }}/>
                     <Context.Provider value={context}>
-                        <Window title={title}>
+                        <Window title={parsed.title}>
                             <Frame lines={parsed.lines}/>
                         </Window>
                     </Context.Provider>
                     <Context.Provider value={{ ...context, theme: lightTheme }}>
-                        <Window title={title} x={context.size.width * offsetX} y={context.size.height * offsetY}>
+                        <Window title={parsed.title} x={context.size.width * offsetX} y={context.size.height * offsetY}>
                             <Frame lines={parsed.lines}/>
                         </Window>
                     </Context.Provider>

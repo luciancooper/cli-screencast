@@ -128,11 +128,11 @@ export function resolveContext({
     rows,
     duration = 0,
     title,
-}: Dimensions & { duration?: number, title?: Title | Title[] }): RenderContext {
+}: Dimensions & { duration?: number, title?: Title | Title[] | null }): RenderContext {
     // calculate grid
     const [gx, gy] = [fontSize * (columnWidth ?? fontColumnWidth ?? 0.6), fontSize * lineHeight],
         // determine if data has title ParsedCaptureData / ParsedScreenData
-        titleInset = title ? (Array.isArray(title) ? title.length > 0 : (!!title.icon || !!title.text)) : false,
+        titleInset = title ? (!Array.isArray(title) || title.length > 0) : false,
         // window top
         top = decorations ? insetMajor : titleInset ? gy * 1.5 : 0,
         // window side
@@ -173,7 +173,7 @@ export function renderCaptureSvg(data: ParsedCaptureData, { css, ...props }: Ren
     const context = resolveContext(props, data);
     return renderToStaticMarkup(
         <Context.Provider value={context}>
-            <Window css={css ?? null} title={data.title.length ? data.title : null}>
+            <Window css={css ?? null} title={data.title}>
                 {data.content.map(({ lines, ...keyFrame }, i) => (
                     <Frame key={i} lines={lines} keyFrame={keyFrame}/>
                 ))}
@@ -187,7 +187,7 @@ export function renderScreenSvg(data: ParsedScreenData, { css, ...props }: Rende
     const { lines, title, cursor } = data;
     return renderToStaticMarkup(
         <Context.Provider value={resolveContext(props, data)}>
-            <Window css={css ?? null} title={(title.icon || title.text) ? title : null}>
+            <Window css={css ?? null} title={title}>
                 <Frame lines={lines}/>
                 {cursor ? <Cursor animateBlink {...cursor}/> : null}
             </Window>
@@ -205,7 +205,7 @@ export function renderCaptureFrames(data: ParsedCaptureData, { css, ...props }: 
             endTime,
             frame: renderToStaticMarkup(
                 <Context.Provider value={context}>
-                    <Window css={css ?? null} title={(frame.title.icon || frame.title.text) ? frame.title : null}>
+                    <Window css={css ?? null} title={frame.title}>
                         <Frame lines={frame.lines}/>
                         {frame.cursor ? <Cursor {...frame.cursor}/> : null}
                     </Window>
@@ -221,7 +221,7 @@ export function renderScreenFrames(data: ParsedScreenData, { css, ...props }: Re
         context = resolveContext(props, data),
         frame = renderToStaticMarkup(
             <Context.Provider value={context}>
-                <Window css={css ?? null} title={(title.icon || title.text) ? title : null}>
+                <Window css={css ?? null} title={title}>
                     <Frame lines={lines}/>
                     {cursor ? <Cursor {...cursor}/> : null}
                 </Window>
@@ -236,7 +236,7 @@ export function renderScreenFrames(data: ParsedScreenData, { css, ...props }: Re
                 endTime: 1000,
                 frame: renderToStaticMarkup(
                     <Context.Provider value={context}>
-                        <Window css={css ?? null} title={(title.icon || title.text) ? title : null}>
+                        <Window css={css ?? null} title={title}>
                             <Frame lines={lines}/>
                         </Window>
                     </Context.Provider>,

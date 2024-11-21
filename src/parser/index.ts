@@ -34,7 +34,7 @@ export function parseCapture({
             lines: [],
             cursor: { line: initialCursor.line, column: initialCursor.column },
             cursorHidden: !initialCursor.visible,
-            title: resolveTitle(),
+            title: null,
         },
         data: ParsedCaptureData = {
             columns,
@@ -54,10 +54,10 @@ export function parseCapture({
             serialized: serialize.cursor(initialCursor),
             state: initialCursor,
         },
-        lastTitle: { time: number, serialized: string, state: Title } = {
+        lastTitle: { time: number, serialized: string, state: Title | null } = {
             time: 0,
             serialized: serialize.title(state.title),
-            state: clone(state.title),
+            state: state.title,
         },
         time = 0;
     // loop through all writes
@@ -88,7 +88,7 @@ export function parseCapture({
         const stitle = serialize.title(state.title);
         // compare updated title to the last title
         if (lastTitle.serialized !== stitle) {
-            if (wtime > lastTitle.time && lastTitle.serialized) {
+            if (wtime > lastTitle.time && lastTitle.state) {
                 data.title.push({ time: lastTitle.time, endTime: wtime, ...lastTitle.state });
             }
             lastTitle = { time: wtime, serialized: stitle, state: clone(state.title) };
@@ -107,7 +107,7 @@ export function parseCapture({
         data.cursor.push({ time: lastCursor.time, endTime: time, ...lastCursor.state });
     }
     // add last title keyframe if title is not empty
-    if (time > lastTitle.time && lastTitle.serialized) {
+    if (time > lastTitle.time && lastTitle.state) {
         data.title.push({ time: lastTitle.time, endTime: time, ...lastTitle.state });
     }
     // set data duration

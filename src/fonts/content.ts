@@ -16,7 +16,7 @@ export interface ContentSubsets {
 
 export type FrameData = {
     lines: TextLine[]
-    title: TextLine
+    title: TextLine | null
 } | {
     content: { lines: TextLine[] }[]
     title: TextLine[]
@@ -35,7 +35,7 @@ function* extractChunks(data: FrameData) {
         }
     } else {
         // ParsedScreenData
-        yield* data.title.chunks;
+        if (data.title) yield* data.title.chunks;
         for (const line of data.lines) {
             yield* line.chunks;
         }
