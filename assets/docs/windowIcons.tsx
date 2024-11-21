@@ -45,6 +45,7 @@ const IconsPreview: FunctionComponent<IconsPreviewProps> = ({
             xmlnsXlink='http://www.w3.org/1999/xlink'
             fontFamily={fontFamily}
             fontSize={fontSize}
+            viewBox={`0 0 ${2 * ix + width} ${2 * iy + height}`}
             width={2 * ix + width}
             height={2 * iy + height}
             {...props}

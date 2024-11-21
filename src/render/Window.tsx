@@ -61,6 +61,7 @@ const Window: FunctionComponent<WindowProps> = (({
             xmlnsXlink='http://www.w3.org/1999/xlink'
             fontFamily={fontFamily}
             fontSize={fontSize}
+            viewBox={`0 0 ${size.width} ${size.height}`}
             {...size}
             {...props}
         >

@@ -43,7 +43,7 @@ describe('<Window/>', () => {
     test('render a root <svg> that wraps an inner content <svg> element', () => {
         expect(render(<Window/>, { decorations: false, paddingX: 0, paddingY: 0 })).toMatchObject({
             type: 'svg',
-            props: { width: expect.toBeNumber(), height: expect.toBeNumber() },
+            props: { viewBox: expect.toBeString(), width: expect.toBeNumber(), height: expect.toBeNumber() },
             children: [
                 { type: 'style' },
                 { type: 'rect', props: { className: 'window-background' } },
@@ -55,7 +55,7 @@ describe('<Window/>', () => {
     test('render window decorations by default', () => {
         expect(render(<Window/>, { insetMajor: 40, insetMinor: 20 })).toMatchObject({
             type: 'svg',
-            props: { width: expect.toBeNumber(), height: expect.toBeNumber() },
+            props: { viewBox: expect.toBeString(), width: expect.toBeNumber(), height: expect.toBeNumber() },
             children: [
                 { type: 'style' },
                 { type: 'rect', props: { className: 'window-background' } },
