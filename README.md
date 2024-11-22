@@ -1,10 +1,26 @@
-# cli-screencast
+<p align="center">
+  <a href="#">
+    <img src="https://www.cli-screencast.io/assets/project-title.svg" alt="cli-screencast">
+  </a>
+</p>
 
-[![ci](https://img.shields.io/github/actions/workflow/status/luciancooper/cli-screencast/ci.yml?logo=github&style=for-the-badge)](https://github.com/luciancooper/cli-screencast/actions/workflows/ci.yml)
-[![coverage](https://img.shields.io/codecov/c/gh/luciancooper/cli-screencast?logo=codecov&style=for-the-badge)](https://codecov.io/gh/luciancooper/cli-screencast)
-[![license](https://img.shields.io/github/license/luciancooper/cli-screencast?color=yellow&style=for-the-badge)](#license)
+<p align="center">
+  <b>An easy to use Node.js API for rendering terminal screenshots and recordings to SVG or PNG</b>
+</p>
 
-An easy to use Node.js API for rendering terminal screenshots and recordings to animated svg or png.
+<p align="center">
+  <a href="https://github.com/luciancooper/cli-screencast/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/luciancooper/cli-screencast/ci.yml?logo=github&style=for-the-badge" alt="ci">
+  </a>
+  <a href="https://codecov.io/gh/luciancooper/cli-screencast">
+    <img src="https://img.shields.io/codecov/c/gh/luciancooper/cli-screencast?logo=codecov&style=for-the-badge" alt="coverage">
+  </a>
+  <a href="#license">
+    <img src="https://img.shields.io/github/license/luciancooper/cli-screencast?color=yellow&style=for-the-badge" alt="license">
+  </a>
+</p>
+
+---
 
 **Read the docs at [cli-screencast.io](https://cli-screencast.io)**
 

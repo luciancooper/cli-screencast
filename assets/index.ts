@@ -2,6 +2,7 @@ import { setLogLevel } from '@src/logger';
 import type { Creatable } from './asset';
 import favicon from './media/favicon';
 import projectLogo from './media/projectLogo';
+import projectTitle from './media/projectTitle';
 import socialCard from './media/socialCard';
 import homepageFeatures from './media/homepageFeatures';
 import windowIcons from './docs/windowIcons';
@@ -12,6 +13,7 @@ import usageExamples from './docs/usageExamples';
 const assets: Creatable[] = [
     favicon,
     ...projectLogo,
+    projectTitle,
     socialCard,
     ...homepageFeatures,
     windowIcons,
