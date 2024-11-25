@@ -8,7 +8,7 @@ export interface RenderContext extends Dimensions {
     fontSize: number
     fontFamily: string
     borderRadius: number
-    boxShadow: false | Required<BoxShadowOptions>
+    boxShadow: Required<BoxShadowOptions> | null
     decorations: boolean
     padding: [paddingX: number, paddingY: number]
     offset: [offsetX: number, offseY: number]

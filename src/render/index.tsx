@@ -8,7 +8,7 @@ import type { BoxShadowOptions } from './BoxShadow';
 import Frame from './Frame';
 import { Cursor, CursorFrames } from './Cursor';
 
-export { defaultBoxShadow } from './BoxShadow';
+export type { BoxShadowOptions };
 
 export interface RenderOptions {
     /**
@@ -43,7 +43,7 @@ export interface RenderOptions {
 
     /**
      * Border radius of the rendered window frame
-     * @defaultValue `5`
+     * @defaultValue `fontSize * 0.25`
      */
     borderRadius?: number
 
@@ -63,45 +63,45 @@ export interface RenderOptions {
     /**
      * Inset added to the top of the rendered window when `decorations` is true.
      * If `decorations` is `false`, this option is ignored
-     * @defaultValue `40`
+     * @defaultValue `fontSize * 2.5`
      */
     insetMajor?: number
 
     /**
      * Inset added to the left, right, and bottom of the rendered window frame
      * when `decorations` is true. If `decorations` is `false`, this option is ignored.
-     * @defaultValue `20`
+     * @defaultValue `fontSize * 1.25`
      */
     insetMinor?: number
 
     /**
      * Window horizontal padding
-     * @defaultValue `5`
+     * @defaultValue `fontSize * 0.25`
      */
     paddingX?: number
 
     /**
      * Window vertical padding
-     * @defaultValue `5`
+     * @defaultValue `fontSize * 0.25`
      */
     paddingY?: number
 
     /**
      * Window horizontal offset
-     * @defaultValue `12`
+     * @defaultValue `fontSize * 0.75`
      */
     offsetX?: number
 
     /**
      * Window vertical offset
-     * @defaultValue `12`
+     * @defaultValue `fontSize * 0.75`
      */
     offsetY?: number
 }
 
-interface RenderProps extends Required<RenderOptions> {
+interface RenderProps extends Required<Omit<RenderOptions, 'boxShadow'>> {
     theme: Theme<RGBA>
-    boxShadow: false | Required<BoxShadowOptions>
+    boxShadow: Required<BoxShadowOptions> | null
     fontColumnWidth?: number | undefined
     css?: string | null
 }

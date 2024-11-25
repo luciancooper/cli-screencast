@@ -6,6 +6,19 @@ import { useRenderContext } from './Context';
 import createBoxShadow from './BoxShadow';
 import WindowTitle from './WindowTitle';
 
+interface DecorationsProps extends SVGProps<SVGGElement> {
+    radius: number
+    spacing: number
+}
+
+const Decorations: FunctionComponent<DecorationsProps> = ({ radius, spacing, ...props }) => (
+    <g {...props}>
+        <circle cx={radius} cy={radius} r={radius} fill='#ff5f58'/>
+        <circle cx={radius * 3 + spacing} cy={radius} r={radius} fill='#ffbd2e'/>
+        <circle cx={radius * 5 + spacing * 2} cy={radius} r={radius} fill='#18c132'/>
+    </g>
+);
+
 interface WindowProps extends SVGProps<SVGSVGElement> {
     title?: Title | KeyFrame<Title>[] | null
     css?: string | null
@@ -88,11 +101,11 @@ const Window: FunctionComponent<WindowProps> = (({
                 />
             ) : null}
             {decorations ? (
-                <g transform={`translate(${offsetX + paddingX + window.side * 0.4},${offsetY + paddingY + window.top * 0.2})`}>
-                    <circle cx={6} cy={6} r={6} fill='#ff5f58'/>
-                    <circle cx={26} cy={6} r={6} fill='#ffbd2e'/>
-                    <circle cx={46} cy={6} r={6} fill='#18c132'/>
-                </g>
+                <Decorations
+                    radius={fontSize * (3 / 8)}
+                    spacing={fontSize / 2}
+                    transform={`translate(${offsetX + paddingX + window.side * 0.4},${offsetY + paddingY + window.top * 0.2})`}
+                />
             ) : null}
             <svg
                 className='terminal-content'

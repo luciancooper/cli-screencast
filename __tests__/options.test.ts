@@ -1,6 +1,5 @@
 import path from 'path';
 import { validateOptions, applyDefaults, applyDefOutputOptions, applyDefRenderOptions } from '@src/options';
-import { defaultBoxShadow } from '@src/render';
 import type { Dimensions } from '@src/types';
 import { applyLoggingOptions, resetLogLevel } from '@src/logger';
 
@@ -82,12 +81,33 @@ describe('applyDefOutputOptions', () => {
 });
 
 describe('applyDefRenderOptions', () => {
-    test('returns default box shadow spec if boxShadow is `true`', () => {
-        expect(applyDefRenderOptions({ boxShadow: true }).boxShadow).toStrictEqual(defaultBoxShadow);
+    test('adjusts default window dimension values relative to the font size', () => {
+        expect(applyDefRenderOptions({ fontSize: 16, boxShadow: true })).toMatchObject({
+            fontSize: 16,
+            borderRadius: 4,
+            insetMajor: 40,
+            insetMinor: 20,
+            paddingX: 4,
+            paddingY: 4,
+            offsetX: 12,
+            offsetY: 12,
+            boxShadow: {
+                dx: 0,
+                dy: 0,
+                spread: 2,
+                blurRadius: 4,
+                color: [0, 0, 0, 0.5],
+            },
+        });
     });
 
     test('applies defaults to missing fields if a partial box shadow config is specified', () => {
-        expect(applyDefRenderOptions({ boxShadow: { dx: 2, dy: 3 } }).boxShadow)
-            .toStrictEqual({ ...defaultBoxShadow, dx: 2, dy: 3 });
+        expect(applyDefRenderOptions({ fontSize: 16, boxShadow: { dx: 2, dy: 3 } }).boxShadow).toStrictEqual({
+            dx: 2,
+            dy: 3,
+            spread: 2,
+            blurRadius: 4,
+            color: [0, 0, 0, 0.5],
+        });
     });
 });

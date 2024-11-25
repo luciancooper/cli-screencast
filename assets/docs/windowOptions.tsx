@@ -117,6 +117,7 @@ async function WindowOptionsDiagram({
             padding: [paddingX, paddingY],
             offset: [offsetX, offsetY],
             grid: [dx, dy],
+            fontSize,
             window,
         } = context,
         [cw, ch] = [context.columns * dx, context.rows * dy],
@@ -128,7 +129,7 @@ async function WindowOptionsDiagram({
             coords: [offsetX + paddingX + window.side, offsetY],
             size: [cw, paddingY],
             position: 0.8,
-            line: { angle: 310, distance: 30, curvature: [-0.3, -0.8] },
+            line: { angle: 310, distance: 32, curvature: [-0.3, -0.8] },
             textPosition: -0.2,
         }, {
             // top side offset
@@ -138,7 +139,7 @@ async function WindowOptionsDiagram({
             coords: [offsetX + paddingX + window.side, 0],
             size: [cw, offsetY],
             position: 0.85,
-            line: { angle: 335, distance: 42, curvature: [-0.8, -0.5] },
+            line: { angle: 330, distance: 38, curvature: [-0.8, -0.3] },
             textPosition: -0.2,
         }, {
             // bottom side padding
@@ -148,7 +149,7 @@ async function WindowOptionsDiagram({
             coords: [offsetX + paddingX + window.side, offsetY + window.height - paddingY],
             size: [cw, paddingY],
             position: 0.75,
-            line: { angle: 60, distance: 30, curvature: [-0.3, -0.8] },
+            line: { angle: 60, distance: 32, curvature: [-0.3, -0.8] },
             textPosition: -0.2,
         }, {
             // bottom side offset
@@ -158,7 +159,7 @@ async function WindowOptionsDiagram({
             coords: [offsetX + paddingX + window.side, offsetY + window.height],
             size: [cw, offsetY],
             position: 0.8,
-            line: { angle: 30, distance: 35, curvature: [-0.3, -0.8] },
+            line: { angle: 30, distance: 37, curvature: [-0.3, -0.8] },
             textPosition: -0.2,
         }, {
             // left side padding
@@ -250,7 +251,7 @@ async function WindowOptionsDiagram({
             kind: 'rect',
             side: 'bottom',
             coords: [offsetX + paddingX + window.side * 0.4, offsetY + paddingY + window.top * 0.2],
-            size: [52, 12],
+            size: [fontSize * (13 / 4), fontSize * (3 / 4)],
             line: { angle: 300, distance: 40, curvature: [0.8, 0.3] },
             textPosition: 0.5,
         });
@@ -347,6 +348,8 @@ export default new Asset({
             insets: [1, 1],
             offsetX: 30,
             offsetY: 20,
+            paddingX: 6,
+            paddingY: 6,
             boxShadow: true,
             decorations: true,
             windowIcon: 'shell',

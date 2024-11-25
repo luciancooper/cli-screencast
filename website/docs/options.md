@@ -145,7 +145,7 @@ The column span of title icons in the rendered terminal output. Default is `1.6`
 
 #### borderRadius «`number`» {#borderRadius}
 
-Border radius of the rendered terminal window frame. Default is `5`.
+Border radius of the rendered terminal window frame. Default is <code>0.25 * <a href="#fontSize">fontSize</a></code>.
 
 #### boxShadow «`boolean | Object`» {#boxShadow}
 
@@ -153,19 +153,19 @@ Render a box shadow around the window frame. Default is `false`. If set to `true
 
 #### offsetX «`number`» {#offsetX}
 
-Space in pixels between the rendered terminal window frame and the left and right edges of the image. Default is `12`. See the [window configuration](window.md) page for details.
+Space in pixels between the rendered terminal window frame and the left and right edges of the image. Default is <code>0.75 * <a href="#fontSize">fontSize</a></code>. See the [window configuration](window.md) page for details.
 
 #### offsetY «`number`» {#offsetY}
 
-Space in pixels between the rendered terminal window frame and the top and bottom edges of the image. Default is `12`. See the [window configuration](window.md) page for details.
+Space in pixels between the rendered terminal window frame and the top and bottom edges of the image. Default is <code>0.75 * <a href="#fontSize">fontSize</a></code>. See the [window configuration](window.md) page for details.
 
 #### paddingX «`number`» {#paddingX}
 
-Amount of padding in pixels to be added to the left and right of the rendered window content box. Default is `5`. See the [window configuration](window.md) page for details.
+Amount of padding in pixels to be added to the left and right of the rendered window content box. Default is <code>0.25 * <a href="#fontSize">fontSize</a></code>. See the [window configuration](window.md) page for details.
 
 #### paddingY «`number`» {#paddingY}
 
-Amount of padding in pixels to be added to the top and bottom of the rendered window content box. Default is `5`. See the [window configuration](window.md) page for details.
+Amount of padding in pixels to be added to the top and bottom of the rendered window content box. Default is <code>0.25 * <a href="#fontSize">fontSize</a></code>. See the [window configuration](window.md) page for details.
 
 #### decorations «`boolean`» {#decorations}
 
@@ -173,14 +173,14 @@ Render the terminal window with stoplight buttons in the top left corner. Defaul
 
 #### insetMajor «`number`» {#insetMajor}
 
-Amount of inset space in pixels added to the top of the window frame when rendering it with decorations. Default is `40`. See the [window configuration](window.md) page for details.
+Amount of inset space in pixels added to the top of the window frame when rendering it with decorations. Default is <code>2.5 * <a href="#fontSize">fontSize</a></code>. See the [window configuration](window.md) page for details.
 
 > [!note]
 > This option is ignored if [`decorations`](#decorations) is `false`.
 
 #### insetMinor «`number`» {#insetMinor}
 
-Amount of inset space in pixels added to the left, right, and bottom of the window frame when rendering it with decorations. Default is `20`. See the [window configuration](window.md) page for details.
+Amount of inset space in pixels added to the left, right, and bottom of the window frame when rendering it with decorations. Default is <code>1.25 * <a href="#fontSize">fontSize</a></code>. See the [window configuration](window.md) page for details.
 
 > [!note]
 > This option is ignored if [`decorations`](#decorations) is `false`.

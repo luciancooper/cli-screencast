@@ -1,5 +1,5 @@
-import type { PickOptional, Dimensions, OutputOptions, OutputType, TerminalOptions } from './types';
-import { defaultBoxShadow, type RenderOptions } from './render';
+import type { PickOptional, OmitStrict, Dimensions, OutputOptions, OutputType, TerminalOptions } from './types';
+import type { RenderOptions, BoxShadowOptions } from './render';
 import { resolveTheme } from './theme';
 import { resolveFilePath } from './utils';
 import log from './logger';
@@ -64,28 +64,57 @@ export function applyDefTerminalOptions(
     return { columns, rows, ...applyDefaults({ ...defaultTerminalOptions, ...overrides }, options) };
 }
 
-const defaultRenderOptions: Required<Omit<RenderOptions, 'theme'>> = {
+const defaultBoxShadow: Required<OmitStrict<BoxShadowOptions, 'spread' | 'blurRadius'>> = {
+    dx: 0,
+    dy: 0,
+    color: [0, 0, 0, 0.5],
+};
+
+type FontSizeRelative = 'insetMajor' | 'insetMinor' | 'borderRadius' | 'paddingX' | 'paddingY' | 'offsetX' | 'offsetY';
+
+const defaultRenderOptions: Required<OmitStrict<RenderOptions, 'theme' | FontSizeRelative>> = {
     fontFamily: "'Monaco', 'Cascadia Code', 'Courier New'",
     fontSize: 12,
     lineHeight: 1.2,
     columnWidth: undefined,
     iconColumnWidth: 1.6,
-    borderRadius: 5,
     decorations: true,
-    insetMajor: 40,
-    insetMinor: 20,
-    paddingY: 5,
-    paddingX: 5,
-    offsetY: 12,
-    offsetX: 12,
     boxShadow: false,
 };
 
-export function applyDefRenderOptions({ theme, ...options }: RenderOptions) {
-    const { boxShadow, ...defaultsApplied } = applyDefaults(defaultRenderOptions, options);
+export function applyDefRenderOptions({
+    theme,
+    borderRadius,
+    insetMajor,
+    insetMinor,
+    paddingX,
+    paddingY,
+    offsetX,
+    offsetY,
+    ...options
+}: RenderOptions) {
+    const { boxShadow, fontSize, ...defaultsApplied } = applyDefaults(defaultRenderOptions, options);
+    // resolve box shadow
+    let resolvedBoxShadow: Required<BoxShadowOptions> | null = null;
+    if (boxShadow) {
+        const { spread, blurRadius, ...boxShadowOptions }: BoxShadowOptions = boxShadow === true ? {} : boxShadow;
+        resolvedBoxShadow = {
+            spread: spread ?? fontSize * 0.125,
+            blurRadius: blurRadius ?? fontSize * 0.25,
+            ...applyDefaults(defaultBoxShadow, boxShadowOptions),
+        };
+    }
     return {
         ...defaultsApplied,
+        fontSize,
+        borderRadius: borderRadius ?? fontSize * 0.25,
+        insetMajor: insetMajor ?? fontSize * 2.5,
+        insetMinor: insetMinor ?? fontSize * 1.25,
+        paddingX: paddingX ?? fontSize * 0.25,
+        paddingY: paddingY ?? fontSize * 0.25,
+        offsetX: offsetX ?? fontSize * 0.75,
+        offsetY: offsetY ?? fontSize * 0.75,
         theme: resolveTheme(theme),
-        boxShadow: boxShadow ? applyDefaults(defaultBoxShadow, boxShadow !== true ? boxShadow : {}) : false as const,
+        boxShadow: resolvedBoxShadow,
     };
 }

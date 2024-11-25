@@ -22,13 +22,13 @@ export interface BoxShadowOptions {
      * of the spread and the second will represent the y-radius. If one number is specified, it is used for both the
      * x and y radii. Positive values will cause the shadow to expand, and negative values will cause the shadow
      * to contract.
-     * @defaultValue `2`
+     * @defaultValue `fontSize * 0.125`
      */
     spread?: number | [rx: number, ry: number]
 
     /**
      * Blur radius of the box shadow. This is the standard deviation value for the Gaussian blur function.
-     * @defaultValue `4`
+     * @defaultValue `fontSize * 0.25`
      */
     blurRadius?: number
 
@@ -38,14 +38,6 @@ export interface BoxShadowOptions {
      */
     color?: RGBA | string
 }
-
-export const defaultBoxShadow: Required<BoxShadowOptions> = {
-    dx: 0,
-    dy: 0,
-    spread: 2,
-    blurRadius: 4,
-    color: [0, 0, 0, 0.5],
-};
 
 export default function createBoxShadow({
     dx,

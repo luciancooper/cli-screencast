@@ -8,7 +8,7 @@ import { resolveContext, type RenderOptions } from '@src/render';
 import Context from '@src/render/Context';
 import Window from '@src/render/Window';
 import WindowTitle from '@src/render/WindowTitle';
-import createBoxShadow, { defaultBoxShadow, type BoxShadowOptions } from '@src/render/BoxShadow';
+import createBoxShadow, { type BoxShadowOptions } from '@src/render/BoxShadow';
 import Text from '@src/render/Text';
 import { Cursor, CursorFrames } from '@src/render/Cursor';
 import { makeKeyFrames, makeCursorFrames } from './helpers/objects';
@@ -66,7 +66,7 @@ describe('<Window/>', () => {
     });
 
     test('render with box shadow', () => {
-        expect(render(<Window/>, { decorations: false, boxShadow: defaultBoxShadow })).toMatchObject({
+        expect(render(<Window/>, { decorations: false, boxShadow: { spread: 2, blurRadius: 4 } })).toMatchObject({
             type: 'svg',
             children: [
                 { type: 'style' },

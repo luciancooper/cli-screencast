@@ -41,7 +41,7 @@ async function renderFontSample(fontInfo: { fontFamily: string, fonts: string[] 
         <Context.Provider value={context}>
             <Window css={css}>
                 <Frame lines={parsed.lines}/>
-                {parsed.cursor ? <Cursor {...parsed.cursor}/> : null}
+                {parsed.cursor ? <Cursor animateBlink {...parsed.cursor}/> : null}
                 <Grid color='#f00' thickness={1}/>
             </Window>
         </Context.Provider>,
