@@ -17,16 +17,13 @@ export interface ParseContext extends Dimensions {
 }
 
 const ctrlRegex = '(?:'
-    // cursor escape
-    + '[\\x1b\\x9b]'
-    + '(?:'
-    + '\\[(?:(?:(?:\\d+)?;(?:\\d+)?)?[Hf]|\\d*[A-G]|6n|[0-2]?[JK]|[SsTu]|(?:\\?(?:25|47|1049)|=[0-7][3-9]?)[hl])'
-    + '|'
-    + '\\][012];.*?\\x07'
-    + ')'
-    // or carriage return not followed by newline
+    // csi escapes ending in A B C D E F G H J K f h l
+    + '(?:\\x1b\\x5b|\\x9b)[\\x30-\\x3f]*[\\x20-\\x2f]*[A-HJKfhl]'
+    // osc window title escape
+    + '|(?:\\x1b\\x5d|\\x9d)[012];.*?(?:\\x1b\\x5c|[\\x07\\x9c])'
+    // carriage return not followed by newline
     + '|\\r(?!\\n)'
-    // or a backspace, form feed, or vertical tab escape
+    // a backspace, form feed, or vertical tab escape
     + '|[\\b\\f\\v]'
     + ')';
 
@@ -274,20 +271,37 @@ function parseEscape({ columns, rows }: ParseContext, state: ParseState, esc: st
         }
         return;
     }
-    // move cursor with `ESC[#;#H`
-    let m = /^\x1b\[(?:(\d+)?;(\d+)?)?[Hf]$/.exec(esc);
-    if (m) {
-        const line = Math.min(Number(m[1] ?? '1') - 1, rows - 1),
-            column = Math.min(Number(m[2] ?? '1') - 1, columns - 1);
-        state.cursor = { line, column };
+    // osc set window title
+    const osc = /^(?:\x1b\x5d|\x9d)([012]);(.+)?(?:\x1b\x5c|[\x07\x9c])$/.exec(esc);
+    if (osc) {
+        const code = Number(osc[1]!) as 0 | 1 | 2,
+            value = osc[2] ?? '';
+        state.title = applyTitleEscape(title, code, value);
+        return;
+    }
+    // all other escapes will be csi
+    const csi = esc.replace(/^(?:\x1b\x5b|\x9b)/, '');
+    if (esc === csi) return;
+    const [args, type] = [csi.slice(0, -1), csi.slice(-1)];
+    // move cursor with `ESC[#;#H` and `ESC[#;#f`
+    if (type === 'H' || type === 'f') {
+        const m = /^(?:(\d+)?(?:;(\d+)?)?)?$/.exec(args);
+        if (m) {
+            const line = Math.min(Math.max(Number(m[1] ?? '1'), 1) - 1, rows - 1),
+                column = Math.min(Math.max(Number(m[2] ?? '1'), 1) - 1, columns - 1);
+            state.cursor = { line, column };
+        }
         return;
     }
     // move cursor with `ESC[#A`, `ESC[#B`, `ESC[#C`, `ESC[#D`, `ESC[#E`, `ESC[#F`, & `ESC[#G`
-    m = /^\x1b\[(\d+)?([A-G])$/.exec(esc);
-    if (m) {
-        const code = m[2]! as 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G',
-            delta = Math.max(Number(m[1] ?? '1'), 1);
-        switch (code) {
+    if (/^[A-G]$/.test(type)) {
+        // match delta argument
+        const m = /^(\d+)?$/.exec(args);
+        // stop if sequence is malformed
+        if (!m) return;
+        // convert delta into a non-zero integer
+        const delta = Math.max(Number(m[1] ?? '1'), 1);
+        switch (type as 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G') {
             case 'A':
                 // moves cursor up # lines
                 state.cursor = { ...cursor, line: Math.max(cursor.line - delta, 0) };
@@ -328,9 +342,12 @@ function parseEscape({ columns, rows }: ParseContext, state: ParseState, esc: st
         return;
     }
     // clear content with `ESC[0J`, `ESC[1J`, `ESC[2J`, `ESC[0K`, `ESC[1K`, `ESC[2K`
-    m = /^\x1b\[([0-2])?([JK])$/.exec(esc);
-    if (m) {
-        switch (((m[1] ?? '0') + m[2]!) as '0J' | '1J' | '2J' | '0K' | '1K' | '2K') {
+    if (type === 'J' || type === 'K') {
+        // match argument - DECSED & DECSEL `?` prefix is ignored
+        const m = /^\??([0-2])?$/.exec(args);
+        // stop if sequence args are malformed
+        if (!m) return;
+        switch (((m[1] ?? '0') + type) as '0J' | '1J' | '2J' | '0K' | '1K' | '2K') {
             case '0J':
                 // clears from cursor to the end of the screen
                 if (cursor.line >= lines.length) return;
@@ -385,18 +402,16 @@ function parseEscape({ columns, rows }: ParseContext, state: ParseState, esc: st
         prune(lines);
         return;
     }
-    // toggle cursor visibility `\x1b[?25l` & `\x1b[?25h`
-    m = /^\x1b\[\?25([hl])$/.exec(esc);
-    if (m) {
-        state.cursorHidden = m[1] === 'l';
-        return;
-    }
-    // set window title
-    m = /^\x1b\]([012]);(.+)?\x07$/.exec(esc);
-    if (m) {
-        const code = Number(m[1]!) as 0 | 1 | 2,
-            value = m[2] ?? '';
-        state.title = applyTitleEscape(title, code, value);
+    // set mode / reset mode sequences
+    if (type === 'h' || type === 'l') {
+        const m = /^\?([\d;]+)$/.exec(args);
+        // stop if this is not a DECSET or DECRST sequence, or if there are no mode args
+        if (!m) return;
+        const modes = m[1]!.split(';');
+        // toggle cursor visibility `CSI ? 25 l` & `CSI ? 25 h`
+        if (modes.includes('25')) {
+            state.cursorHidden = type === 'l';
+        }
     }
     // unsupported escapes fallthrough to here
 }

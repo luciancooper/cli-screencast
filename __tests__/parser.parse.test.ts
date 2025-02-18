@@ -32,6 +32,7 @@ describe('escape sequences', () => {
         expect(parser.state.cursorHidden).toBe(false);
         expect(parser(ansi.hideCursor).cursorHidden).toBe(true);
         expect(parser(ansi.showCursor).cursorHidden).toBe(false);
+        expect(parser(ansi.csi('?1047;25l')).cursorHidden).toBe(true);
     });
 
     test('move cursor', () => {
@@ -59,9 +60,20 @@ describe('escape sequences', () => {
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 0 });
     });
 
-    test('ignore unsupported control escapes', () => {
+    test('ignore malformed cursor movement escapes', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        expect(parser(ansi.cursorTo(2, 2)).cursor).toEqual<CursorLocation>({ line: 2, column: 2 });
+        parser(ansi.csi('2 A')); // shift right code
+        expect(parser.state).toEqual(parser.prev);
+        parser(ansi.csi('?3G')); // malformed cursor horizontal escape
+        expect(parser.state).toEqual(parser.prev);
+    });
+
+    test('ignore unsupported mode control escapes', () => {
         const parser = makeParser({ columns: 40, rows: 10 });
         parser(ansi.enableAlternateBuffer);
+        expect(parser.state).toEqual(parser.prev);
+        parser(ansi.csi('3h')); // show control characters
         expect(parser.state).toEqual(parser.prev);
     });
 
@@ -69,19 +81,19 @@ describe('escape sequences', () => {
         const parser = makeParser({ columns: 40, rows: 10 });
         expect(parser.state.title).toBeNull();
         // set both title & icon
-        parser('\x1b]0;title\x07');
+        parser(ansi.osc('0', 'title'));
         expect(parser.state.title).toEqual<Title>(resolveTitle('title', 'shell')!);
         // set only icon
-        parser('\x1b]1;node\x07');
+        parser(ansi.osc('1', 'node'));
         expect(parser.state.title).toEqual<Title>(resolveTitle('title', 'node')!);
         // set only title
-        parser('\x1b]2;new title\x07');
+        parser(ansi.osc('2', 'new title'));
         expect(parser.state.title).toEqual<Title>(resolveTitle('new title', 'node')!);
         // nullify icon
-        parser('\x1b]1;\x07');
+        parser(ansi.osc('1', ''));
         expect(parser.state.title).toEqual<Title>(resolveTitle('new title')!);
         // nullify title
-        parser('\x1b]2;\x07');
+        parser(ansi.osc('2', ''));
         expect(parser.state.title).toBeNull();
     });
 });
@@ -493,6 +505,22 @@ describe('erase escape sequences', () => {
         parser(ansi.cursorUp(), ansi.eraseLine);
         expect(parser.state.lines).toEqual<TerminalLine[]>([]);
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 0 });
+    });
+
+    test('malformed erase sequences', () => {
+        const parser = makeParser({ columns: 20, rows: 10 });
+        parser('aaaaaaaaaaaaaaa\n', 'bbbbbbbbbbbbbbb', ansi.cursorTo(0, 10));
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaaaaaaa') },
+            { index: 0, ...makeLine('bbbbbbbbbbbbbbb') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 10 });
+        // ignore invalid argument
+        parser(ansi.csi('3J'));
+        expect(parser.state).toEqual(parser.prev);
+        // malformed escape ignored
+        parser(ansi.csi('+K'));
+        expect(parser.state).toEqual(parser.prev);
     });
 });
 
