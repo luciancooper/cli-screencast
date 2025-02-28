@@ -42,28 +42,6 @@ describe('parseAnsi', () => {
         ]);
     });
 
-    test('sgr set foreground / background (8 bit)', () => {
-        expect(
-            parse(`8 bit ${ansi.fg('38;5;186', 'foreground')} and ${ansi.bg('48:5:64', 'background')}`),
-        ).toEqual<AnsiChunk[]>([
-            chunk('8 bit '),
-            chunk('foreground', { fg: color8Bit(186) }),
-            chunk(' and '),
-            chunk('background', { bg: color8Bit(64) }),
-        ]);
-    });
-
-    test('sgr set foreground / background (24 bit)', () => {
-        expect(
-            parse(`24 bit ${ansi.fg('38;2;215;215;135', 'foreground')} and ${ansi.bg('48:2:95:135:0', 'background')}`),
-        ).toEqual<AnsiChunk[]>([
-            chunk('24 bit '),
-            chunk('foreground', { fg: [215, 215, 135] }),
-            chunk(' and '),
-            chunk('background', { bg: [95, 135, 0] }),
-        ]);
-    });
-
     test('sgr compound foreground / background escapes (4 bit)', () => {
         expect(parse(`${ansi.sgr(31, 43)}fg red and bg yellow${ansi.sgr(39, 49)}`)).toEqual<AnsiChunk[]>([
             chunk('fg red and bg yellow', { fg: 1, bg: 3 }),
@@ -145,60 +123,166 @@ describe('parseAnsi', () => {
         });
     });
 
-    describe('unusual or malformed foreground / background sequences', () => {
-        test('non 2 or 5 following a 38 or 48 sgr code', () => {
-            // code following 38 / 48 can only be 2 / 5
-            expect(parse(`${ansi.sgr(48, 7)}bad escape`)).toEqual<AnsiChunk[]>([
-                chunk('bad escape'),
+    describe('sgr indexed color sequences (8 bit)', () => {
+        test('semicolon (;) delimited subparameters', () => {
+            expect(parse(`${ansi.sgr('38;5;93', '48;5;150')}styled text${ansi.sgr(39, 49)}`)).toEqual<AnsiChunk[]>([
+                chunk('styled text', { fg: color8Bit(93), bg: color8Bit(150) }),
             ]);
         });
 
-        test('sgr code following a malformed 38 or 48 sgr code', () => {
+        test('colon (:) delimited subparameters', () => {
+            expect(parse(`${ansi.sgr('38:5:93', '48:5:150')}styled text${ansi.sgr(39, 49)}`)).toEqual<AnsiChunk[]>([
+                chunk('styled text', { fg: color8Bit(93), bg: color8Bit(150) }),
+            ]);
+        });
+
+        test('mixed colon (:) & semicolon (;) delimited subparameters', () => {
+            expect(parse(`${ansi.sgr('38;5:93', '48;5:150')}styled text${ansi.sgr(39, 49)}`)).toEqual<AnsiChunk[]>([
+                chunk('styled text', { fg: color8Bit(93), bg: color8Bit(150) }),
+            ]);
+        });
+
+        test('implied index arguments', () => {
+            expect(
+                parse(`${ansi.sgr('38;5;', '48:5:')}fg+bg${ansi.sgr(39, 49)} & ${ansi.fg('38;5:', 'fg')}`),
+            ).toEqual<AnsiChunk[]>([
+                chunk('fg+bg', { fg: color8Bit(0), bg: color8Bit(0) }),
+                chunk(' & '),
+                chunk('fg', { fg: color8Bit(0) }),
+            ]);
+        });
+
+        test('missing index arguments', () => {
+            expect(parse(`${ansi.fg('38;5', 'fg')} & ${ansi.bg('48:5', 'bg')}`)).toEqual<AnsiChunk[]>([
+                chunk('fg', { fg: color8Bit(0) }),
+                chunk(' & '),
+                chunk('bg', { bg: color8Bit(0) }),
+            ]);
+        });
+
+        test('out of bounds index arguments', () => {
+            // constrain provided color index values
+            expect(parse(`${ansi.fg('38;5;300', 'fg')} & ${ansi.bg('48:5:256', 'bg')}`)).toEqual<AnsiChunk[]>([
+                chunk('fg', { fg: color8Bit(255) }),
+                chunk(' & '),
+                chunk('bg', { bg: color8Bit(255) }),
+            ]);
+        });
+    });
+
+    describe('sgr rgb color sequences (24 bit)', () => {
+        test('semicolon (;) delimited subparameters', () => {
+            expect(
+                parse(`${ansi.fg('38;2;168;52;235', 'fg')} & ${ansi.bg('48;2;192;230;55', 'bg')}`),
+            ).toEqual<AnsiChunk[]>([
+                chunk('fg', { fg: [168, 52, 235] }),
+                chunk(' & '),
+                chunk('bg', { bg: [192, 230, 55] }),
+            ]);
+        });
+
+        test('colon (:) delimited subparameters', () => {
+            expect(
+                parse(`${ansi.fg('38:2:168:52:235', 'fg')} & ${ansi.bg('48:2:192:230:55', 'bg')}`),
+            ).toEqual<AnsiChunk[]>([
+                chunk('fg', { fg: [168, 52, 235] }),
+                chunk(' & '),
+                chunk('bg', { bg: [192, 230, 55] }),
+            ]);
+        });
+
+        test('mixed colon (:) & semicolon (;) delimited subparameters', () => {
+            expect(
+                parse(`${ansi.fg('38;2:168:52:235', 'fg')} & ${ansi.bg('48;2;192;230:55', 'bg')}`),
+            ).toEqual<AnsiChunk[]>([
+                chunk('fg', { fg: [168, 52, 235] }),
+                chunk(' & '),
+                chunk('bg', { bg: [192, 230, 55] }),
+            ]);
+        });
+
+        test('implied rgb arguments', () => {
+            expect(parse(
+                `${ansi.sgr('38;2;;52;', '48;2;:230:')}fg+bg${ansi.sgr(0)}`
+                + ` & ${ansi.sgr('38:2::52:235', '48:2:192::')}fg+bg${ansi.sgr(0)}`,
+            )).toEqual<AnsiChunk[]>([
+                chunk('fg+bg', { fg: [0, 52, 0], bg: [0, 230, 0] }),
+                chunk(' & '),
+                chunk('fg+bg', { fg: [0, 52, 235], bg: [192, 0, 0] }),
+            ]);
+        });
+
+        test('missing rgb arguments', () => {
+            expect(parse(
+                `${ansi.sgr('38:2', '48;2')}fg+bg${ansi.sgr(0)}`
+                + ` & ${ansi.sgr('38;2:168', '48;2;192;230')}fg+bg${ansi.sgr(0)}`,
+            )).toEqual<AnsiChunk[]>([
+                chunk('fg+bg', { fg: [0, 0, 0], bg: [0, 0, 0] }),
+                chunk(' & '),
+                chunk('fg+bg', { fg: [168, 0, 0], bg: [192, 230, 0] }),
+            ]);
+        });
+
+        test('out of bounds rgb arguments', () => {
+            // constrain provided rgb values
+            expect(
+                parse(`${ansi.fg('38;2;300;256;200', 'fg')} & ${ansi.bg('48:2:192:120394:55', 'bg')}`),
+            ).toEqual<AnsiChunk[]>([
+                chunk('fg', { fg: [255, 255, 200] }),
+                chunk(' & '),
+                chunk('bg', { bg: [192, 255, 55] }),
+            ]);
+        });
+
+        describe('sequences with omitted color space id parameter', () => {
+            test('colon (:) delimited subparameters', () => {
+                expect(
+                    parse(`${ansi.sgr('38:2::168:52:235', '48:2::192:230:55')}styled text${ansi.sgr(39, 49)}`),
+                ).toEqual<AnsiChunk[]>([
+                    chunk('styled text', { fg: [168, 52, 235], bg: [192, 230, 55] }),
+                ]);
+            });
+
+            test('mixed colon (:) & semicolon (;) delimited subparameters', () => {
+                expect(
+                    parse(`${ansi.sgr('38;2::168:52:235', '48;2;:192:230:55')}styled text${ansi.sgr(39, 49)}`),
+                ).toEqual<AnsiChunk[]>([
+                    chunk('styled text', { fg: [168, 52, 235], bg: [192, 230, 55] }),
+                ]);
+            });
+
+            test('implied rgb arguments', () => {
+                expect(
+                    parse(`${ansi.sgr('38:2:::52:', '48;2::192::55')}styled text${ansi.sgr(39, 49)}`),
+                ).toEqual<AnsiChunk[]>([
+                    chunk('styled text', { fg: [0, 52, 0], bg: [192, 0, 55] }),
+                ]);
+            });
+        });
+    });
+
+    describe('sgr unusual or malformed extended color sequences', () => {
+        test('ignores unknown color modes', () => {
+            // only supported color modes are 2 (24 bit) & 5 (8 bit)
+            expect(parse(`${ansi.sgr(38, 7)}${ansi.sgr('48:6')}unknown color modes`)).toEqual<AnsiChunk[]>([
+                chunk('unknown color modes'),
+            ]);
+        });
+
+        test('does not overconsume parameters following unknown color modes', () => {
             // code following 38 / 48 can only be 2 / 5
             expect(parse(`${ansi.sgr(48, 7, 3)}italic${ansi.sgr(23)}`)).toEqual<AnsiChunk[]>([
                 chunk('italic', { italic: true }),
             ]);
         });
 
-        test('ommitted argument following a 38 or 48 sgr code', () => {
+        test('ignores sequences with omitted color modes', () => {
             // ommited argument after 38 or 48 should not be treated as a reset
-            expect(parse(`${ansi.sgr(33)}yellow${ansi.sgr(38, '')}+yellow${ansi.sgr(39)}`)).toEqual<AnsiChunk[]>([
+            expect(
+                parse(`${ansi.sgr(33)}yellow${ansi.sgr('38;')}+${ansi.sgr(48)}yellow${ansi.sgr(39)}`),
+            ).toEqual<AnsiChunk[]>([
                 chunk('yellow+yellow', { fg: 3 }),
             ]);
-        });
-
-        test('8 bit color with no arguments defaults to 0', () => {
-            // 8 bit - color value defaults to 0
-            expect(parse(ansi.fg('38;5', 'bad escape'))).toEqual<AnsiChunk[]>([
-                chunk('bad escape', { fg: color8Bit(0) }),
-            ]);
-        });
-
-        test('24 bit color missing arguments default to 0', () => {
-            // 24 bit - default to 0 when color args are missing
-            expect(parse(ansi.fg('38;2;255', 'bad escape'))).toEqual<AnsiChunk[]>([
-                chunk('bad escape', { fg: [255, 0, 0] }),
-            ]);
-        });
-
-        test('8 bit color with out of bounds color arguments', () => {
-            // 8 bit - constrain provided color values
-            expect(parse(ansi.fg('38;5;300', 'invalid 8 bit color'))).toEqual<AnsiChunk[]>([
-                chunk('invalid 8 bit color', { fg: color8Bit(0xFF) }),
-            ]);
-        });
-
-        test('24 bit color with omitted parameters', () => {
-            // 24 bit - fill missing r, g, b values
-            expect(parse(ansi.bg('48;2;;128;', 'R & G missing'))).toEqual<AnsiChunk[]>([
-                chunk('R & G missing', { bg: [0, 128, 0] }),
-            ]);
-        });
-
-        test('compound 24 bit color with omitted parameters', () => {
-            // 24 bit - fill missing r, g, b values
-            expect(parse(`${ansi.sgr(48, 2, 128, '', '', 38, 2, '', '', 150)}omitted args${ansi.sgr(49, 39)}`))
-                .toEqual<AnsiChunk[]>([chunk('omitted args', { bg: [128, 0, 0], fg: [0, 0, 150] })]);
         });
     });
 

@@ -18,16 +18,106 @@ export function stylesEqual(a: AnsiStyle, b: AnsiStyle): boolean {
     return a.props === b.props && a.fg === b.fg && a.bg === b.bg && a.link === b.link;
 }
 
-const regexes = {
-    // regex for matching either sgr escapes and osc link escapes
-    esc: /(?:(?:\x1b\x5b|\x9b)([\x30-\x3f]*[\x20-\x2f]*m)|(?:\x1b\x5d|\x9d)8;(.*?)(?:\x1b\x5c|[\x07\x9c]))/,
-    // regex for matching each command in an sgr escape
-    sgr: /(?:[345]8;(?:2(?:;\d*){0,3}|5(?:;\d*)?|\d*)|[\d:]*)[;m]/g,
-} as const;
+interface SGRParam {
+    value: number
+    subparams?: [number, ...number[]]
+}
+
+/**
+ * Parse an SGR sequence parameter string
+ * @param str - SGR parameter string, consisting of numerical digits (0 - 9) and delimeters : & ;
+ */
+function parseSgrParams(str: string): SGRParam[] {
+    let digitIsSub = false,
+        current: SGRParam = { value: -1 };
+    const params: SGRParam[] = [current];
+    for (let i = 0; i < str.length; i += 1) {
+        const code = str.charCodeAt(i);
+        switch (code) {
+            case 0x3b: // semicolon ;
+                digitIsSub = false;
+                current = { value: -1 };
+                params.push(current);
+                break;
+            case 0x3a: // colon :
+                digitIsSub = true;
+                if (current.subparams) current.subparams.push(-1);
+                else current.subparams = [-1];
+                break;
+            default: {
+                // digit 0x30 - 0x39
+                const digit = code - 48;
+                if (digitIsSub) {
+                    const sub = current.subparams!,
+                        cur = sub[sub.length - 1]!;
+                    sub[sub.length - 1] = ~cur ? cur * 10 + digit : digit;
+                } else current.value = ~current.value ? current.value * 10 + digit : digit;
+                break;
+            }
+        }
+    }
+    return params;
+}
+
+type ExtendedColor = [2, r: number, g: number, b: number] | [5, n: number] | number;
+
+function extractColor(params: number[], subparams: [number, ...number[]] | null): ExtendedColor {
+    if (!params.length) {
+        // if there are no subparams, no color model was provided (ie 38)
+        if (!subparams) return 0;
+        // extract color model from first subparam
+        let [cm, ...args] = subparams;
+        if (cm === 2) {
+            // check for additional color space id subparam (ie 38:2::R:G:B)
+            if (args.length >= 4 && args[0] === -1) args = args.slice(1);
+            // normalize rgb values
+            const [r = 0, g = 0, b = 0] = args.map((a) => Math.min(Math.max(a, 0), 0xFF));
+            return [cm, r, g, b];
+        }
+        if (cm === 5) {
+            return [cm, Math.min(Math.max(args[0] ?? -1, 0), 0xFF)];
+        }
+        return Math.max(cm, 0);
+    }
+    // get color model from params
+    const [cm, ...args] = params as [number, ...number[]];
+    if (cm === 2) {
+        let rgb: number[];
+        // determine rgb args
+        if (args.length) {
+            if (args.length === 1 && args[0] === -1 && subparams && subparams.length >= 3) {
+                // omitted color space id scenario (ie 38;2;:R:G:B)
+                rgb = subparams;
+            } else {
+                // otherwise, we can have a mix of parameters and subparameters (ie 38;2;R;G;B or 32;2;R:G:B)
+                rgb = [...args, ...(subparams ?? [])];
+            }
+        } else if (subparams) {
+            // rgb values are in subparams
+            rgb = subparams;
+            // check for additional color space id subparam (ie 38;2::R:G:B)
+            if (rgb.length >= 4 && rgb[0] === -1) rgb = rgb.slice(1);
+        } else {
+            // there are no subparams, sequence ends here (ie 38;2)
+            rgb = [];
+        }
+        // normalize rgb values
+        const [r = 0, g = 0, b = 0] = rgb.map((a) => Math.min(Math.max(a, 0), 0xFF));
+        return [cm, r, g, b];
+    }
+    if (cm === 5) {
+        // next param (ie 38;5; or 38;5;n) or first subparam (ie 38;5:n or 38;5:)
+        return [cm, Math.min(Math.max(args[0] ?? subparams?.[0] ?? -1, 0), 0xFF)];
+    }
+    return Math.max(cm, 0);
+}
+
+// regex for matching either sgr escapes and osc link escapes
+const sgrLinkRegex = /(?:(?:\x1b\x5b|\x9b)([\x30-\x3b]*m)|(?:\x1b\x5d|\x9d)8;(.*?)(?:\x1b\x5c|[\x07\x9c]))/;
 
 function parseEscape(style: AnsiStyle, sequence: string) {
     // matches an sgr escape sequence or a osc hyperlink sequence
-    const [, sgr, link] = regexes.esc.exec(sequence) ?? [];
+    const [, sgr, link] = sgrLinkRegex.exec(sequence) ?? [];
     // check if this is a hyperlink escape sequence
     if (typeof link === 'string') {
         // escape follows this pattern: OSC 8 ; [params] ; [url] ST, so params portion must be removed to get the url
@@ -38,38 +128,66 @@ function parseEscape(style: AnsiStyle, sequence: string) {
     }
     // stop if this is not an sgr code
     if (!sgr) return;
-    // split sgr commands
-    for (const seq of [...sgr.matchAll(regexes.sgr)].map(([c]) => c.slice(0, -1))) {
-        // match code number
-        const code = Number(/^\d*/.exec(seq)![0] || '0');
-        // check for 38 (foreground) / 48 (background) color set code
-        if (code === 38 || code === 48) {
-            // split seq arguments [34]8;bit;...args
-            const [bit, ...args] = seq.split(/[;:]/).slice(1).map((x) => Number(x || '0')),
-                attr = code === 38 ? 'fg' : 'bg';
-            if (bit === 2) {
+    // parse sgr params
+    const params = parseSgrParams(sgr.slice(0, -1));
+    // process each param
+    for (let i = 0; i < params.length; i += 1) {
+        const param = params[i]!;
+        if (param.value === 38 || param.value === 48 || param.value === 58) {
+            // make array to store accumulated param values
+            const args: number[] = [];
+            // store next subparam sequence
+            let subparams = param.subparams ?? null;
+            // if there are no subparams, this sequence will span multiple params
+            if (!subparams) {
+                // move to next param
+                i += 1;
+                // consume next param to get color model
+                let next = params[i];
+                // determine how many params need to be consumed based on the color model (only 2 & 5 are supported)
+                const count = next?.value === 2 ? 3 : next?.value === 5 ? 1 : 0;
+                // consume params
+                for (let n = 0; next && !next.subparams && n < count; n += 1, i += 1, next = params[i]) {
+                    args.push(next.value);
+                }
+                // add last param value to args list
+                if (next) {
+                    args.push(next.value);
+                    subparams = next.subparams ?? null;
+                }
+            }
+            // extract color from args & subparams
+            const color = extractColor(args, subparams);
+            // continue if code is 58 (underline), or if the color model is not 8 or 24 bit
+            if (typeof color === 'number' || param.value === 58) continue;
+            // apply extended color fg / bg sequence
+            const attr = param.value === 38 ? 'fg' : 'bg';
+            if (color[0] === 2) {
                 // true color (24 bit color)
-                const [r = 0, g = 0, b = 0] = args;
+                const [, r, g, b] = color;
                 style[attr] = [r, g, b];
-            } else if (bit === 5) {
+            } else if (color[0] === 5) {
                 // xterm 256 color (8 bit color)
-                style[attr] = color8Bit(Math.min(args[0] ?? 0, 0xFF));
+                const [, n] = color;
+                style[attr] = color8Bit(n);
             }
             continue;
         }
         // check for closing underline escape '4:0'
-        if (seq === '4:0') {
+        if (param.value === 4 && param.subparams?.[0] === 0) {
             // underline off
             style.props &= ~0b1000;
             continue;
         }
+        // omitted parameters (-1) default to 0 (ZDM)
+        const code = Math.max(param.value, 0);
         if (code === 0) {
             // reset code
             [style.props, style.fg, style.bg] = [0,,,];
         } else if ([1, 2, 3, 4, 7, 9].includes(code)) {
             // props code (bold, dim, italic, underline, inverse, strikeThrough)
-            const i = [1, 2, 3, 4, 7, 9].indexOf(code);
-            style.props |= (1 << i);
+            const idx = [1, 2, 3, 4, 7, 9].indexOf(code);
+            style.props |= (1 << idx);
         } else if ([22, 23, 24, 27, 29].includes(code)) {
             // reset props code
             style.props &= {
