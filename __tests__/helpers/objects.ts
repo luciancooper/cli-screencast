@@ -1,11 +1,20 @@
 import { stringWidth } from 'tty-strings';
 import type {
-    OmitStrict, AnsiStyle, AnsiStyleProps, CursorLocation, CursorState, KeyFrame, TextChunk, TextLine,
+    AnsiStyle, AnsiStyleProps, CursorLocation, CursorState, KeyFrame, TextChunk, TextLine,
 } from '@src/types';
+import { encodeColor } from '@src/color';
 
-export type StylePartial = OmitStrict<AnsiStyle, 'props'> & Partial<AnsiStyleProps>;
+type RGB = readonly [r: number, g: number, b: number];
+
+export type StylePartial = Partial<AnsiStyleProps> & {
+    fg?: number | RGB
+    bg?: number | RGB
+    link?: string | undefined
+};
 
 export function makeStyle({
+    fg,
+    bg,
     bold,
     dim,
     italic,
@@ -18,6 +27,8 @@ export function makeStyle({
         props: [bold, dim, italic, underline, inverted, strikeThrough]
             .map((b, i) => Number(b ?? false) << i)
             .reduce((a, b) => a | b),
+        fg: typeof fg === 'number' ? encodeColor(fg) : fg ? encodeColor(...fg) : 0,
+        bg: typeof bg === 'number' ? encodeColor(bg) : bg ? encodeColor(...bg) : 0,
         ...style,
     };
 }

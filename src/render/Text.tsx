@@ -1,10 +1,10 @@
 import { charWidths } from 'tty-strings';
 import type { FunctionComponent, SVGProps } from 'react';
 import type { OmitStrict, AnsiStyle, AnsiStyleProps } from '../types';
-import { themeColor, hexString, alphaValue } from '../color';
+import { decodeColor, hexString, alphaValue } from '../color';
 import { useRenderContext } from './Context';
 
-interface TextProps extends OmitStrict<AnsiStyle, 'props'>, Partial<AnsiStyleProps>, SVGProps<SVGTextElement> {
+interface TextProps extends OmitStrict<Partial<AnsiStyle>, 'props'>, Partial<AnsiStyleProps>, SVGProps<SVGTextElement> {
     x: number
     y: number
     span: number
@@ -29,13 +29,13 @@ const Text: FunctionComponent<TextProps> = ({
 }) => {
     const { theme, grid: [dx, dy] } = useRenderContext(),
         decoration = [...underline ? ['underline'] : [], strikeThrough ? ['line-through'] : []].join(' '),
-        [fgc, bgc] = [themeColor(fg, theme), themeColor(bg, theme)],
-        bgColor = inverted ? fgc ?? theme.text : bgc,
-        color = inverted ? bgc ?? theme.background : fgc ?? theme.text,
+        [fgc, bgc] = [decodeColor(fg, theme) ?? theme.text, decodeColor(bg, theme)],
+        bgColor = inverted ? fgc : bgc,
+        fgColor = inverted ? bgc ?? theme.background : fgc,
         styleProps: SVGProps<SVGTextElement> = {
             ...textProps,
-            fill: hexString(color),
-            fillOpacity: alphaValue(color, true),
+            fill: hexString(fgColor),
+            fillOpacity: alphaValue(fgColor, true),
             textDecoration: decoration || undefined,
             fontWeight: bold ? 'bold' : undefined,
             fontStyle: italic ? 'italic' : undefined,

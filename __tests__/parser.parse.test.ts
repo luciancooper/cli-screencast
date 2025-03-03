@@ -18,6 +18,7 @@ const makeParser = (dim: Dimensions, cursorHidden = false): Parser => {
             cursor: { line: 0, column: 0 },
             cursorHidden,
             title: null,
+            style: { props: 0, fg: 0, bg: 0 },
         },
         parser = Object.assign((...content: string[]) => {
             parser.prev = clone(state);
@@ -27,6 +28,16 @@ const makeParser = (dim: Dimensions, cursorHidden = false): Parser => {
 };
 
 describe('escape sequences', () => {
+    test('ignore unsupported escape sequence types', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        // ignore dcs escape
+        parser('\x1bP!|00010205\x1b\x5c');
+        expect(parser.state).toEqual(parser.prev);
+        // ignore Fs escape
+        parser('\x1bl');
+        expect(parser.state).toEqual(parser.prev);
+    });
+
     test('show / hide cursor', () => {
         const parser = makeParser({ columns: 40, rows: 10 }, false);
         expect(parser.state.cursorHidden).toBe(false);
@@ -76,7 +87,9 @@ describe('escape sequences', () => {
         parser(ansi.csi('3h')); // show control characters
         expect(parser.state).toEqual(parser.prev);
     });
+});
 
+describe('osc escape sequences', () => {
     test('set window title and icon', () => {
         const parser = makeParser({ columns: 40, rows: 10 });
         expect(parser.state.title).toBeNull();
@@ -95,6 +108,53 @@ describe('escape sequences', () => {
         // nullify title
         parser(ansi.osc('2', ''));
         expect(parser.state.title).toBeNull();
+    });
+
+    test('hyperlink escapes', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        // write line with opening hyperlink escape
+        parser(`text with ${ansi.osc('8', '', 'https://www.google.com')}hyperlink styling`);
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('text with ', ['hyperlink styling', { link: 'https://www.google.com' }]) },
+        ]);
+        expect(parser.state.style.link).toBe('https://www.google.com');
+        // write next line and close hyperlink styling
+        parser(`\n${ansi.osc('8', '', '')} has closed`);
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('text with ', ['hyperlink styling', { link: 'https://www.google.com' }]) },
+            { index: 0, ...makeLine(' has closed') },
+        ]);
+        expect(parser.state.style.link).toBeUndefined();
+    });
+
+    test('hyperlink escapes with parameters', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        // write opening hyperlink escape with parameters
+        parser(ansi.osc('8', 'id=value', 'https://www.example.com/?q=hello+world'));
+        expect(parser.state.style.link).toBe('https://www.example.com/?q=hello+world');
+        // write text
+        parser('hyperlink text');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine(['hyperlink text', { link: 'https://www.example.com/?q=hello+world' }]) },
+        ]);
+        // write closing escape
+        parser(ansi.osc('8', 'id=value', ''));
+        expect(parser.state.style.link).toBeUndefined();
+    });
+
+    test('ignore malformed hyperlink escapes', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        // these sequences are not properly deliminated
+        parser(`${ansi.osc('8', 'https://www.example.com')}malformed hyperlink${ansi.osc('8', '')} sequence`);
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('malformed hyperlink sequence') },
+        ]);
+    });
+
+    test('ignore unknown osc escapes', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        parser('\x1b]30101\x1b\x5c');
+        expect(parser.state).toEqual(parser.prev);
     });
 });
 
@@ -241,6 +301,29 @@ describe('overwriting lines', () => {
             { index: 0, ...makeLine('yyyxxxxxxx') },
         ]);
         expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 3 });
+    });
+
+    test('partially overwrite lines with styled text using cursor escapes', () => {
+        const parser = makeParser({ columns: 20, rows: 10 });
+        parser('aaaaaaaaaa\nbbbbbbbbbb\ncccccccccc');
+        parser(ansi.cursorColumn(2) + ansi.cursorUp(2));
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaaaaaaa') },
+            { index: 0, ...makeLine('bbbbbbbbbb') },
+            { index: 0, ...makeLine('cccccccccc') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 0, column: 2 });
+        // overwrite part of the first line, and partially over the second two lines with styled text
+        parser(ansi.sgr(3, 32));
+        parser('xxxxx');
+        parser(ansi.cursorColumn(5) + ansi.cursorDown(1));
+        parser('yyy\nzzzzz');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aa', ['xxxxx', { italic: true, fg: 2 }], 'aaa') },
+            { index: 0, ...makeLine('bbbbb', ['yyy', { italic: true, fg: 2 }], 'bb') },
+            { index: 0, ...makeLine(['zzzzz', { italic: true, fg: 2 }], 'ccccc') },
+        ]);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 5 });
     });
 
     test('partially overwrite lines with carriage returns', () => {

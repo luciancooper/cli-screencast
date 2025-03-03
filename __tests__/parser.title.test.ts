@@ -34,9 +34,39 @@ describe('parseTitle', () => {
         ));
     });
 
-    test('ignore styled chunk containing only zero width character', () => {
-        const parsed = parseTitle(`title ${ansi.fg(32, '\x1F')}text`);
+    test('merge sequential chunks with common styling', () => {
+        const parsed = parseTitle(ansi.italic('text is') + ansi.italic(' still italic'));
+        expect(parsed).toEqual<TextLine>(makeLine(
+            ['text is still italic', { italic: true }],
+        ));
+    });
+
+    test('ignore non sgr escape sequences', () => {
+        // text contains a CSI Pm R cursor position report escape
+        const parsed = parseTitle(`title t${ansi.csi('25;1R')}ext`);
         expect(parsed).toEqual<TextLine>(makeLine('title text'));
+    });
+
+    describe('empty style sequences', () => {
+        test('scrub styled chunk containing only zero width character', () => {
+            const parsed = parseTitle(`title ${ansi.fg(32, '\x1F')}text`);
+            expect(parsed).toEqual<TextLine>(makeLine('title text'));
+        });
+
+        test('scrub adjacent opening & closing sgr sequences', () => {
+            const parsed = parseTitle(`title ${ansi.sgr(31)}${ansi.sgr(39)}text`);
+            expect(parsed).toEqual<TextLine>(makeLine('title text'));
+        });
+
+        test('scrub compound opening & closing sequences', () => {
+            const parsed = parseTitle(`titl${ansi.sgr(31, 39)}e text`);
+            expect(parsed).toEqual<TextLine>(makeLine('title text'));
+        });
+
+        test('scrub compound opening & implied reset sequences', () => {
+            const parsed = parseTitle(`${ansi.sgr(31, '')}title text`);
+            expect(parsed).toEqual<TextLine>(makeLine('title text'));
+        });
     });
 });
 

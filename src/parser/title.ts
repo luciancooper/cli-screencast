@@ -1,6 +1,8 @@
-import { stringWidth } from 'tty-strings';
+import { ansiRegex, stringWidth } from 'tty-strings';
 import type { IconID, Title, AnsiStyle, TextChunk, TextLine } from '../types';
-import parseAnsi, { stylesEqual } from './ansi';
+import { regexChunks } from './utils';
+import { stylesEqual } from './style';
+import { applySgrEscape } from './sgr';
 import icons from '../render/icons.json';
 
 const iconMap = (
@@ -17,24 +19,33 @@ export function matchIcon(string: string, fallback: IconID = 'shell'): IconID {
 
 export function parseTitle(title: string): TextLine {
     const chunks: TextChunk[] = [];
-    let [x, width, str] = [0, 0, ''],
-        chunkStyle: AnsiStyle | null = null;
-    for (const { chunk, style } of parseAnsi(title)) {
-        const span = stringWidth(chunk);
-        if (!span) continue;
-        if (chunkStyle) {
-            if (stylesEqual(chunkStyle, style)) {
-                width += span;
-                str += chunk;
-                continue;
-            }
-            chunks.push({ str, x: [x, width], style: chunkStyle });
+    let [x, width, chunk] = [0, 0, ''],
+        style: AnsiStyle = { props: 0, fg: 0, bg: 0 },
+        escQueue: string[] = [];
+    // split escape chunks
+    for (const [str, isEscape] of regexChunks(ansiRegex(), title)) {
+        if (isEscape) {
+            escQueue.push(str);
+            continue;
         }
-        [x, width, str, chunkStyle] = [x + width, span, chunk, style];
+        // get the visual width of this chunk
+        const span = stringWidth(str);
+        if (!span) continue;
+        // process the escape queue
+        const next: AnsiStyle = { ...style };
+        for (const esc of escQueue) applySgrEscape(next, esc);
+        escQueue = [];
+        if (stylesEqual(style, next)) {
+            width += span;
+            chunk += str;
+            continue;
+        }
+        // add processed chunk if it has visual width
+        if (width) chunks.push({ str: chunk, x: [x, width], style });
+        [x, width, chunk, style] = [x + width, span, str, next];
     }
-    if (chunkStyle) {
-        chunks.push({ str, x: [x, width], style: chunkStyle });
-    }
+    // add final chunk if it has visual width
+    if (width) chunks.push({ str: chunk, x: [x, width], style });
     return { columns: x + width, chunks };
 }
 

@@ -41,29 +41,30 @@ export function alphaValue([,,, a]: RGBA, nullify = false) {
     return (nullify && alpha === 1) ? undefined : alpha;
 }
 
+const enum ColorModel {
+    INDEX = 0x1000000, // bit 25
+    RGB = 0x2000000, // bit 26
+}
+
 /**
- * Convert 8 bit color to RGB xterm 256 color (8 bit color)
- * {@link https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit}
- * @param color - 8 bit color value (0 - 255)
- * @returns 4 bit color if between 0 - 15, otherwise a hex color string
+ * Encode an RGB color
+ * @param r - red channel value
+ * @param g - green channel value
+ * @param b - blue channel value
  */
-export function color8Bit(color: number): number | RGBA {
-    if (color > 0xFF || color < 0) {
-        throw new Error(`${color} is not a valid 8 bit color value`);
+export function encodeColor(r: number, g: number, b: number): number;
+/**
+ * Encode an indexed color
+ * @param index - color index between 0 - 255
+ */
+export function encodeColor(index: number): number;
+export function encodeColor(...args: number[]): number {
+    if (args.length === 1) {
+        const [index] = args as [number];
+        return ColorModel.INDEX | (index & 0xFF);
     }
-    // 0 - 15 : 4 bit color
-    if (color < 16) return color;
-    // 16 - 231 : 6 × 6 × 6 cube (216 colors)
-    if (color < 232) {
-        return [
-            Math.floor((color - 16) / 36),
-            Math.floor(((color - 16) % 36) / 6),
-            (color - 16) % 6,
-        ].map((i) => i && (95 + (i - 1) * 40)) as [r: number, g: number, b: number];
-    }
-    // 232 - 255 : grayscale (24 colors)
-    const gray = (color - 232) * 10 + 8;
-    return [gray, gray, gray];
+    const [r, g, b] = args as [number, number, number];
+    return ColorModel.RGB | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
 }
 
 type ThemeColorKeys = { [K in keyof Theme]: Theme<never>[K] extends never ? K : never }[keyof Theme];
@@ -87,14 +88,29 @@ const color4BitKeys: ThemeColorKeys[] = [
     'brightWhite',
 ];
 
-export function themeColor<T extends RGBA | string = string>(
-    color: number | T | undefined,
-    theme: Theme<T>,
-): T | undefined {
+export function decodeColor(color: number | undefined, theme: Theme<RGBA>): RGBA | undefined {
     if (typeof color !== 'number') return color;
-    // 4 bit colors must be between 0 - 15
-    if (color > 0xF || color < 0) {
-        throw new Error(`${color} is not a valid 4 bit color value`);
+    // handle rgb color model
+    if (color & ColorModel.RGB) {
+        return [(color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF];
     }
-    return theme[color4BitKeys[color]!];
+    // decode indexed color model
+    if (color & ColorModel.INDEX) {
+        const index = color & 0xFF;
+        // 0 - 15 : 4 bit color
+        if (index <= 0xF) return theme[color4BitKeys[index]!];
+        // Convert 8 bit color to RGB xterm 256 color (https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit)
+        if (index < 232) {
+            // 16 - 231 : 6 × 6 × 6 cube (216 colors)
+            return [
+                Math.floor((index - 16) / 36),
+                Math.floor(((index - 16) % 36) / 6),
+                (index - 16) % 6,
+            ].map((i) => i && (95 + (i - 1) * 40)) as [r: number, g: number, b: number];
+        }
+        // 232 - 255 : grayscale (24 colors)
+        const gray = (index - 232) * 10 + 8;
+        return [gray, gray, gray];
+    }
+    return undefined;
 }

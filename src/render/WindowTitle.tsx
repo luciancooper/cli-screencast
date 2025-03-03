@@ -1,7 +1,7 @@
 import type { SVGProps, FunctionComponent } from 'react';
 import { stringWidth, sliceColumns } from 'tty-strings';
 import type { Title, KeyFrame, TextChunk } from '../types';
-import { expandAnsiProps } from '../parser';
+import { expandStyleProps } from '../parser';
 import { useRenderContext } from './Context';
 import Text from './Text';
 import { KeyFrameAnimation } from './Animation';
@@ -35,7 +35,7 @@ const WindowTitleFrame: FunctionComponent<{ title: Title, columnInset: number }>
         }
         iconX = Math.max(Math.floor((columns - textSpan - iconInset) / 2), columnInset);
         textElement = chunks.map(({ str, x: [x, span], style: { props, ...style } }, j) => (
-            <Text key={j} x={iconX + iconInset + x} y={0} span={span} {...style} {...expandAnsiProps(props)}>
+            <Text key={j} x={iconX + iconInset + x} y={0} span={span} {...style} {...expandStyleProps(props)}>
                 {str}
             </Text>
         ));

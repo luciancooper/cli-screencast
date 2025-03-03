@@ -1,22 +1,6 @@
-import { ansiRegex } from 'tty-strings';
-import type { AnsiStyle, AnsiStyleProps } from '../types';
-import { color8Bit } from '../color';
-import { regexChunks } from './utils';
-
-export function expandAnsiProps(props: number): AnsiStyleProps {
-    return {
-        bold: Boolean(props & (1 << 0)),
-        dim: Boolean(props & (1 << 1)),
-        italic: Boolean(props & (1 << 2)),
-        underline: Boolean(props & (1 << 3)),
-        inverted: Boolean(props & (1 << 4)),
-        strikeThrough: Boolean(props & (1 << 5)),
-    };
-}
-
-export function stylesEqual(a: AnsiStyle, b: AnsiStyle): boolean {
-    return a.props === b.props && a.fg === b.fg && a.bg === b.bg && a.link === b.link;
-}
+import type { AnsiStyle } from '../types';
+import { encodeColor } from '../color';
+import { Props } from './style';
 
 interface SGRParam {
     value: number
@@ -59,9 +43,7 @@ function parseSgrParams(str: string): SGRParam[] {
     return params;
 }
 
-type ExtendedColor = [2, r: number, g: number, b: number] | [5, n: number] | number;
-
-function extractColor(params: number[], subparams: [number, ...number[]] | null): ExtendedColor {
+function extractColor(params: number[], subparams: [number, ...number[]] | null): number | null {
     if (!params.length) {
         // if there are no subparams, no color model was provided (ie 38)
         if (!subparams) return 0;
@@ -71,13 +53,13 @@ function extractColor(params: number[], subparams: [number, ...number[]] | null)
             // check for additional color space id subparam (ie 38:2::R:G:B)
             if (args.length >= 4 && args[0] === -1) args = args.slice(1);
             // normalize rgb values
-            const [r = 0, g = 0, b = 0] = args.map((a) => Math.min(Math.max(a, 0), 0xFF));
-            return [cm, r, g, b];
+            const [r = 0, g = 0, b = 0] = args.map((a) => Math.max(a, 0));
+            return encodeColor(r, g, b);
         }
         if (cm === 5) {
-            return [cm, Math.min(Math.max(args[0] ?? -1, 0), 0xFF)];
+            return encodeColor(Math.max(args[0] ?? -1, 0));
         }
-        return Math.max(cm, 0);
+        return null;
     }
     // get color model from params
     const [cm, ...args] = params as [number, ...number[]];
@@ -102,34 +84,29 @@ function extractColor(params: number[], subparams: [number, ...number[]] | null)
             rgb = [];
         }
         // normalize rgb values
-        const [r = 0, g = 0, b = 0] = rgb.map((a) => Math.min(Math.max(a, 0), 0xFF));
-        return [cm, r, g, b];
+        const [r = 0, g = 0, b = 0] = rgb.map((a) => Math.max(a, 0));
+        return encodeColor(r, g, b);
     }
     if (cm === 5) {
         // next param (ie 38;5; or 38;5;n) or first subparam (ie 38;5:n or 38;5:)
-        return [cm, Math.min(Math.max(args[0] ?? subparams?.[0] ?? -1, 0), 0xFF)];
+        return encodeColor(Math.max(args[0] ?? subparams?.[0] ?? -1, 0));
     }
-    return Math.max(cm, 0);
+    return null;
 }
 
-// regex for matching either sgr escapes and osc link escapes
-const sgrLinkRegex = /(?:(?:\x1b\x5b|\x9b)([\x30-\x3b]*m)|(?:\x1b\x5d|\x9d)8;(.*?)(?:\x1b\x5c|[\x07\x9c]))/;
-
-function parseEscape(style: AnsiStyle, sequence: string) {
-    // matches an sgr escape sequence or a osc hyperlink sequence
-    const [, sgr, link] = sgrLinkRegex.exec(sequence) ?? [];
-    // check if this is a hyperlink escape sequence
-    if (typeof link === 'string') {
-        // escape follows this pattern: OSC 8 ; [params] ; [url] ST, so params portion must be removed to get the url
-        const url = link.replace(/^[^;]*;/, '');
-        // if url is an empty string, then this is a closing hyperlink sequence
-        if (url !== link) style.link = url || undefined;
-        return;
+export function applySgrEscape(style: AnsiStyle, escape: string) {
+    let paramString: string;
+    // check if escape arg is already a param string
+    if (/^[\x30-\x3b]*$/.test(escape)) {
+        paramString = escape;
+    } else {
+        // matches parameter portion of the sgr escape sequence
+        const match = /^(?:\x1b\x5b|\x9b)([\x30-\x3b]*)m$/.exec(escape);
+        if (!match) return;
+        paramString = match[1]!;
     }
-    // stop if this is not an sgr code
-    if (!sgr) return;
     // parse sgr params
-    const params = parseSgrParams(sgr.slice(0, -1));
+    const params = parseSgrParams(paramString);
     // process each param
     for (let i = 0; i < params.length; i += 1) {
         const param = params[i]!;
@@ -159,92 +136,60 @@ function parseEscape(style: AnsiStyle, sequence: string) {
             // extract color from args & subparams
             const color = extractColor(args, subparams);
             // continue if code is 58 (underline), or if the color model is not 8 or 24 bit
-            if (typeof color === 'number' || param.value === 58) continue;
+            if (color === null || param.value === 58) continue;
             // apply extended color fg / bg sequence
-            const attr = param.value === 38 ? 'fg' : 'bg';
-            if (color[0] === 2) {
-                // true color (24 bit color)
-                const [, r, g, b] = color;
-                style[attr] = [r, g, b];
-            } else if (color[0] === 5) {
-                // xterm 256 color (8 bit color)
-                const [, n] = color;
-                style[attr] = color8Bit(n);
-            }
+            style[param.value === 38 ? 'fg' : 'bg'] = color;
             continue;
         }
         // check for closing underline escape '4:0'
         if (param.value === 4 && param.subparams?.[0] === 0) {
             // underline off
-            style.props &= ~0b1000;
+            style.props &= ~Props.UNDERLINE;
             continue;
         }
         // omitted parameters (-1) default to 0 (ZDM)
         const code = Math.max(param.value, 0);
         if (code === 0) {
             // reset code
-            [style.props, style.fg, style.bg] = [0,,,];
+            [style.props, style.fg, style.bg] = [0, 0, 0];
         } else if ([1, 2, 3, 4, 7, 9].includes(code)) {
-            // props code (bold, dim, italic, underline, inverse, strikeThrough)
-            const idx = [1, 2, 3, 4, 7, 9].indexOf(code);
-            style.props |= (1 << idx);
+            // props code
+            style.props |= {
+                1: Props.BOLD,
+                2: Props.DIM,
+                3: Props.ITALIC,
+                4: Props.UNDERLINE,
+                7: Props.INVERSE,
+                9: Props.STRIKETHROUGH,
+            }[code]!;
         } else if ([22, 23, 24, 27, 29].includes(code)) {
             // reset props code
             style.props &= {
-                22: ~0b11, // bold & dim off
-                23: ~0b100, // italic off
-                24: ~0b1000, // underline off
-                27: ~0b10000, // inverse off
-                29: ~0b100000, // strikeThrough off
+                22: ~(Props.BOLD | Props.DIM),
+                23: ~Props.ITALIC,
+                24: ~Props.UNDERLINE,
+                27: ~Props.INVERSE,
+                29: ~Props.STRIKETHROUGH,
             }[code]!;
         } else if (code >= 30 && code <= 37) {
             // foreground color (4 bit)
-            style.fg = code % 10;
+            style.fg = encodeColor(code % 10);
         } else if (code >= 40 && code <= 47) {
             // background color (4 bit)
-            style.bg = code % 10;
+            style.bg = encodeColor(code % 10);
         } else if (code >= 90 && code <= 97) {
             // foreground bright color (4 bit)
-            style.fg = 8 + (code % 10);
+            style.fg = encodeColor((code % 10) | 8);
         } else if (code >= 100 && code <= 107) {
             // background bright color (4 bit)
-            style.bg = 8 + (code % 10);
+            style.bg = encodeColor((code % 10) | 8);
         } else if (code === 39) {
             // foreground reset
-            style.fg = undefined;
+            style.fg = 0;
         } else if (code === 49) {
             // background reset
-            style.bg = undefined;
+            style.bg = 0;
         }
         // otherwise, ignore code
     }
-}
-
-export interface AnsiChunk {
-    chunk: string
-    style: AnsiStyle
-}
-
-export default function* parseAnsi(string: string): Generator<AnsiChunk> {
-    let style: AnsiStyle = { props: 0 },
-        queue: string[] = [],
-        chunk = '';
-    // split ansi chunks
-    for (const [str, isEscape] of regexChunks(ansiRegex(), string)) {
-        if (isEscape) {
-            queue.push(str);
-            continue;
-        }
-        const next: AnsiStyle = { ...style };
-        for (const esc of queue) parseEscape(next, esc);
-        queue = [];
-        if (!stylesEqual(style, next)) {
-            if (chunk) yield { chunk, style };
-            chunk = '';
-            style = next;
-        }
-        chunk += str;
-    }
-    // yield the final chunk of string if its length > 0
-    if (chunk) yield { chunk, style };
 }

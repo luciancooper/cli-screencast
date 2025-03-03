@@ -3,7 +3,7 @@ import nock from 'nock';
 import { compress as woff2Compress } from 'wawoff2';
 import { resolve as resolvePath } from 'path';
 import { URL } from 'url';
-import { resolveTitle } from '@src/parser';
+import { resolveTitle } from '@src/parser/title';
 import { applyLoggingOptions, resetLogLevel } from '@src/logger';
 import { GraphemeSet } from '@src/fonts/range';
 import FontDecoder from '@src/fonts/decoder';

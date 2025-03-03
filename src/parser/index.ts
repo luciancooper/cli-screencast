@@ -6,16 +6,27 @@ import { resolveTitle } from './title';
 import * as serialize from './serialize';
 import { clone } from './utils';
 
-export function parseScreen({ content, ...opts }: ScreenData): ParsedScreenData {
-    const { cursorHidden, cursor, ...state } = parse({ ...opts }, {
+export function parseScreen({
+    content,
+    tabSize,
+    columns,
+    rows,
+    ...opts
+}: ScreenData): ParsedScreenData {
+    const { cursorHidden, cursor, ...state } = parse({
+        columns,
+        rows,
+        tabSize,
+    }, {
         lines: [],
         cursor: { line: 0, column: 0 },
         cursorHidden: opts.cursorHidden,
         title: resolveTitle(opts.windowTitle, opts.windowIcon),
+        style: { props: 0, fg: 0, bg: 0 },
     }, content);
     return {
-        columns: opts.columns,
-        rows: opts.rows,
+        columns,
+        rows,
         ...state,
         cursor: !cursorHidden ? cursor : null,
     };
@@ -35,6 +46,7 @@ export function parseCapture({
             cursor: { line: initialCursor.line, column: initialCursor.column },
             cursorHidden: !initialCursor.visible,
             title: null,
+            style: { props: 0, fg: 0, bg: 0 },
         },
         data: ParsedCaptureData = {
             columns,
@@ -116,5 +128,4 @@ export function parseCapture({
     return data;
 }
 
-export { expandAnsiProps } from './ansi';
-export { resolveTitle };
+export { expandStyleProps } from './style';

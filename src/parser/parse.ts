@@ -1,26 +1,24 @@
-import { splitLines, charWidths } from 'tty-strings';
+import { ansiRegex, charWidths } from 'tty-strings';
 import type {
-    Dimensions, TerminalLines, TerminalLine, Title, CursorLocation, TextLine, TextChunk,
+    Dimensions, TerminalLines, TerminalLine, Title, CursorLocation, AnsiStyle, TextLine, TextChunk,
 } from '../types';
-import parseAnsi, { stylesEqual } from './ansi';
+import { applySgrEscape } from './sgr';
 import { applyTitleEscape } from './title';
+import { stylesEqual } from './style';
 import { regexChunks } from './utils';
 
 export interface ParseState extends TerminalLines {
     title: Title | null
     cursor: CursorLocation
     cursorHidden: boolean
+    style: AnsiStyle
 }
 
-export interface ParseContext extends Dimensions {
-    tabSize: number
+export interface ParseContext extends Readonly<Dimensions> {
+    readonly tabSize: number
 }
 
-const ctrlRegex = '(?:'
-    // csi escapes ending in A B C D E F G H J K f h l
-    + '(?:\\x1b\\x5b|\\x9b)[\\x30-\\x3f]*[\\x20-\\x2f]*[A-HJKfhl]'
-    // osc window title escape
-    + '|(?:\\x1b\\x5d|\\x9d)[012];.*?(?:\\x1b\\x5c|[\\x07\\x9c])'
+const ctrlRegex = String(ansiRegex({ global: false })).slice(1, -2)
     // carriage return not followed by newline
     + '|\\r(?!\\n)'
     // a backspace, form feed, or vertical tab escape
@@ -74,7 +72,7 @@ function sliceChunkAfter(chunk: TextChunk, column: number): TextChunk | null {
  * @param state - screen state upon which content will be written
  * @returns a terminal line partial
  */
-export function cursorLinePartial(state: Omit<ParseState, 'title' | 'cursorHidden'>): TerminalLine {
+export function cursorLinePartial(state: Omit<ParseState, 'title' | 'cursorHidden' | 'style'>): TerminalLine {
     const { lines, cursor } = state;
     if (cursor.line >= lines.length) {
         return { index: 0, columns: cursor.column, chunks: [] };
@@ -147,35 +145,34 @@ function parseContent(
 ) {
     const lines: TerminalLine[] = [];
     let line = cursorLinePartial(state);
-    for (const [i, contentLine] of [...splitLines(content)].entries()) {
-        for (const [j, { chunk, style }] of [...parseAnsi(contentLine)].entries()) {
-            let [x, str] = [line.columns, ''];
-            if (i === 0 && j === 0 && line.chunks.length) {
-                const { x: [lx, lspan], style: lstyle } = line.chunks[line.chunks.length - 1]!;
-                if (lx + lspan === x && stylesEqual(lstyle, style)) {
-                    ({ str, x: [x] } = line.chunks.pop()!);
-                }
+    const style = { ...state.style };
+    for (const [i, contentLine] of content.split(/\r?\n/g).entries()) {
+        let [x, str] = [line.columns, ''];
+        if (i === 0 && line.chunks.length) {
+            const { x: [lx, lspan], style: lstyle } = line.chunks[line.chunks.length - 1]!;
+            if (lx + lspan === x && stylesEqual(lstyle, state.style)) {
+                ({ str, x: [x] } = line.chunks.pop()!);
             }
-            for (const [c, w] of charWidths(chunk)) {
-                if (w && line.columns + w > columns) {
-                    const span = Math.min(line.columns, columns) - x;
-                    if (span) line.chunks.push({ str, style, x: [x, span] });
-                    lines.push(line);
-                    line = { index: line.index + 1, columns: 0, chunks: [] };
-                    [x, str] = [0, ''];
-                }
-                if (c === '\t') {
-                    const tw = Math.min(columns - line.columns, tabSize - (line.columns % tabSize));
-                    line.columns += tw;
-                    str += ' '.repeat(tw);
-                } else {
-                    line.columns += w;
-                    str += c;
-                }
-            }
-            const span = line.columns - x;
-            if (span) line.chunks.push({ str, style, x: [x, span] });
         }
+        for (const [c, w] of charWidths(contentLine)) {
+            if (w && line.columns + w > columns) {
+                const span = Math.min(line.columns, columns) - x;
+                if (span) line.chunks.push({ str, style, x: [x, span] });
+                lines.push(line);
+                line = { index: line.index + 1, columns: 0, chunks: [] };
+                [x, str] = [0, ''];
+            }
+            if (c === '\t') {
+                const tw = Math.min(columns - line.columns, tabSize - (line.columns % tabSize));
+                line.columns += tw;
+                str += ' '.repeat(tw);
+            } else {
+                line.columns += w;
+                str += c;
+            }
+        }
+        const span = line.columns - x;
+        if (span) line.chunks.push({ str, style, x: [x, span] });
         lines.push(line);
         line = { index: 0, columns: 0, chunks: [] };
     }
@@ -242,8 +239,9 @@ export function clearLineAfter<T extends TextLine>(line: T, column: number): T {
     return { ...line, columns: totalColumns(chunks), chunks };
 }
 
-function parseEscape({ columns, rows }: ParseContext, state: ParseState, esc: string) {
-    const { lines, cursor, title } = state;
+function parseEscape(context: ParseContext, state: ParseState, esc: string) {
+    const { columns, rows } = context,
+        { lines, cursor, title } = state;
     // carriage return
     if (esc === '\r') {
         state.cursor = { ...cursor, column: 0 };
@@ -271,18 +269,36 @@ function parseEscape({ columns, rows }: ParseContext, state: ParseState, esc: st
         }
         return;
     }
-    // osc set window title
-    const osc = /^(?:\x1b\x5d|\x9d)([012]);(.+)?(?:\x1b\x5c|[\x07\x9c])$/.exec(esc);
-    if (osc) {
-        const code = Number(osc[1]!) as 0 | 1 | 2,
-            value = osc[2] ?? '';
-        state.title = applyTitleEscape(title, code, value);
+    // osc sequences
+    const [, osc] = /(?:\x1b\x5d|\x9d)(.*?)(?:\x1b\x5c|[\x07\x9c])/.exec(esc) ?? [];
+    if (typeof osc === 'string') {
+        // handle osc
+        const [, code, args] = /^(\d+);(.*)$/.exec(osc) ?? [];
+        // const code = /^\d+(?=;)/.exec(osc) ?? []; // this also works to get code
+        if (code === '0' || code === '1' || code === '2') {
+            // osc set window title
+            state.title = applyTitleEscape(title, Number(code) as 0 | 1 | 2, args!);
+        } else if (code === '8') {
+            // osc hyperlink follows this pattern: OSC 8 ; [params] ; [url] ST, so params portion must be removed
+            const url = args!.replace(/^[^;]*;/, '');
+            // stop if this link does not have params portion
+            if (url === args) return;
+            // if url is an empty string, then this is a closing hyperlink sequence
+            state.style.link = url || undefined;
+        }
         return;
     }
-    // all other escapes will be csi
+    // remove csi prefix
     const csi = esc.replace(/^(?:\x1b\x5b|\x9b)/, '');
+    // stop if this is not a csi escape
     if (esc === csi) return;
+    // separate final character
     const [args, type] = [csi.slice(0, -1), csi.slice(-1)];
+    // sgr escapes
+    if (type === 'm') {
+        applySgrEscape(state.style, args);
+        return;
+    }
     // move cursor with `ESC[#;#H` and `ESC[#;#f`
     if (type === 'H' || type === 'f') {
         const m = /^(?:(\d+)?(?:;(\d+)?)?)?$/.exec(args);
@@ -417,12 +433,9 @@ function parseEscape({ columns, rows }: ParseContext, state: ParseState, esc: st
 }
 
 export default function parse(context: ParseContext, state: ParseState, content: string): ParseState {
-    const re = new RegExp(`${ctrlRegex}+`, 'g');
-    for (const [chunk, ctrl] of regexChunks(re, content)) {
-        if (ctrl) {
-            const escapes = chunk.match(new RegExp(ctrlRegex, 'g'))!;
-            for (const esc of escapes) parseEscape(context, state, esc);
-        } else parseContent(context, state, chunk);
+    for (const [chunk, ctrl] of regexChunks(new RegExp(ctrlRegex, 'g'), content)) {
+        if (ctrl) parseEscape(context, state, chunk);
+        else parseContent(context, state, chunk);
     }
     return state;
 }

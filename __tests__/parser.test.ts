@@ -1,6 +1,7 @@
 import type { PartialExcept, DeepPartial, ScreenData, ParsedScreenData, CaptureData, ParsedCaptureData } from '@src/types';
 import { applyDefTerminalOptions } from '@src/options';
-import { parseScreen, parseCapture, resolveTitle } from '@src/parser';
+import { parseScreen, parseCapture } from '@src/parser';
+import { resolveTitle } from '@src/parser/title';
 import { makeLine, makeCursor, makeKeyFrames } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 

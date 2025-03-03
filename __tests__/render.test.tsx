@@ -1,8 +1,8 @@
 import { create } from 'react-test-renderer';
 import { applyDefRenderOptions } from '@src/options';
 import { resolveTheme } from '@src/theme';
-import { resolveTitle } from '@src/parser';
-import { hexString } from '@src/color';
+import { resolveTitle } from '@src/parser/title';
+import { encodeColor, hexString } from '@src/color';
 import { KeyFrameAnimation } from '@src/render/Animation';
 import { resolveContext, type RenderOptions } from '@src/render';
 import Context from '@src/render/Context';
@@ -345,7 +345,7 @@ describe('<Text/>', () => {
 
     test('renders a <rect> sibling element when `background` is styled', () => {
         expect(render(
-            <Text x={0} y={0} span={10} bg={[255, 0, 255]}>background</Text>,
+            <Text x={0} y={0} span={10} bg={encodeColor(255, 0, 255)}>background</Text>,
         )).toMatchObject([
             { type: 'rect', props: { fill: '#ff00ff' } },
             { type: 'text', children: ['background'] },
@@ -374,7 +374,7 @@ describe('<Text/>', () => {
             { type: 'text', props: { fill: hexString(defTheme.background) }, children: ['inverted'] },
         ]);
         expect(render(
-            <Text x={0} y={0} span={8} fg={1} bg={3} inverted>inverted</Text>,
+            <Text x={0} y={0} span={8} fg={encodeColor(1)} bg={encodeColor(3)} inverted>inverted</Text>,
         )).toMatchObject([
             { type: 'rect', props: { fill: hexString(defTheme.red) } },
             { type: 'text', props: { fill: hexString(defTheme.yellow) }, children: ['inverted'] },

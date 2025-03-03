@@ -124,11 +124,11 @@ export interface AnsiStyle {
     /**
      * Foreground color
      */
-    fg?: number | RGBA | undefined
+    fg: number
     /**
      * Background color
      */
-    bg?: number | RGBA | undefined
+    bg: number
     /**
      * Hyperlink
      */
