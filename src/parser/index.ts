@@ -23,6 +23,7 @@ export function parseScreen({
         cursorHidden: opts.cursorHidden,
         title: resolveTitle(opts.windowTitle, opts.windowIcon),
         style: { props: 0, fg: 0, bg: 0 },
+        savedCursor: { line: 0, column: 0, style: { props: 0, fg: 0, bg: 0 } },
     }, content);
     return {
         columns,
@@ -47,6 +48,7 @@ export function parseCapture({
             cursorHidden: !initialCursor.visible,
             title: null,
             style: { props: 0, fg: 0, bg: 0 },
+            savedCursor: { line: 0, column: 0, style: { props: 0, fg: 0, bg: 0 } },
         },
         data: ParsedCaptureData = {
             columns,

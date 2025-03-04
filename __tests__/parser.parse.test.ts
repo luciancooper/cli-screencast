@@ -1,8 +1,8 @@
-import type { Dimensions, CursorLocation, Title, TerminalLine } from '@src/types';
+import type { Dimensions, CursorLocation, Title, TerminalLine, AnsiStyle } from '@src/types';
 import { clone } from '@src/parser/utils';
 import { resolveTitle } from '@src/parser/title';
 import parse, { type ParseContext, type ParseState } from '@src/parser/parse';
-import { makeLine } from './helpers/objects';
+import { makeLine, makeStyle } from './helpers/objects';
 import * as ansi from './helpers/ansi';
 
 interface Parser {
@@ -19,6 +19,7 @@ const makeParser = (dim: Dimensions, cursorHidden = false): Parser => {
             cursorHidden,
             title: null,
             style: { props: 0, fg: 0, bg: 0 },
+            savedCursor: { line: 0, column: 0, style: { props: 0, fg: 0, bg: 0 } },
         },
         parser = Object.assign((...content: string[]) => {
             parser.prev = clone(state);
@@ -155,6 +156,65 @@ describe('osc escape sequences', () => {
         const parser = makeParser({ columns: 40, rows: 10 });
         parser('\x1b]30101\x1b\x5c');
         expect(parser.state).toEqual(parser.prev);
+    });
+});
+
+describe('save / restore cursor', () => {
+    test('supports both DEC and SCO escapes', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        // move to (2, 2)
+        expect(parser(ansi.cursorTo(2, 2)).cursor).toEqual<CursorLocation>({ line: 2, column: 2 });
+        // save cursor (DECSC)
+        parser(ansi.DECSC);
+        // move to (4, 0)
+        expect(parser(ansi.cursorTo(4, 0)).cursor).toEqual<CursorLocation>({ line: 4, column: 0 });
+        // restore cursor (DECRC)
+        expect(parser(ansi.DECRC).cursor).toEqual<CursorLocation>({ line: 2, column: 2 });
+        // move to (6, 30)
+        expect(parser(ansi.cursorTo(6, 30)).cursor).toEqual<CursorLocation>({ line: 6, column: 30 });
+        // save cursor (SCOSC)
+        parser(ansi.SCOSC);
+        // move to (4, 20)
+        expect(parser(ansi.cursorTo(4, 20)).cursor).toEqual<CursorLocation>({ line: 4, column: 20 });
+        // restore cursor (SCORC)
+        expect(parser(ansi.SCORC).cursor).toEqual<CursorLocation>({ line: 6, column: 30 });
+    });
+
+    test('saves & restores sgr attribute state', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        // move to (2, 2) & set fg red
+        parser(ansi.cursorTo(2, 2) + ansi.sgr(31));
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 2 });
+        expect(parser.state.style).toEqual<AnsiStyle>(makeStyle({ fg: 1 }));
+        // save cursor + reset fg style & move cursor to (4, 0)
+        parser(ansi.DECSC + ansi.sgr(39) + ansi.cursorTo(4, 0));
+        expect(parser.state.style).toEqual<AnsiStyle>(makeStyle());
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 4, column: 0 });
+        // restore cursor
+        parser(ansi.DECRC);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 2 });
+        expect(parser.state.style).toEqual<AnsiStyle>(makeStyle({ fg: 1 }));
+    });
+
+    test('does not save or restore hyperlink state', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        // hyperlink & set fg cyan
+        parser(ansi.osc('8', '', 'https://www.google.com') + ansi.sgr(36));
+        expect(parser.state.style).toEqual<AnsiStyle>(makeStyle({ fg: 6, link: 'https://www.google.com' }));
+        // save cursor
+        parser(ansi.DECSC);
+        // reset fg & hyperlink + set fg yellow
+        parser(ansi.sgr(39) + ansi.osc('8', '', '') + ansi.sgr(43));
+        expect(parser.state.style).toEqual<AnsiStyle>(makeStyle({ bg: 3 }));
+        // restore cursor, hyperlink should not be restored
+        parser(ansi.DECRC);
+        expect(parser.state.style).toEqual<AnsiStyle>(makeStyle({ fg: 6 }));
+        // reset fg & set new hyperlink
+        parser(ansi.sgr(39) + ansi.osc('8', '', 'https://example.com'));
+        expect(parser.state.style).toEqual<AnsiStyle>(makeStyle({ link: 'https://example.com' }));
+        // restore cursor, hyperlink should not be affected
+        parser(ansi.DECRC);
+        expect(parser.state.style).toEqual<AnsiStyle>(makeStyle({ fg: 6, link: 'https://example.com' }));
     });
 });
 

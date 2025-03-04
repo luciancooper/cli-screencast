@@ -59,3 +59,15 @@ export const hideCursor = csi('?25l');
 export const enableAlternateBuffer = csi('?1049h');
 
 export const disableAlternateBuffer = csi('?1049l');
+
+/** Save cursor (ESC 7) */
+export const DECSC = '\x1b7';
+
+/** Restore cursor (ESC 8) */
+export const DECRC = '\x1b8';
+
+/** Save cursor (CSI s) */
+export const SCOSC = csi('s');
+
+/** Restore cursor (CSI u) */
+export const SCORC = csi('u');

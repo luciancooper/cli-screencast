@@ -12,6 +12,7 @@ export interface ParseState extends TerminalLines {
     cursor: CursorLocation
     cursorHidden: boolean
     style: AnsiStyle
+    savedCursor: CursorLocation & { style: Omit<AnsiStyle, 'link'> }
 }
 
 export interface ParseContext extends Readonly<Dimensions> {
@@ -72,7 +73,7 @@ function sliceChunkAfter(chunk: TextChunk, column: number): TextChunk | null {
  * @param state - screen state upon which content will be written
  * @returns a terminal line partial
  */
-export function cursorLinePartial(state: Omit<ParseState, 'title' | 'cursorHidden' | 'style'>): TerminalLine {
+export function cursorLinePartial(state: Omit<ParseState, 'title' | 'cursorHidden' | 'style' | 'savedCursor'>): TerminalLine {
     const { lines, cursor } = state;
     if (cursor.line >= lines.length) {
         return { index: 0, columns: cursor.column, chunks: [] };
@@ -150,7 +151,7 @@ function parseContent(
         let [x, str] = [line.columns, ''];
         if (i === 0 && line.chunks.length) {
             const { x: [lx, lspan], style: lstyle } = line.chunks[line.chunks.length - 1]!;
-            if (lx + lspan === x && stylesEqual(lstyle, state.style)) {
+            if (lx + lspan === x && stylesEqual(lstyle, style)) {
                 ({ str, x: [x] } = line.chunks.pop()!);
             }
         }
@@ -286,6 +287,19 @@ function parseEscape(context: ParseContext, state: ParseState, esc: string) {
             // if url is an empty string, then this is a closing hyperlink sequence
             state.style.link = url || undefined;
         }
+        return;
+    }
+    // save cursor DECSC / SCOSC
+    if (/^(?:(?:\x1b\x5b|\x9b)s|\x1b7)$/.test(esc)) {
+        const { props, fg, bg } = state.style;
+        state.savedCursor = { ...cursor, style: { props, fg, bg } };
+        return;
+    }
+    // restore cursor DECRC / SCORC
+    if (/^(?:(?:\x1b\x5b|\x9b)u|\x1b8)$/.test(esc)) {
+        const { line, column, style } = state.savedCursor;
+        state.cursor = { line, column };
+        state.style = { ...state.style, ...style };
         return;
     }
     // remove csi prefix
