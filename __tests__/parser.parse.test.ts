@@ -216,6 +216,22 @@ describe('save / restore cursor', () => {
         parser(ansi.DECRC);
         expect(parser.state.style).toEqual<AnsiStyle>(makeStyle({ fg: 6, link: 'https://example.com' }));
     });
+
+    test('soft terminal reset (DECSTR) clears saved cursor state', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        // move to (2, 10) & set fg cyan + italic & save cursor
+        parser(ansi.cursorTo(2, 10) + ansi.sgr(36) + ansi.sgr(3) + ansi.DECSC);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 10 });
+        expect(parser.state.style).toEqual<AnsiStyle>(makeStyle({ fg: 6, italic: true }));
+        expect(parser.state.savedCursor).toEqual<ParseState['savedCursor']>(
+            { line: 2, column: 10, style: makeStyle({ fg: 6, italic: true }) },
+        );
+        // soft terminal reset
+        parser(ansi.DECSTR);
+        expect(parser.state.cursor).toEqual<CursorLocation>({ line: 2, column: 10 });
+        expect(parser.state.style).toEqual<AnsiStyle>(makeStyle());
+        expect(parser.state.savedCursor).toEqual<ParseState['savedCursor']>({ line: 0, column: 0, style: makeStyle() });
+    });
 });
 
 describe('writing lines', () => {

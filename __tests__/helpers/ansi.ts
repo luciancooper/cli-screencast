@@ -71,3 +71,6 @@ export const SCOSC = csi('s');
 
 /** Restore cursor (CSI u) */
 export const SCORC = csi('u');
+
+/** Soft terminal reset (DECSTR) */
+export const DECSTR = csi('!p');

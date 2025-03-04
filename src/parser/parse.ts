@@ -313,6 +313,16 @@ function parseEscape(context: ParseContext, state: ParseState, esc: string) {
         applySgrEscape(state.style, args);
         return;
     }
+    // soft terminal reset (DECSTR)
+    if (type === 'p' && args === '!') {
+        // show cursor
+        state.cursorHidden = false;
+        // reset sgr attributes
+        state.style = { props: 0, fg: 0, bg: 0 };
+        // reset saved cursor
+        state.savedCursor = { line: 0, column: 0, style: { props: 0, fg: 0, bg: 0 } };
+        return;
+    }
     // move cursor with `ESC[#;#H` and `ESC[#;#f`
     if (type === 'H' || type === 'f') {
         const m = /^(?:(\d+)?(?:;(\d+)?)?)?$/.exec(args);
