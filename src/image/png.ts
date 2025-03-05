@@ -116,6 +116,13 @@ function rescaleSample(value: number, depthIn: number, depthOut: number) {
     return Math.round((value * maxSampleOut) / maxSampleIn);
 }
 
+function comparePixel(a: Buffer, aidx: number, b: Buffer, bidx: number) {
+    for (let i = 0; i < 4; i += 1) {
+        if (a[aidx + i] !== b[bidx + i]) return false;
+    }
+    return true;
+}
+
 export default class PNG {
     static Header = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
 
@@ -389,46 +396,34 @@ export default class PNG {
         }
         // overlay new frame on current pixel buffer
         const buffer = this.pixels!,
-            bufferWidth = this.size.width,
-            // create a map to track pixel overlay diff
-            diff = Buffer.alloc(width * height);
+            bufferWidth = this.size.width;
+            // track changed pixel rect
+        let [x1, y1, x2, y2] = [width, height, -1, -1];
         for (let i = 0; i < height; i += 1) {
             for (let j = 0; j < width; j += 1) {
-                const [px, bx] = [i * width + j, i * bufferWidth + j],
-                    prev = this.pixelColor(buffer, bx * 4),
-                    next = this.pixelColor(pixels, px * 4);
-                if (prev !== next) {
+                const [px, bx] = [i * width + j, i * bufferWidth + j];
+                if (!comparePixel(buffer, bx * 4, pixels, px * 4)) {
                     // pixel color has changed, update buffer
-                    buffer.set(pixels.subarray(px * 4, (px + 1) * 4), bx * 4);
-                    diff[px] = 1;
+                    pixels.copy(buffer, bx * 4, px * 4, (px + 1) * 4);
+                    // update rect
+                    [x1, x2, y1, y2] = [Math.min(x1, j), Math.max(x2, j), Math.min(y1, i), Math.max(y2, i)];
                 }
             }
         }
-        // check if there is no difference between this frame and the last
-        if (!diff.includes(1)) {
+        // size of the rect covering all changed pixels
+        const [w, h] = [x2 - x1 + 1, y2 - y1 + 1];
+        // if dim are negative, there  is no difference between this frame and the last
+        if (w < 0 || h < 0) {
             // add duration of this frame to the previous one
             this.frames[this.frames.length - 1]!.duration += duration;
             return this;
         }
-        // calculate crop insets
-        const [y1, y2] = [Math.floor(diff.indexOf(1) / width), Math.floor(diff.lastIndexOf(1) / width)];
-        let [x1, x2] = [width - 1, 0];
-        for (let y = y1; y <= y2; y += 1) {
-            const row = diff.subarray(y * width, (y + 1) * width),
-                idx = row.indexOf(1);
-            if (idx >= 0) {
-                [x1, x2] = [Math.min(idx, x1), Math.max(row.lastIndexOf(1), x2)];
-            }
-        }
-        // size of the cropped frame
-        const [w, h] = [x2 - x1 + 1, y2 - y1 + 1];
-        // create cropped pixel buffer
+        // crop pixel buffer
         let croppedPixels = pixels;
-        if (w !== width || h !== height) {
-            croppedPixels = Buffer.alloc(w * h * 4);
+        if (w < width || h < height) {
+            croppedPixels = Buffer.allocUnsafe(w * h * 4);
             for (let y = y1; y <= y2; y += 1) {
-                const row = pixels.subarray((y * width + x1) * 4, (y * width + x2 + 1) * 4);
-                croppedPixels.set(row, (y - y1) * w * 4);
+                pixels.copy(croppedPixels, (y - y1) * w * 4, (y * width + x1) * 4, (y * width + x2 + 1) * 4);
             }
         }
         // add colors from cropped pixel buffer to palette
