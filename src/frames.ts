@@ -1,4 +1,5 @@
 import type { ParsedCaptureData, KeyFrame, CursorLocation, CursorState, Title, ParsedFrame } from './types';
+import * as serialize from './parser/serialize';
 
 function mergeCursorVisibilitySpans(spans: [ms: number, visible: number][]) {
     // merge consecutive spans with the same opacity value
@@ -128,6 +129,13 @@ export function processCursorFrames(frames: KeyFrame<CursorState>[], blink: bool
     return extracted;
 }
 
+function serializeFrame(frame: ParsedFrame) {
+    let head = serialize.title(frame.title);
+    head &&= `{${head}}`;
+    if (frame.cursor) head += serialize.cursor(frame.cursor);
+    return [head, serialize.lines(frame.lines)].filter(Boolean).join('\n');
+}
+
 export function extractCaptureFrames({ columns, rows, ...capture }: ParsedCaptureData, blink: boolean) {
     // process cursor frames
     const cursorFrames = processCursorFrames(capture.cursor, blink).map<KeyFrame<{ loc: CursorLocation | null }>>(({
@@ -161,17 +169,23 @@ export function extractCaptureFrames({ columns, rows, ...capture }: ParsedCaptur
     let content = contentFrames.shift(),
         cursor = cursorFrames.shift(),
         title = titleFrames.shift();
-    const frames: KeyFrame<ParsedFrame>[] = [];
+    // initialize output frames array
+    const frames: KeyFrame<ParsedFrame & { memoidx?: number }>[] = [],
+        // create map of serialized frames to indexes
+        memo = new Map<string, number>();
+    // move through cursor, title, and content frames
     while (content && cursor && title) {
         const time = Math.max(content.time, cursor.time, title.time),
-            endTime = Math.min(content.endTime, cursor.endTime, title.endTime);
-        frames.push({
-            time,
-            endTime,
-            title: title.data,
-            lines: content.lines,
-            cursor: cursor.loc,
-        });
+            endTime = Math.min(content.endTime, cursor.endTime, title.endTime),
+            frame: ParsedFrame & { memoidx?: number } = { title: title.data, lines: content.lines, cursor: cursor.loc };
+        {
+            // serialize frame & check if it can be memoized
+            const serialized = serializeFrame(frame);
+            if (!memo.has(serialized)) memo.set(serialized, frames.length);
+            else frame.memoidx = memo.get(serialized)!;
+        }
+        // add frame
+        frames.push({ time, endTime, ...frame });
         if (content.endTime === endTime) content = contentFrames.shift();
         if (cursor.endTime === endTime) cursor = cursorFrames.shift();
         if (title.endTime === endTime) title = titleFrames.shift();

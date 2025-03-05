@@ -218,4 +218,4 @@ export interface Size {
     height: number
 }
 
-export type SVGFrameData = Size & ({ frame: string } | { frames: KeyFrame<{ frame: string }>[] });
+export type SVGFrameData = Size & ({ frame: string } | { frames: KeyFrame<{ frame: string, memoidx?: number }>[] });

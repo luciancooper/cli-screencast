@@ -1,6 +1,6 @@
 import { launch, type Browser } from 'puppeteer';
 import type { Size, SVGFrameData } from '../types';
-import PNG from './png';
+import PNG, { type PNGData } from './png';
 import log from '../logger';
 
 function createBrowser(): Promise<Browser> {
@@ -43,13 +43,29 @@ export async function createPng({ width, height, ...data }: SVGFrameData, scale:
     const renderer = await createImageRenderer({ width, height }, scale);
     try {
         if ('frames' in data) {
-            log.info('rendering animated png from svg (%k total frames)', data.frames.length);
+            // array of memoization indexes for memoizable frames
+            const mindexes = data.frames.filter(({ memoidx }) => (memoidx != null)).map(({ memoidx }) => memoidx!);
+            log.info('rendering animated png from svg (%k frames to render)', data.frames.length - mindexes.length);
+            // create map to store cached frames
+            const cache = new Map<number, PNGData | null>([...new Set(mindexes)].map((i) => [i, null]));
             // create empty png
             png = new PNG();
             // render png buffer for each frame
-            for (const [idx, { frame, time, endTime }] of data.frames.entries()) {
-                log.info('adding frame %k of %k', idx + 1, data.frames.length);
-                png.addFrame(await renderer(frame), endTime - time);
+            let count = 0;
+            for (const [idx, { time, endTime, ...content }] of data.frames.entries()) {
+                let frame: PNGData;
+                if (content.memoidx == null) {
+                    // eslint-disable-next-line no-plusplus
+                    log.info('rendering png frame %k of %k', ++count, data.frames.length - mindexes.length);
+                    // render png screenshot
+                    frame = PNG.decodePixels(await renderer(content.frame));
+                    // add rendered png to memoization cache if there is a duplicate frame
+                    if (cache.has(idx)) cache.set(idx, frame);
+                } else {
+                    frame = cache.get(content.memoidx)!;
+                }
+                // add frame to png
+                png.addFrame(frame, endTime - time);
             }
         } else {
             log.info('rendering png from svg');

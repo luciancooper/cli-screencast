@@ -1,4 +1,4 @@
-import type { TextChunk, TerminalLine, CursorState, Title } from '../types';
+import type { TextChunk, TerminalLine, CursorLocation, CursorState, Title } from '../types';
 
 const escapeString = (str?: string): string => (
     typeof str !== 'string' ? '' : `'${str.replace(/'/g, "\\'")}'`
@@ -12,9 +12,9 @@ export const lines = (array: TerminalLine[]): string => (
     array.map(({ chunks }) => chunks.map(chunk).join(' ')).join('\n')
 );
 
-export const cursor = ({ line, column, visible }: CursorState) => {
-    const loc = `${line}:${column}`;
-    return visible ? `[${loc}]` : `(${loc})`;
+export const cursor = (data: CursorState | CursorLocation) => {
+    const loc = `${data.line}:${data.column}`;
+    return ('visible' in data && !data.visible) ? `(${loc})` : `[${loc}]`;
 };
 
 export const title = (data: Title | null) => (

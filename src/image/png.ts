@@ -32,13 +32,24 @@ interface PNGAnimationFrame {
     pixels: Buffer
     coordinates: Coordinates
     duration: number
+    /**
+     * Dispose opp - specifies how the output buffer should be changed before rendering the next frame
+     * - `0` = NONE, no disposal is done
+     * - `1` = BACKGROUND, the frame's region is cleared
+     * - `2` = PREVIOUS - the frame's region is reverted to the previous contents
+     */
     dispose: 0 | 1 | 2
+    /**
+     * Blend opp - how the frame is to be blended into the current output buffer content
+     * - `0` = SOURCE, the frame's color components (including alpha) overwrite the current contents
+     * - `1` = OVER - the frame is composited onto the output buffer based on its alpha
+     */
     blend: 0 | 1
 }
 
 type Transparency = [number, number, number];
 
-interface PNGData {
+export interface PNGData {
     width: number
     height: number
     pixels: Buffer
@@ -357,18 +368,18 @@ export default class PNG {
         return this;
     }
 
-    addFrame(data: Buffer, duration: number): this {
-        const { pixels, width, height } = PNG.decodePixels(data);
+    addFrame(data: Buffer | PNGData, duration: number): this {
+        const { pixels, width, height } = Buffer.isBuffer(data) ? PNG.decodePixels(data) : data;
         if (!this.frames.length) {
             this.size = { width, height };
-            // set initial pixel buffer
-            this.pixels = pixels;
+            // create a copy of pixels for the stored pixel buffer state
+            this.pixels = Buffer.from(pixels);
             // add pixel colors from initial frame
             this.addPixelColors(pixels);
             // add initial frame
             this.frames.push({
                 size: { width, height },
-                pixels: deflateSync(pixels),
+                pixels,
                 coordinates: { x: 0, y: 0 },
                 duration,
                 dispose: 0,
@@ -379,10 +390,6 @@ export default class PNG {
         // overlay new frame on current pixel buffer
         const buffer = this.pixels!,
             bufferWidth = this.size.width,
-            // determine transparent pixel value
-            transparent = (this.colors.length && (this.colors[0]! >>> 24) === 0)
-                ? [this.colors[0]! & 0xFF, (this.colors[0]! >>> 8) & 0xFF, this.colors[0]! >>> 16, 0]
-                : [0, 0, 0, 0],
             // create a map to track pixel overlay diff
             diff = Buffer.alloc(width * height);
         for (let i = 0; i < height; i += 1) {
@@ -394,9 +401,6 @@ export default class PNG {
                     // pixel color has changed, update buffer
                     buffer.set(pixels.subarray(px * 4, (px + 1) * 4), bx * 4);
                     diff[px] = 1;
-                } else {
-                    // pixel color has not changed
-                    pixels.set(transparent, px * 4);
                 }
             }
         }
@@ -432,11 +436,11 @@ export default class PNG {
         // add cropped frame
         this.frames.push({
             size: { width: w, height: h },
-            pixels: deflateSync(croppedPixels),
+            pixels: croppedPixels,
             coordinates: { x: x1, y: y1 },
             duration,
             dispose: 0,
-            blend: 1,
+            blend: 0,
         });
         return this;
     }
@@ -698,7 +702,7 @@ export default class PNG {
                 // increment sequence index
                 seqIndex += 1;
                 // encode pixel data
-                const encoded = this.encodePixels(inflateSync(pixels), size, { colorType, bitDepth, interlaced });
+                const encoded = this.encodePixels(pixels, size, { colorType, bitDepth, interlaced });
                 for (let i = 0, n = encoded.length, c = idx ? 8188 : 8192; i < n; i += c) {
                     const len = Math.min(c, n - i);
                     if (!idx) {

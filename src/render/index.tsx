@@ -198,16 +198,17 @@ export function renderScreenSvg(data: ParsedScreenData, { css, ...props }: Rende
 export function renderCaptureFrames(data: ParsedCaptureData, { css, ...props }: RenderProps): SVGFrameData {
     const context = resolveContext(props, data),
         frames: Extract<SVGFrameData, { frames: any }>['frames'] = [];
-    for (const { time, endTime, ...frame } of extractCaptureFrames(data, context.theme.cursorBlink)) {
+    for (const {
+        lines, title, cursor, ...keyframe
+    } of extractCaptureFrames(data, context.theme.cursorBlink)) {
         // render and add svg frame
         frames.push({
-            time,
-            endTime,
-            frame: renderToStaticMarkup(
+            ...keyframe,
+            frame: frames[keyframe.memoidx ?? frames.length]?.frame ?? renderToStaticMarkup(
                 <Context.Provider value={context}>
-                    <Window css={css ?? null} title={frame.title}>
-                        <Frame lines={frame.lines}/>
-                        {frame.cursor ? <Cursor {...frame.cursor}/> : null}
+                    <Window css={css ?? null} title={title}>
+                        <Frame lines={lines}/>
+                        {cursor ? <Cursor {...cursor}/> : null}
                     </Window>
                 </Context.Provider>,
             ),

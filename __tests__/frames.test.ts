@@ -100,10 +100,14 @@ const makeParsedCaptureData = (
     };
 };
 
-const makeScreen = (line: string, cursor: [line: number, column: number] | null, title?: string): ParsedFrame => ({
+const makeScreen = (
+    line: string,
+    { cursor, title, ...attr }: { cursor?: [line: number, column: number], title?: string, memoidx?: number } = {},
+): ParsedFrame & { memoidx?: number } => ({
     lines: [{ index: 0, ...makeLine(line) }],
     cursor: cursor ? { line: cursor[0], column: cursor[1] } : null,
     title: title ? { icon: null, ...makeLine(title) } : null,
+    ...attr,
 });
 
 describe('extractCaptureFrames', () => {
@@ -119,9 +123,9 @@ describe('extractCaptureFrames', () => {
             [[100, 'title 1'], [100, 'title 2'], [100, 'title 3']],
         );
         expect(extractCaptureFrames(data, false)).toEqual<KeyFrame<ParsedFrame>[]>(makeKeyFrames([
-            [100, makeScreen('content 1', [0, 9], 'title 1')],
-            [100, makeScreen('content 2', [1, 9], 'title 2')],
-            [100, makeScreen('content 3', [2, 9], 'title 3')],
+            [100, makeScreen('content 1', { cursor: [0, 9], title: 'title 1' })],
+            [100, makeScreen('content 2', { cursor: [1, 9], title: 'title 2' })],
+            [100, makeScreen('content 3', { cursor: [2, 9], title: 'title 3' })],
         ]));
     });
 
@@ -132,15 +136,15 @@ describe('extractCaptureFrames', () => {
             [[200], [300, 'title 1'], [300, 'title 2']],
         );
         expect(extractCaptureFrames(data, false)).toEqual<KeyFrame<ParsedFrame>[]>(makeKeyFrames([
-            [100, makeScreen('content 1', null)],
-            [100, makeScreen('content 1', [0, 0])],
-            [100, makeScreen('content 1', [0, 0], 'title 1')],
-            [100, makeScreen('content 2', [0, 0], 'title 1')],
-            [100, makeScreen('content 2', [1, 0], 'title 1')],
-            [100, makeScreen('content 2', [1, 0], 'title 2')],
-            [100, makeScreen('content 3', [1, 0], 'title 2')],
-            [100, makeScreen('content 3', null, 'title 2')],
-            [100, makeScreen('content 3', null)],
+            [100, makeScreen('content 1')],
+            [100, makeScreen('content 1', { cursor: [0, 0] })],
+            [100, makeScreen('content 1', { cursor: [0, 0], title: 'title 1' })],
+            [100, makeScreen('content 2', { cursor: [0, 0], title: 'title 1' })],
+            [100, makeScreen('content 2', { cursor: [1, 0], title: 'title 1' })],
+            [100, makeScreen('content 2', { cursor: [1, 0], title: 'title 2' })],
+            [100, makeScreen('content 3', { cursor: [1, 0], title: 'title 2' })],
+            [100, makeScreen('content 3', { title: 'title 2' })],
+            [100, makeScreen('content 3')],
         ]));
     });
 
@@ -151,13 +155,32 @@ describe('extractCaptureFrames', () => {
             [200, 1,, 6], [200,,, 7], [200,,, 8],
         ], []);
         expect(extractCaptureFrames(data, false)).toEqual<KeyFrame<ParsedFrame>[]>(makeKeyFrames([
-            [200, makeScreen('content', [0, 0])],
-            [200, makeScreen('content', [0, 1])],
-            [200, makeScreen('content', [0, 2])],
-            [600, makeScreen('content', null)],
-            [200, makeScreen('content', [0, 6])],
-            [200, makeScreen('content', [0, 7])],
-            [200, makeScreen('content', [0, 8])],
+            [200, makeScreen('content', { cursor: [0, 0] })],
+            [200, makeScreen('content', { cursor: [0, 1] })],
+            [200, makeScreen('content', { cursor: [0, 2] })],
+            [600, makeScreen('content')],
+            [200, makeScreen('content', { cursor: [0, 6] })],
+            [200, makeScreen('content', { cursor: [0, 7] })],
+            [200, makeScreen('content', { cursor: [0, 8] })],
+        ]));
+    });
+
+    test('adds memoization index pointers to identical frames that can be cached', () => {
+        const data = makeParsedCaptureData(
+            [[1800, 'content']],
+            [[200, 1], [200,,,4], [400,,,0], [200,,, 4], [400,,, 0], [200,,, 4], [200,,, 0]],
+            [[600], [600, 'title 1'], [600, 'title 2']],
+        );
+        expect(extractCaptureFrames(data, false)).toEqual<KeyFrame<ParsedFrame>[]>(makeKeyFrames([
+            [200, makeScreen('content', { cursor: [0, 0] })],
+            [200, makeScreen('content', { cursor: [0, 4] })],
+            [200, makeScreen('content', { cursor: [0, 0], memoidx: 0 })],
+            [200, makeScreen('content', { cursor: [0, 0], title: 'title 1' })],
+            [200, makeScreen('content', { cursor: [0, 4], title: 'title 1' })],
+            [200, makeScreen('content', { cursor: [0, 0], title: 'title 1', memoidx: 3 })],
+            [200, makeScreen('content', { cursor: [0, 0], title: 'title 2' })],
+            [200, makeScreen('content', { cursor: [0, 4], title: 'title 2' })],
+            [200, makeScreen('content', { cursor: [0, 0], title: 'title 2', memoidx: 6 })],
         ]));
     });
 });
