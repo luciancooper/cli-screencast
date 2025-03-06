@@ -163,7 +163,7 @@ export default [
                     brightCyan: '#26bbd1',
                     brightWhite: '#d9d9d9',
                     background: '#eaeaea',
-                    text: '#232322',
+                    foreground: '#232322',
                 }),
                 // offset percentages
                 [offsetX, offsetY] = [0.2, 0.3];

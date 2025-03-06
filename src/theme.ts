@@ -4,7 +4,9 @@ import { resolveColor } from './color';
 type CursorStyle = 'beam' | 'block' | 'underline';
 
 export interface Theme<Color = RGBA | string> {
-    // colors
+    foreground: Color
+    background: Color
+    // ansi colors
     black: Color
     red: Color
     green: Color
@@ -21,11 +23,8 @@ export interface Theme<Color = RGBA | string> {
     brightMagenta: Color
     brightCyan: Color
     brightWhite: Color
-    // window
-    background: Color
+    // title icon
     iconColor: Color
-    // other
-    text: Color
     // cursor
     cursorColor: Color
     cursorStyle: CursorStyle
@@ -35,7 +34,9 @@ export interface Theme<Color = RGBA | string> {
 }
 
 export const defaultTheme: Theme = {
-    // colors
+    foreground: [185, 192, 203],
+    background: [40, 42, 54],
+    // ansi colors
     black: [0, 0, 0],
     red: [255, 92, 87],
     green: [90, 247, 142],
@@ -52,11 +53,8 @@ export const defaultTheme: Theme = {
     brightMagenta: [215, 106, 255],
     brightCyan: [154, 237, 254],
     brightWhite: [241, 241, 240],
-    // window
-    background: [40, 42, 54],
+    // title icon
     iconColor: [211, 215, 222],
-    // other
-    text: [185, 192, 203],
     // cursor
     cursorColor: [215, 213, 201],
     cursorStyle: 'beam',

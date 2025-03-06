@@ -13,6 +13,8 @@ The terminal theme can be specified by passing a theme configuration object to t
 
 |Property|Description*|Default|
 |:-------|:----------|:------|
+| **foreground** | Terminal foreground color | [`#b9c0cb`](color:b9c0cb) |
+| **background** | Terminal background color | [`#282a36`](color:282a36) |
 | **black** | SGR foreground code `30` and background code `40` | [`#000000`](color:000000) |
 | **red** | SGR foreground code `31` and background code `41` | [`#ff5c57`](color:ff5c57) |
 | **green** | SGR foreground code `32` and background code `42` | [`#5af78e`](color:5af78e) |
@@ -29,9 +31,7 @@ The terminal theme can be specified by passing a theme configuration object to t
 | **brightMagenta** | SGR foreground code `95` and background code `105` | [`#d76aff`](color:d76aff) |
 | **brightCyan** | SGR foreground code `96` and background code `106` | [`#9aedfe`](color:9aedfe) |
 | **brightWhite** | SGR foreground code `97` and background code `107` | [`#f1f1f0`](color:f1f1f0) |
-| **background** | Terminal window background color | [`#282a36`](color:282a36) |
 | **iconColor** | Terminal window title icon color | [`#d3d7de`](color:d3d7de) |
-| **text** | Default text color | [`#b9c0cb`](color:b9c0cb) |
 | **cursorColor** | Cursor color | [`#d7d5c9`](color:d7d5c9) |
 | **cursorStyle** | Cursor style, either `'beam'`,  `'block'`, or `'underline'` | `'beam'` |
 | **cursorBlink** | Enable cursor blinking | `false` |
@@ -56,6 +56,8 @@ import { renderData } from 'cli-screencast';
 
 renderData('https://cli-screencast.io/files/colortest.yaml', {
     theme: {
+        foreground: '#232322',
+        background: '#eaeaea',
         black: '#212121',
         red: '#b7141f',
         green: '#457b24',
@@ -72,8 +74,6 @@ renderData('https://cli-screencast.io/files/colortest.yaml', {
         brightMagenta: '#aa4dbc',
         brightCyan: '#26bbd1',
         brightWhite: '#d9d9d9',
-        background: '#eaeaea',
-        text: '#232322',
     },
 }).then((svg) => {
     // svg output string...

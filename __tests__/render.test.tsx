@@ -357,7 +357,7 @@ describe('<Text/>', () => {
             <Text x={0} y={0} span={33}>kiss: 👨‍❤️‍💋‍👨 family: 👨‍👩‍👧‍👧 astronaut: 🧑🏾‍🚀</Text>,
         )).toMatchObject({
             type: 'g',
-            props: { fill: hexString(defTheme.text) },
+            props: { fill: hexString(defTheme.foreground) },
             children: [
                 { type: 'text', props: { x: 0, y: 1 }, children: ['kiss: 👨‍❤️‍💋‍👨'] },
                 { type: 'text', props: { x: 8, y: 1 }, children: [' family: 👨‍👩‍👧‍👧'] },
@@ -370,7 +370,7 @@ describe('<Text/>', () => {
         expect(render(
             <Text x={0} y={0} span={8} inverted>inverted</Text>,
         )).toMatchObject([
-            { type: 'rect', props: { fill: hexString(defTheme.text) } },
+            { type: 'rect', props: { fill: hexString(defTheme.foreground) } },
             { type: 'text', props: { fill: hexString(defTheme.background) }, children: ['inverted'] },
         ]);
         expect(render(
