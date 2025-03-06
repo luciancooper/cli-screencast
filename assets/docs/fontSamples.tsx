@@ -18,7 +18,7 @@ export function Grid({ color, thickness }: { color: string, thickness: number })
 }
 
 const renderOptions: RenderOptions = {
-    theme: { cursorBlink: true, cursorType: 'underline' },
+    theme: { cursorBlink: true, cursorStyle: 'underline' },
     fontSize: 24,
     decorations: false,
     paddingY: 12,

@@ -33,7 +33,7 @@ The terminal theme can be specified by passing a theme configuration object to t
 | **iconColor** | Terminal window title icon color | [`#d3d7de`](color:d3d7de) |
 | **text** | Default text color | [`#b9c0cb`](color:b9c0cb) |
 | **cursorColor** | Cursor color | [`#d7d5c9`](color:d7d5c9) |
-| **cursorType** | Cursor style, either `'beam'`,  `'block'`, or `'underline'` | `'beam'` |
+| **cursorStyle** | Cursor style, either `'beam'`,  `'block'`, or `'underline'` | `'beam'` |
 | **cursorBlink** | Enable cursor blinking | `false` |
 | **dim** | Opacity of dim text (styled with SGR code `2`)  | `0.5` |
 

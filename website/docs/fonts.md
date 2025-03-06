@@ -42,7 +42,7 @@ renderScreen(prompt, {
     rows: 10,
     // show a blinking cursor
     cursorHidden: false,
-    theme: { cursorType: 'underline', cursorBlink: true },
+    theme: { cursorStyle: 'underline', cursorBlink: true },
     // specify Cascadia Code Nerd Font and provide a remote font file
     fontFamily: 'Cascadia Code NF',
     fonts: [

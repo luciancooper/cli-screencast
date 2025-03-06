@@ -393,9 +393,9 @@ describe('<Text/>', () => {
 });
 
 describe('<Cursor/>', () => {
-    test('renders a beam shaped rect when the `cursorType` theme prop is set to `beam`', () => {
+    test('renders a beam shaped rect when the `cursorStyle` theme prop is set to `beam`', () => {
         expect(render(<Cursor line={0} column={0}/>, {
-            theme: { cursorType: 'beam' },
+            theme: { cursorStyle: 'beam' },
             lineHeight: 0.5,
         })).toMatchObject({
             type: 'rect',
@@ -403,9 +403,9 @@ describe('<Cursor/>', () => {
         });
     });
 
-    test('renders a block shaped rect when the `cursorType` theme prop is set to `block`', () => {
+    test('renders a block shaped rect when the `cursorStyle` theme prop is set to `block`', () => {
         expect(render(<Cursor line={0} column={0}/>, {
-            theme: { cursorType: 'block' },
+            theme: { cursorStyle: 'block' },
             lineHeight: 0.5,
         })).toMatchObject({
             type: 'rect',
@@ -413,9 +413,9 @@ describe('<Cursor/>', () => {
         });
     });
 
-    test('renders an underline shaped rect when the `cursorType` theme prop is set to `underline`', () => {
+    test('renders an underline shaped rect when the `cursorStyle` theme prop is set to `underline`', () => {
         expect(render(<Cursor line={0} column={0}/>, {
-            theme: { cursorType: 'underline' },
+            theme: { cursorStyle: 'underline' },
             lineHeight: 0.5,
         })).toMatchObject({
             type: 'rect',

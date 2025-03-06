@@ -16,10 +16,10 @@ export const Cursor: FunctionComponent<CursorProps> = ({
     children,
     ...props
 }) => {
-    const { theme: { cursorColor, cursorType, cursorBlink }, fontSize, grid: [dx, dy] } = useRenderContext(),
-        w = (cursorType === 'beam' ? 0.15 : 1) * dx,
+    const { theme: { cursorColor, cursorStyle, cursorBlink }, fontSize, grid: [dx, dy] } = useRenderContext(),
+        w = (cursorStyle === 'beam' ? 0.15 : 1) * dx,
         lh = Math.min(dy, fontSize * 1.2),
-        [cy, h] = cursorType === 'underline' ? [lh * 0.9, lh * 0.1] : [0, lh],
+        [cy, h] = cursorStyle === 'underline' ? [lh * 0.9, lh * 0.1] : [0, lh],
         y = line * dy + (dy - lh) / 2 + cy;
     return (
         <rect

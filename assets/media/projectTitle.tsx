@@ -41,7 +41,7 @@ export default new Asset({
             yellow: '#f3f99d',
             background: '#282a36',
             cursorColor: '#d7d5c9',
-            cursorType: 'underline',
+            cursorStyle: 'underline',
             cursorBlink: true,
         },
     }),

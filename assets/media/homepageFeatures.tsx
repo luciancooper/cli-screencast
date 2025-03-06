@@ -62,7 +62,7 @@ export default [
             const content = '> ',
                 { css, ...font } = await embedFonts(content, Asset.fonts.cascadiaCode),
                 parsed = parseScreen({ ...applyDefTerminalOptions({ columns: 32, rows: 8 }), content }),
-                props = applyDefRenderOptions({ theme: { cursorBlink: true, cursorType: 'underline' }, fontSize: 16 }),
+                props = applyDefRenderOptions({ theme: { cursorBlink: true, cursorStyle: 'underline' }, fontSize: 16 }),
                 context = resolveContext({ ...props, ...font }, parsed);
             return renderToStaticMarkup(
                 <SVGImage {...context.size}>

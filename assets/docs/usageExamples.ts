@@ -140,7 +140,7 @@ export default [
         type: 'docs',
         render: () => renderData(
             path.resolve(__dirname, './data/shell-capture.yaml'),
-            { ...Asset.fonts.cascadiaCodeNF, theme: { cursorType: 'underline', cursorBlink: true } },
+            { ...Asset.fonts.cascadiaCodeNF, theme: { cursorStyle: 'underline', cursorBlink: true } },
         ),
     }),
     new Asset({
@@ -298,7 +298,7 @@ export default [
             columns: 80,
             rows: 10,
             cursorHidden: false,
-            theme: { cursorType: 'underline', cursorBlink: true },
+            theme: { cursorStyle: 'underline', cursorBlink: true },
             ...Asset.fonts.cascadiaCodeNF,
         }),
     }),

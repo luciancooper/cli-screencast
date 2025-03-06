@@ -101,7 +101,7 @@ captureShell({
     cwd: homedir(),
     columns: 50,
     rows: 10,
-    theme: { cursorType: 'underline', cursorBlink: true },
+    theme: { cursorStyle: 'underline', cursorBlink: true },
     // save svg to a file in the same directory as this script
     outputPath: './capture.svg',
 });

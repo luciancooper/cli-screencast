@@ -1,7 +1,7 @@
 import type { Entries, RGBA } from './types';
 import { resolveColor } from './color';
 
-type CursorType = 'beam' | 'block' | 'underline';
+type CursorStyle = 'beam' | 'block' | 'underline';
 
 export interface Theme<Color = RGBA | string> {
     // colors
@@ -28,7 +28,7 @@ export interface Theme<Color = RGBA | string> {
     text: Color
     // cursor
     cursorColor: Color
-    cursorType: CursorType
+    cursorStyle: CursorStyle
     cursorBlink: boolean
     // ansi style
     dim: number
@@ -59,7 +59,7 @@ export const defaultTheme: Theme = {
     text: [185, 192, 203],
     // cursor
     cursorColor: [215, 213, 201],
-    cursorType: 'beam',
+    cursorStyle: 'beam',
     cursorBlink: false,
     // ansi style
     dim: 0.5,
@@ -67,7 +67,7 @@ export const defaultTheme: Theme = {
 
 type ThemeNonColorKeys = { [K in keyof Theme]: Theme<never>[K] extends never ? never : K }[keyof Theme];
 
-const nonColorThemeKeys: ThemeNonColorKeys[] = ['cursorType', 'cursorBlink', 'dim'] as const;
+const nonColorThemeKeys: ThemeNonColorKeys[] = ['cursorStyle', 'cursorBlink', 'dim'] as const;
 
 export function resolveTheme(spec: Partial<Theme> = {}) {
     return (Object.entries({ ...defaultTheme, ...spec }) as Entries<Theme>)
