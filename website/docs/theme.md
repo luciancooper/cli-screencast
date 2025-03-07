@@ -13,24 +13,24 @@ The terminal theme can be specified by passing a theme configuration object to t
 
 |Property|Description*|Default|
 |:-------|:----------|:------|
-| **foreground** | Terminal foreground color | [`#b9c0cb`](color:b9c0cb) |
+| **foreground** | Terminal foreground color | [`#e1e4ea`](color:e1e4ea) |
 | **background** | Terminal background color | [`#282a36`](color:282a36) |
 | **black** | SGR foreground code `30` and background code `40` | [`#000000`](color:000000) |
-| **red** | SGR foreground code `31` and background code `41` | [`#ff5c57`](color:ff5c57) |
-| **green** | SGR foreground code `32` and background code `42` | [`#5af78e`](color:5af78e) |
-| **yellow** | SGR foreground code `33` and background code `43` | [`#f3f99d`](color:f3f99d) |
-| **blue** | SGR foreground code `34` and background code `44` | [`#57c7ff`](color:57c7ff) |
-| **magenta** | SGR foreground code `35` and background code `45` | [`#d76aff`](color:d76aff) |
-| **cyan** | SGR foreground code `36` and background code `46` | [`#9aedfe`](color:9aedfe) |
-| **white** | SGR foreground code `37` and background code `47` | [`#f1f1f0`](color:f1f1f0) |
-| **brightBlack** | SGR foreground code `90` and background code `100` | [`#686868`](color:686868) |
+| **red** | SGR foreground code `31` and background code `41` | [`#e60800`](color:e60800) |
+| **green** | SGR foreground code `32` and background code `42` | [`#26a439`](color:26a439) |
+| **yellow** | SGR foreground code `33` and background code `43` | [`#cdac08`](color:cdac08) |
+| **blue** | SGR foreground code `34` and background code `44` | [`#0066ff`](color:0066ff) |
+| **magenta** | SGR foreground code `35` and background code `45` | [`#ca30c7`](color:ca30c7) |
+| **cyan** | SGR foreground code `36` and background code `46` | [`#00c5c7`](color:00c5c7) |
+| **white** | SGR foreground code `37` and background code `47` | [`#cccccc`](color:cccccc) |
+| **brightBlack** | SGR foreground code `90` and background code `100` | [`#464646`](color:464646) |
 | **brightRed** | SGR foreground code `91` and background code `101` | [`#ff5c57`](color:ff5c57) |
-| **brightGreen** | SGR foreground code `92` and background code `102` | [`#5af78e`](color:5af78e) |
-| **brightYellow** | SGR foreground code `93` and background code `103` | [`#f3f99d`](color:f3f99d) |
-| **brightBlue** | SGR foreground code `94` and background code `104` | [`#57c7ff`](color:57c7ff) |
-| **brightMagenta** | SGR foreground code `95` and background code `105` | [`#d76aff`](color:d76aff) |
-| **brightCyan** | SGR foreground code `96` and background code `106` | [`#9aedfe`](color:9aedfe) |
-| **brightWhite** | SGR foreground code `97` and background code `107` | [`#f1f1f0`](color:f1f1f0) |
+| **brightGreen** | SGR foreground code `92` and background code `102` | [`#32d74b`](color:32d74b) |
+| **brightYellow** | SGR foreground code `93` and background code `103` | [`#ffd60a`](color:ffd60a) |
+| **brightBlue** | SGR foreground code `94` and background code `104` | [`#43a8ed`](color:43a8ed) |
+| **brightMagenta** | SGR foreground code `95` and background code `105` | [`#ff77ff`](color:ff77ff) |
+| **brightCyan** | SGR foreground code `96` and background code `106` | [`#60fdff`](color:60fdff) |
+| **brightWhite** | SGR foreground code `97` and background code `107` | [`#f2f2f2`](color:f2f2f2) |
 | **iconColor** | Terminal window title icon color | [`#d3d7de`](color:d3d7de) |
 | **cursorColor** | Cursor color | [`#d7d5c9`](color:d7d5c9) |
 | **cursorStyle** | Cursor style, either `'beam'`,  `'block'`, or `'underline'` | `'beam'` |
@@ -74,6 +74,7 @@ renderData('https://cli-screencast.io/files/colortest.yaml', {
         brightMagenta: '#aa4dbc',
         brightCyan: '#26bbd1',
         brightWhite: '#d9d9d9',
+        iconColor: '#1a1a19',
     },
 }).then((svg) => {
     // svg output string...

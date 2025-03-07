@@ -219,7 +219,13 @@ export default [
                     `      ${['       ', ...bg.map((c) => `  ${c}m  `)].join(' ')}`
                     + `\n      ${line}`
                     + fg.map((c) => `\n ${c}m  \x1b[${c}m${line}`).join(''),
-                    { output: 'yaml', columns: 80, rows: 18 },
+                    {
+                        output: 'yaml',
+                        columns: 80,
+                        rows: 18,
+                        windowTitle: 'colortest',
+                        windowIcon: 'compile',
+                    },
                 );
             },
         }),
@@ -255,6 +261,7 @@ export default [
                         brightWhite: '#d9d9d9',
                         background: '#eaeaea',
                         foreground: '#232322',
+                        iconColor: '#1a1a19',
                     },
                 }),
             }),
