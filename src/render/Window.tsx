@@ -78,7 +78,11 @@ const Window: FunctionComponent<WindowProps> = (({
             {...size}
             {...props}
         >
-            <style dangerouslySetInnerHTML={{ __html: `text{white-space:pre}${css ?? ''}` }}/>
+            <style
+                dangerouslySetInnerHTML={{
+                    __html: `text{white-space:pre;user-select:none;-webkit-user-select:none}${css ?? ''}`,
+                }}
+            />
             {iconDefs}
             {shadowFilter}
             <rect
