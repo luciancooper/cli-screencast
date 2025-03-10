@@ -89,7 +89,7 @@ const DiagramLabel: FunctionComponent<DiagramLabelProps & { grid: readonly [gw: 
                 <path d={d}/>
             </g>
             <rect x={tx} y={ty} width={tw} height={gh} fill='#EFF1F2' rx={2}/>
-            <text x={tx + tw / 2} y={ty + gh / 2 + 1} fill='#000' textAnchor='middle' dominantBaseline='middle'>
+            <text x={tx + tw / 2} y={ty + gh / 2 + 1} fill='#000' textAnchor='middle' dominantBaseline='central'>
                 {text}
             </text>
         </g>

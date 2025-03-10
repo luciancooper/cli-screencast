@@ -24,6 +24,8 @@ interface WindowProps extends SVGProps<SVGSVGElement> {
     css?: string | null
 }
 
+const baseCss = 'text{white-space:pre;dominant-baseline:central;user-select:none;-webkit-user-select:none}';
+
 const Window: FunctionComponent<WindowProps> = (({
     children,
     title = null,
@@ -78,11 +80,7 @@ const Window: FunctionComponent<WindowProps> = (({
             {...size}
             {...props}
         >
-            <style
-                dangerouslySetInnerHTML={{
-                    __html: `text{white-space:pre;user-select:none;-webkit-user-select:none}${css ?? ''}`,
-                }}
-            />
+            <style dangerouslySetInnerHTML={{ __html: baseCss + (css ?? '') }}/>
             {iconDefs}
             {shadowFilter}
             <rect

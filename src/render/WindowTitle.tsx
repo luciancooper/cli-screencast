@@ -86,7 +86,7 @@ const WindowTitle: FunctionComponent<WindowTitleProps> = ({ columnInset, title, 
         content = <WindowTitleFrame columnInset={columnInset} title={title}/>;
     }
     return (
-        <g className='window-title' dominantBaseline='central' {...svgProps}>
+        <g className='window-title' {...svgProps}>
             {content}
         </g>
     );
