@@ -136,7 +136,7 @@ export async function dataFromFile(file: string): Promise<FileData> {
     if ('errors' in result) {
         throw new Error(`Invalid data:\n${result.errors.map((e) => `\n * ${e}`).join('')}`);
     }
-    log.info('read %s data from %S', result.type, path);
+    log.info('read %s data from %p', result.type, path);
     return result;
 }
 

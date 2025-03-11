@@ -55,7 +55,7 @@ async function renderScreenData(screen: ScreenData, options: OutputOptions & Ren
         }
         if (path) {
             await writeToFile(path, type === 'json' ? cache[type]!.pretty : cache[type]!);
-            log.info('wrote %s data out to file %S', type, path);
+            log.info('wrote %s data out to file %p', type, path);
         } else output = type === 'json' ? cache[type]!.data : cache[type]!;
     }
     return output!;
@@ -95,7 +95,7 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
         }
         if (path) {
             await writeToFile(path, type === 'json' ? cache[type]!.pretty : cache[type]!);
-            log.info('wrote %s data out to file %S', type, path);
+            log.info('wrote %s data out to file %p', type, path);
         } else output = type === 'json' ? cache[type]!.data : cache[type]!;
     }
     return output!;

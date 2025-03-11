@@ -145,7 +145,7 @@ export async function resolveSystemFont(
             },
             new Map<SystemFont['src'], [weight: number, style: string, chars: string][]>(),
         ).entries()].flatMap(([src, styles]) => (
-            [log.printf('\n  Source %k:\n', src.file), ...styles.flatMap((s, j) => (j ? ['\n  ', ...s] : s))]
+            [log.printf('\n  Source %k:\n', src.file), ...styles.flatMap((s, j) => (j ? ['\n', ...s] : s))]
         )),
     );
     // return remaining char coverage difference

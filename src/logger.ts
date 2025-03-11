@@ -1,5 +1,6 @@
 import { createLogger, transports, format, type Logger } from 'winston';
 import { inspect, type InspectOptions } from 'util';
+import { relative, isAbsolute } from 'path';
 import { stripAnsi } from 'tty-strings';
 
 const SPLAT = Symbol.for('splat');
@@ -40,7 +41,7 @@ const inspectOptions: InspectOptions = {
 
 /**
  * Custom implementation of the built in node method `formatWithOptions`
- * Recognizes the following printf style format strings: '%s', '%S', '%k', '%O', '%e'
+ * Recognizes the following printf style format strings: '%s', '%S', '%k', '%O', '%e', '%p'
  */
 function printf(message: string, ...splat: any[]) {
     let [str, j, a] = ['', 0, 0];
@@ -68,6 +69,16 @@ function printf(message: string, ...splat: any[]) {
                 case 'O': // '%O' - objects (colored)
                     fmt = inspect(splat[a], inspectOptions);
                     break;
+                case 'p': {
+                    // '%p' - format relative path (cyan)
+                    const path = relative(process.cwd(), String(splat[a]));
+                    if (path) {
+                        fmt = path.replace(/\\/g, '/');
+                        if (!isAbsolute(path) && !/^\.+\//.test(fmt)) fmt = `./${fmt}`;
+                    } else fmt = '.';
+                    fmt = `\x1b[36m${fmt}\x1b[39m`;
+                    break;
+                }
                 case 'e': // '%e' - errors (colored)
                     if (splat[a] && typeof splat[a] === 'object' && (splat[a] as { error?: Error }).error?.stack) {
                         const { error } = (splat[a] as unknown as { error: Error });
@@ -101,7 +112,7 @@ const logger = createLogger({
             // if splat args are present, format message as a printf-like format string
             if (info[SPLAT]) info.message = printf(info.message, ...info[SPLAT]);
             // align message with level prefixes
-            padder.transform(info, padder.options);
+            padder.transform(info);
             // put level prefix in brackets and colorize
             info.level = `[${info.level}]`;
             colorizer.transform(info, colorizer.options);

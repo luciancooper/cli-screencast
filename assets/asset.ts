@@ -1,4 +1,4 @@
-import { join, resolve, relative } from 'path';
+import { join, resolve } from 'path';
 import { existsSync as pathExists } from 'fs';
 import { rm } from 'fs/promises';
 import { resolveFonts, embedFontCss } from '@src/fonts';
@@ -121,7 +121,7 @@ export default class Asset implements Creatable {
         log.info('%k rendering asset', this.id);
         const asset = await this.render();
         await writeToFile(this.absPath, asset);
-        log.info('%k wrote asset to %S', this.id, relative(process.cwd(), this.dir));
+        log.info('wrote asset to %p', this.absPath);
     }
 
     async remove() {
@@ -129,6 +129,6 @@ export default class Asset implements Creatable {
         if (!this.exists()) return;
         // delete asset file
         await rm(this.absPath);
-        log.info('removed asset %S', relative(process.cwd(), this.absPath));
+        log.info('removed asset %p', this.absPath);
     }
 }
