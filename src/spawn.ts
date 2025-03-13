@@ -434,25 +434,34 @@ export function readableShell({
             useConpty,
         }),
         // track pty state
-        state: PtyState = { killed: false, exitCode: undefined, signal: undefined };
+        state: PtyState & { interrupted: boolean } = {
+            killed: false,
+            interrupted: false, // tracks if Ctrl-D has been recieved
+            exitCode: undefined,
+            signal: undefined,
+        };
     // indicate start of the capture
     process.stdout.write(PtyRecordingStream.kCaptureStartLine);
     // emit stream start event
     stream.start();
     // attach data listener
     const dataHook = spawned.onData((chunk: string) => {
-        process.stdout.write(chunk);
-        stream.write(chunk);
+        if (!state.interrupted) {
+            process.stdout.write(chunk);
+            stream.write(chunk);
+        }
     });
     // kill method
     let kill: (sig?: string) => void;
     // connect stdin
     const cleanupStdin = hookStdin((chunk: Buffer) => {
         const str = chunk.toString();
-        // check for ctrl-D
-        if (str === '\x04') {
+        // check for EOT control code (ctrl-D)
+        if (str.includes('\x04')) {
             // finish the stream
             stream.finish();
+            // set interrupted flag
+            state.interrupted = true;
             // kill the process if it has not been killed yet
             if (!state.killed) {
                 kill(process.platform !== 'win32' ? 'SIGKILL' : undefined);
