@@ -171,8 +171,11 @@ export default [
             // change the title to 'Next Title' and the icon to 'node'
             process.stdout.write('\x1b]2;Next Title\x07\x1b]1;node\x07');
             capture.wait(2000); // wait 2s
-            // change only the title to 'Last Title'
-            capture.setTitle('Last Title');
+            // change the title to 'Last Title' and the icon to 'code'
+            capture.setTitle({ title: 'Last Title', icon: 'code' });
+            capture.wait(2000); // wait 2s
+            // clear both the window title and icon
+            capture.setTitle({ title: '', icon: '' });
             capture.wait(2000); // wait 2s
         }, {
             ...Asset.fonts.cascadiaCode,

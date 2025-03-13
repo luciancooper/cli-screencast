@@ -69,11 +69,10 @@ export interface NodeCapture {
     wait: (milliseconds: number) => void
 
     /**
-     * Set the title and icon of the terminal window in the recorded capture.
-     * @param title - window title string
-     * @param icon - window icon
+     * Set the title / icon of the terminal window in the recorded capture.
+     * @param title - window title string or object with window title / icon strings
      */
-    setTitle: (title: string, icon?: string | boolean) => void
+    setTitle: (title: string | { title?: string, icon?: string }) => void
 
     /**
      * Artificially emit a keypress to the recording's input stream during the capture.

@@ -110,11 +110,11 @@ Finish the capture, optionally passing in an error to display at the end of the 
 
 Adds the specified number of milliseconds to the capture recording.
 
-#### `capture.setTitle(title, icon)` «`(title, icon?) => void`»  {#capture.setTitle}
+#### `capture.setTitle(title, icon)` «`(title) => void`»  {#capture.setTitle}
 
-Set the title and icon of the terminal window in the recorded capture. The `title` argument must be a `string`, while the optional `icon` argument can be either an icon id `string` (see available icons [here](window.md#icon-keywords)), or `true`, in which case the value of `title` will be used as the icon id.
+Set the title and icon of the terminal window in the recorded capture. The `title` argument can be a `string` to set the window title, or a `{ title: string, icon: string }` object to set both the title and icon (see available icons [here](window.md#icon-keywords)). Passing empty strings will clear the title / icon.
 
-Under the hood, this is just a convenience function that writes OSC escape sequences to change the window title and icon. See the [window title and icon configuration section](window.md#title-and-icon) for more info.
+Under the hood, this is just a convenience function that writes OSC escape sequences to change the window title and icon. See the [window title and icon configuration section](window.md#title-and-icon) for more info, as well as this [usage example](window.md#title-and-icon-examples).
 
 #### `capture.createInterface(options)` «`(options?) => Interface`» {#capture.createInterface}
 

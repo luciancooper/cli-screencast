@@ -158,18 +158,23 @@ describe('RecordingStream', () => {
     });
 
     describe('setTitle', () => {
-        test('creates window title escape sequence write events', async () => {
-            mockDateNow([5, 10, 12, 15]);
+        test('creates window title / icon osc sequence write events', async () => {
+            mockDateNow([5, 10, 15, 20, 25]);
             const source = new RecordingStream(defOptions);
             source.start(); // now: 5
-            source.setTitle('window title', 'node'); // 10
-            source.setTitle('node task', true); // 12
-            source.finish(); // 15
+            source.setTitle('window title'); // 10
+            source.setTitle({ title: 'node task', icon: 'node' }); // 15
+            source.setTitle({ title: '', icon: '' }); // 20
+            source.setTitle({}); // empty object no write
+            // @ts-expect-error passing no argument violates type signature
+            source.setTitle(); // no argument
+            source.finish(); // 25
             await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
                 { type: 'start', ...source.termOptions },
-                { content: '\x1b]2;window title\x07\x1b]1;node\x07', time: 5 },
-                { content: '\x1b]0;node task\x07', time: 7 },
-                { type: 'finish', time: 10 },
+                { content: '\x1b]2;window title\x07', time: 5 },
+                { content: '\x1b]2;node task\x07\x1b]1;node\x07', time: 10 },
+                { content: '\x1b]2;\x07\x1b]1;\x07', time: 15 },
+                { type: 'finish', time: 20 },
             ]);
         });
 

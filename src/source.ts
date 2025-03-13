@@ -179,20 +179,25 @@ export default class RecordingStream<T> extends DuplexConstructor {
         this.emit('recording-end', time);
     }
 
-    setTitle(title: string, icon: string | boolean = false) {
+    setTitle(arg: string | { title?: string, icon?: string }) {
         if (this.ended) {
             const error = new Error("Cannot use 'setTitle' after source stream has been closed");
             this.destroy(error);
             throw error;
         }
+        // determine escape to write
+        let esc = '';
+        if (typeof arg !== 'string') {
+            const { title, icon } = arg ?? {};
+            if (typeof title === 'string') esc += `\x1b]2;${title}\x07`;
+            if (typeof icon === 'string') esc += `\x1b]1;${icon}\x07`;
+        } else esc = `\x1b]2;${arg}\x07`;
+        // stop if there is no escape to write
+        if (!esc) return;
         // push an initial start event to the readable stream if necessary
         if (!this.started) this.start();
         // push write event
-        this.pushWrite(
-            typeof icon === 'string'
-                ? `\x1b]2;${title}\x07\x1b]1;${icon}\x07`
-                : `\x1b]${icon ? 0 : 2};${title}\x07`,
-        );
+        this.pushWrite(esc);
     }
 }
 
