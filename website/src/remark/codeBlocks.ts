@@ -209,7 +209,7 @@ async function processImageNode([node, parent]: [node: Image, parent: Parent], c
     if (!filePath) return;
     // ensure file is yaml, json, or a js / ts code file
     const ext = extname(filePath);
-    if (!/^\.(?:yaml|json|[cm]?[jt]sx?)$/.test(ext)) return;
+    if (!/^\.(?:ya?ml|json|[cm]?[jt]sx?)$/.test(ext)) return;
     // get abs path to file
     const absPath = await resolveAbsolutePath(filePath, context);
     // read the file contents

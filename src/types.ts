@@ -82,10 +82,10 @@ export type OutputType = 'svg' | 'png' | 'json' | 'yaml';
 
 export interface OutputOptions {
     /**
-     * The desired output format, either `svg` or `png`.
+     * The desired output format, either `svg`, `png`, `json`, or `yaml`.
      * @defaultValue `'svg'`
      */
-    output?: OutputType
+    output?: OutputType | 'yml'
 
     /**
      * File path or array of file paths to write output to. The type of output will be inferred by the

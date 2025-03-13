@@ -18,7 +18,7 @@ This package provides flexible control over how captured terminal output is retu
 
 ## The `output` option
 
-The [`output`](options.md#output) option controls the returned output format of each function in the API, which is useful when you need to further process or manipulate the output in memory. It defaults to `'svg'`, but you can alternatively specify `'png'`, `'json'`, or `'yaml'`.
+The [`output`](options.md#output) option controls the returned output format of each function in the API, which is useful when you need to further process or manipulate the output in memory. It defaults to `'svg'`, but you can alternatively specify `'png'`, `'json'`, or `'yaml'` (`'yml'` is accepted as an alias for `'yaml'`).
 
 **Example:**
 
@@ -87,7 +87,7 @@ renderScreen('Hello World!', {
 
 ## The `outputPath` option
 
-The [`outputPath`](options.md#outputPath) option allows you to directly save the output to a file in a specified format. The file format (**SVG**, **PNG**, **JSON**, or **YAML**) is automatically inferred from the file extension provided in each path (e.g., `.svg`, `.png`, `.json`, or `.yaml`). Paths that are not absolute are resolved relative to the current working directory.
+The [`outputPath`](options.md#outputPath) option allows you to directly save the output to a file in a specified format. The file format (**SVG**, **PNG**, **JSON**, or **YAML**) is automatically inferred from the file extension provided in each path (e.g., `.svg`, `.png`, `.json`, `.yaml`, or `.yml`). Paths that are not absolute are resolved relative to the current working directory.
 
 The following example demonstrates how to save a capture in all four formats, each to its respective output file:
 

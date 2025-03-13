@@ -110,7 +110,7 @@ export async function dataFromFile(file: string): Promise<FileData> {
         ({ path, ext } = resolveFilePath(file));
     }
     // check data file extension
-    if (ext !== 'json' && ext !== 'yaml') {
+    if (!['json', 'yaml', 'yml'].includes(ext)) {
         throw new Error(`Unsupported data file type: '${file}', must be json or yaml`);
     }
     // read contents of data file
@@ -131,7 +131,7 @@ export async function dataFromFile(file: string): Promise<FileData> {
         }
     }
     // validate the data
-    const result = validateData(ext === 'yaml' ? YAML.parse(content) : JSON.parse(content));
+    const result = validateData(ext === 'json' ? JSON.parse(content) : YAML.parse(content));
     // throw error if validation failed
     if ('errors' in result) {
         throw new Error(`Invalid data:\n${result.errors.map((e) => `\n * ${e}`).join('')}`);

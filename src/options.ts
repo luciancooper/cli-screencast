@@ -31,20 +31,22 @@ const defaultOutputOptions: Required<OutputOptions> = {
 
 export function applyDefOutputOptions(options: OutputOptions) {
     const { output, outputPath, ...spec } = applyDefaults(defaultOutputOptions, options),
+        // narrow output type aliases
+        type: OutputType = output === 'yml' ? 'yaml' : output,
         // create array of output specs
-        outputs: { type: OutputType, path: string | null }[] = [{ type: output, path: null }];
+        outputs: { type: OutputType, path: string | null }[] = [{ type, path: null }];
     if (outputPath) {
         // create output spec for each specified output path
         for (const file of (typeof outputPath === 'string' ? [outputPath] : outputPath)) {
             const { path, ext } = resolveFilePath(file);
-            if (['svg', 'png', 'json', 'yaml'].includes(ext)) {
-                outputs.push({ type: ext as OutputType, path });
+            if (['svg', 'png', 'json', 'yaml', 'yml'].includes(ext)) {
+                outputs.push({ type: ext === 'yml' ? 'yaml' : ext as OutputType, path });
                 continue;
             }
             log.warn(`output file path %p has ${
                 ext ? `unsupported extension ${ext}` : 'no extension'
-            }, %k data will be written to file`, file, output);
-            outputs.push({ type: output, path });
+            }, %k data will be written to file`, file, type);
+            outputs.push({ type, path });
         }
     }
     return { outputs, ...spec };

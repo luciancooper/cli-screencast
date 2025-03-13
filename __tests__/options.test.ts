@@ -58,6 +58,17 @@ describe('applyDefOutputOptions', () => {
         ]);
     });
 
+    test('supports `yml` as an alias for `yaml`', () => {
+        expect(applyDefOutputOptions({
+            output: 'yml',
+            outputPath: ['./file.yaml', './file.yml'],
+        }).outputs).toStrictEqual([
+            { type: 'yaml', path: null },
+            { type: 'yaml', path: path.resolve('./file.yaml') },
+            { type: 'yaml', path: path.resolve('./file.yml') },
+        ]);
+    });
+
     test('output paths can be absolute', () => {
         const file = path.resolve('./file.svg');
         expect(applyDefOutputOptions({
