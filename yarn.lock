@@ -5824,10 +5824,10 @@ tsutils@^3.21.0:
   dependencies:
     tslib "^1.8.1"
 
-tty-strings@^1.5.1:
-  version "1.5.1"
-  resolved "https://registry.yarnpkg.com/tty-strings/-/tty-strings-1.5.1.tgz#4d46d3394aa7764e27a066914d3892024b8a8eab"
-  integrity sha512-bVgpGnyjFgsXcO1PQUd260ykSLKCl/e1bwDeK3sEJm32XakdcIQ94m0WykpTIOw6yNnFCmWqVZE1ih0nL7e1Qw==
+tty-strings@^1.5.2:
+  version "1.5.2"
+  resolved "https://registry.yarnpkg.com/tty-strings/-/tty-strings-1.5.2.tgz#cb7c1af6235ff5a2317f558426b0fa0054130823"
+  integrity sha512-zLNOdiindttB9XzGV3ERO1UDLXvPdakkGcDqSonBTcm5xDe6EdWRfoASuToQALrFnWoCWyMwVSj4AF9sz5r0AQ==
 
 type-check@^0.4.0, type-check@~0.4.0:
   version "0.4.0"

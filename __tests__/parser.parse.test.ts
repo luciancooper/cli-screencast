@@ -156,6 +156,9 @@ describe('osc escape sequences', () => {
         const parser = makeParser({ columns: 40, rows: 10 });
         parser('\x1b]30101\x1b\x5c');
         expect(parser.state).toEqual(parser.prev);
+        // osc escape containing a carriage return
+        parser('\x1b]133;C;\r\x07');
+        expect(parser.state).toEqual(parser.prev);
     });
 });
 
