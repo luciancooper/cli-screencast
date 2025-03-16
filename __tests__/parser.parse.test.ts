@@ -88,6 +88,16 @@ describe('escape sequences', () => {
         parser(ansi.csi('3h')); // show control characters
         expect(parser.state).toEqual(parser.prev);
     });
+
+    test('ignore standalone BEL escapes', () => {
+        const parser = makeParser({ columns: 40, rows: 10 });
+        parser('aaaaa\x07bbbbb');
+        expect(parser.state.lines).toEqual<TerminalLine[]>([
+            { index: 0, ...makeLine('aaaaabbbbb') },
+        ]);
+        parser('\x07');
+        expect(parser.state).toEqual(parser.prev);
+    });
 });
 
 describe('osc escape sequences', () => {

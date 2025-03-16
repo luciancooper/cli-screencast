@@ -22,8 +22,8 @@ export interface ParseContext extends Readonly<Dimensions> {
 const ctrlRegex = String(ansiRegex({ global: false })).slice(1, -2)
     // carriage return not followed by newline
     + '|\\r(?!\\n)'
-    // a backspace, form feed, or vertical tab escape
-    + '|[\\b\\f\\v]'
+    // a backspace, form feed, vertical tab escape, or BEL
+    + '|[\\b\\f\\v\\x07]'
     + ')';
 
 function prune(lines: TerminalLine[]) {
