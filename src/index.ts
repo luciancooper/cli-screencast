@@ -101,16 +101,15 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
     return output!;
 }
 
+export interface RenderScreenOptions extends LoggingOptions, TerminalOptions, OutputOptions, RenderOptions {}
+
 /**
  * Render a terminal screenshot to svg or png, or to a data storage format (json or yaml)
  * @param content - screen content to render
- * @param options - render options
+ * @param options - configuration options
  * @returns screenshot string (if output is svg, json, or yaml) or png buffer
  */
-export async function renderScreen(
-    content: string,
-    options: LoggingOptions & TerminalOptions & OutputOptions & RenderOptions,
-): Promise<string | Buffer> {
+export async function renderScreen(content: string, options: RenderScreenOptions): Promise<string | Buffer> {
     // ensure required options are specified
     validateOptions(options);
     // apply log level options
@@ -126,16 +125,16 @@ export async function renderScreen(
     }
 }
 
+export interface CaptureFramesOptions
+    extends LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
+
 /**
  * Create an animated terminal screen capture from an array of content frames.
  * @param frames - array of content frames
- * @param options - render options
+ * @param options - configuration options
  * @returns animated screen capture string (if output is svg, json, or yaml) or png buffer
  */
-export async function captureFrames(
-    frames: SourceFrame[],
-    options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & RenderOptions,
-): Promise<string | Buffer> {
+export async function captureFrames(frames: SourceFrame[], options: CaptureFramesOptions): Promise<string | Buffer> {
     // ensure required options are specified
     validateOptions(options);
     // apply log level options
@@ -153,17 +152,20 @@ export async function captureFrames(
     }
 }
 
+export interface CaptureSpawnOptions
+    extends SpawnOptions, LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
+
 /**
  * Capture the terminal output of a spawned command
  * @param command - the command to run
  * @param args - list of string arguments
- * @param options - render options
+ * @param options - configuration options
  * @returns animated screen capture string (if output is svg, json, or yaml) or png buffer
  */
 export async function captureSpawn(
     command: string,
     args: string[],
-    options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & SpawnOptions & RenderOptions,
+    options: CaptureSpawnOptions,
 ): Promise<string | Buffer> {
     // ensure required options are specified
     validateOptions(options);
@@ -182,15 +184,16 @@ export async function captureSpawn(
     }
 }
 
+export interface CaptureShellOptions
+    extends ShellOptions, LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
+
 /**
  * Capture a pty shell session. A new shell session will be spawned and piped to `process.stdout` and `process.stdin`.
  * The shell session recording can be stopped with `Ctrl+D`.
- * @param options - options spec
+ * @param options - configuration options
  * @returns animated screen capture string (if output is svg, json, or yaml) or png buffer
  */
-export async function captureShell(
-    options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & ShellOptions & RenderOptions,
-): Promise<string | Buffer> {
+export async function captureShell(options: CaptureShellOptions): Promise<string | Buffer> {
     // ensure required options are specified
     validateOptions(options);
     // apply log level options
@@ -208,18 +211,21 @@ export async function captureShell(
     }
 }
 
+export interface CaptureCallbackOptions
+    extends CallbackOptions, LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
+
 /**
  * Capture any terminal output that occurs within a callback function.
  * @remarks
  * Within the provided callback function `fn`, all writes to `process.stdout` and `process.stderr`, (and by extension
  * calls to `console.log` and `console.error`) will be captured and included in the returned screencast.
  * @param fn - callback function in which terminal output is captured. Can be synchronous or asynchronous.
- * @param options - render options
+ * @param options - configuration options
  * @returns animated screen capture string (if output is svg, json, or yaml) or png buffer
  */
 export async function captureCallback(
     fn: (capture: NodeCapture) => any,
-    options: LoggingOptions & OutputOptions & TerminalOptions & CaptureOptions & CallbackOptions & RenderOptions,
+    options: CaptureCallbackOptions,
 ): Promise<string | Buffer> {
     // ensure required options are specified
     validateOptions(options);
@@ -238,13 +244,15 @@ export async function captureCallback(
     }
 }
 
+export interface RenderDataOptions extends LoggingOptions, OutputOptions, RenderOptions {}
+
 /**
  * Render a screencast or screenshot from a json or yaml data file.
  * @param path - data file path containing the screencast data to render
- * @param options - render options
+ * @param options - configuration options
  * @returns rendered screencast svg string or png buffer
  */
-export async function renderData(path: string, options: LoggingOptions & OutputOptions & RenderOptions = {}) {
+export async function renderData(path: string, options: RenderDataOptions = {}) {
     // apply log level options
     applyLoggingOptions(options);
     try {
@@ -258,18 +266,9 @@ export async function renderData(path: string, options: LoggingOptions & OutputO
 }
 
 export { setLogLevel };
+export type { SourceFrame, NodeCapture };
 
-export type { RGBA } from './types';
+export type { LogLevel } from './logger';
+export type { RGBA, OutputType } from './types';
 export type { Theme } from './theme';
-
-export type {
-    SourceFrame,
-    LoggingOptions,
-    OutputOptions,
-    TerminalOptions,
-    CaptureOptions,
-    RenderOptions,
-    SpawnOptions,
-    CallbackOptions,
-    NodeCapture,
-};
+export type { BoxShadowOptions } from './render';

@@ -1,8 +1,6 @@
 import type { Entries, RGBA } from './types';
 import { resolveColor } from './color';
 
-type CursorStyle = 'beam' | 'block' | 'underline';
-
 export interface Theme<Color = RGBA | string> {
     foreground?: Color
     background?: Color
@@ -27,7 +25,7 @@ export interface Theme<Color = RGBA | string> {
     iconColor?: Color
     // cursor
     cursorColor?: Color
-    cursorStyle?: CursorStyle
+    cursorStyle?: 'beam' | 'block' | 'underline'
     cursorBlink?: boolean
     // ansi style
     dim?: number
