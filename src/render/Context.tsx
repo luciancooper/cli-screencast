@@ -4,7 +4,7 @@ import type { Theme } from '../theme';
 import type { BoxShadowOptions } from './BoxShadow';
 
 export interface RenderContext extends Dimensions {
-    theme: Theme<RGBA>
+    theme: Required<Theme<RGBA>>
     fontSize: number
     fontFamily: string
     borderRadius: number

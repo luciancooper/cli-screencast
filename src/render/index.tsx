@@ -14,7 +14,7 @@ export interface RenderOptions {
     /**
      * Theme specification
      */
-    theme?: Partial<Theme>
+    theme?: Theme
 
     /**
      * @defaultValue `"'Monaco', 'Cascadia Code', 'Courier New'"`
@@ -100,7 +100,7 @@ export interface RenderOptions {
 }
 
 interface RenderProps extends Required<Omit<RenderOptions, 'boxShadow'>> {
-    theme: Theme<RGBA>
+    theme: Required<Theme<RGBA>>
     boxShadow: Required<BoxShadowOptions> | null
     fontColumnWidth?: number | undefined
     css?: string | null

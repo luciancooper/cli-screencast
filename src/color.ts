@@ -67,7 +67,7 @@ export function encodeColor(...args: number[]): number {
     return ColorModel.RGB | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
 }
 
-type ThemeColorKeys = { [K in keyof Theme]: Theme<never>[K] extends never ? K : never }[keyof Theme];
+type ThemeColorKeys = { [K in keyof Theme]-?: Required<Theme<never>>[K] extends never ? K : never }[keyof Theme];
 
 const color4BitKeys: ThemeColorKeys[] = [
     'black',
@@ -88,7 +88,7 @@ const color4BitKeys: ThemeColorKeys[] = [
     'brightWhite',
 ];
 
-export function decodeColor(color: number | undefined, theme: Theme<RGBA>): RGBA | undefined {
+export function decodeColor(color: number | undefined, theme: Required<Theme<RGBA>>): RGBA | undefined {
     if (typeof color !== 'number') return color;
     // handle rgb color model
     if (color & ColorModel.RGB) {
