@@ -69,16 +69,16 @@ function printf(message: string, ...splat: any[]) {
                 case 'O': // '%O' - objects (colored)
                     fmt = inspect(splat[a], inspectOptions);
                     break;
-                case 'p': {
-                    // '%p' - format relative path (cyan)
-                    const path = relative(process.cwd(), String(splat[a]));
-                    if (path) {
-                        fmt = path.replace(/\\/g, '/');
-                        if (!isAbsolute(path) && !/^\.+\//.test(fmt)) fmt = `./${fmt}`;
-                    } else fmt = '.';
+                case 'p': // '%p' - format relative path (cyan)
+                    if (typeof splat[a] === 'string') {
+                        const path = relative(process.cwd(), splat[a]);
+                        if (path) {
+                            fmt = path.replace(/\\/g, '/');
+                            if (!isAbsolute(path) && !/^\.+\//.test(fmt)) fmt = `./${fmt}`;
+                        } else fmt = '.';
+                    } else fmt = String(splat[a]);
                     fmt = `\x1b[36m${fmt}\x1b[39m`;
                     break;
-                }
                 case 'e': // '%e' - errors (colored)
                     if (splat[a] && typeof splat[a] === 'object' && (splat[a] as { error?: Error }).error?.stack) {
                         const { error } = (splat[a] as unknown as { error: Error });
@@ -103,8 +103,14 @@ function printf(message: string, ...splat: any[]) {
     return str;
 }
 
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'silent';
+
+// global log level
+let logLevel: LogLevel = 'warn';
+
 const logger = createLogger({
     levels,
+    level: logLevel,
     format: format.combine(
         format.metadata({ key: 'meta' }),
         format.errors({ stack: true }),
@@ -128,8 +134,6 @@ const logger = createLogger({
 
 Object.defineProperty(logger, 'printf', { value: printf });
 
-export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'silent';
-
 export interface LoggingOptions {
     /**
      * Control how much info is logged to the console during the render process
@@ -138,9 +142,6 @@ export interface LoggingOptions {
      */
     logLevel?: LogLevel
 }
-
-// global log level
-let logLevel: LogLevel = 'warn';
 
 /**
  * Set global log level

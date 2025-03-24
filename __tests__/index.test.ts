@@ -58,7 +58,6 @@ describe('renderScreen', () => {
     test('promises a buffer when output type is `png`', async () => {
         const png = await renderScreen('Hello World!', {
             ...dimensions,
-            logLevel: 'silent',
             output: 'png',
             outputPath: [outputPaths.json, outputPaths.svg, outputPaths.png],
             cursorHidden: false,
@@ -113,7 +112,6 @@ describe('captureSpawn', () => {
     test('promises a buffer when output type is `png`', async () => {
         await expect(captureSpawn('node', ['-e', "process.stdout.write('Hello World!');"], {
             ...dimensions,
-            logLevel: 'silent',
             output: 'png',
             scaleFactor: 1,
             includeCommand: false,
@@ -165,7 +163,6 @@ describe('captureCallback', () => {
             source.write('captured write');
         }, {
             ...dimensions,
-            logLevel: 'silent',
             output: 'png',
             embedFonts: false,
             outputPath: [outputPaths.svg, outputPaths.png],
