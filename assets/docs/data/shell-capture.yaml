@@ -3,63 +3,65 @@ type: capture
 columns: 50
 rows: 10
 tabSize: 8
+cursorHidden: false
 writes:
-  - content: "\e[48;5;75m\e[38;5;15m 
-      \e[0m\e[38;5;75m\e[0m\e[0m\e[38;5;176;49m\e[7m\e[0m\e[48;5;176m\e[38;5;\
-      15m ~ \e[0m\e[38;5;176m\e[0m \e[K"
+  - content: "\e]1337;ShellIntegrationVersion=14;shell=zsh\a\e[1m\e[7m%\e[27m\e[1m\e[0m                                                 \
+      \r \r\e]133;D;0\a\r\e[0m\e[27m\e[24m\e[J\e]133;A\a\e[48;2;97;175;239m\e[38;2;255;255;255m 
+      \e[0m\e[38;2;97;175;239m\e[0m\e[0m\e[38;2;198;120;221;49m\e[7m\e[0m\e[48;2;198;120;221m\e[38;2;255;255;255m ~ \e[0m\e[38;2;198;120;221m\e[0m \e]133;B\a\e[K\e[?2004h"
     delay: 0
   - content: e
-    delay: 1295
+    delay: 1060
   - content: "\bec"
-    delay: 172
-  - content: h
-    delay: 243
-  - content: o
-    delay: 273
-  - content: " "
-    delay: 192
-  - content: H
-    delay: 334
-  - content: e
-    delay: 211
-  - content: l
-    delay: 151
-  - content: l
-    delay: 123
-  - content: o
-    delay: 171
-  - content: " "
-    delay: 110
-  - content: W
-    delay: 237
-  - content: o
-    delay: 144
-  - content: r
-    delay: 110
-  - content: l
-    delay: 133
-  - content: d
-    delay: 145
-  - content: "!"
-    delay: 420
-  - content: "\r
-
-      Hello World!\r
-
-      "
-    delay: 450
-  - content: "\e[48;5;75m\e[38;5;15m 
-      \e[0m\e[38;5;75m\e[0m\e[0m\e[38;5;176;49m\e[7m\e[0m\e[48;5;176m\e[38;5;\
-      15m ~ \e[0m\e[38;5;176m\e[0m \e[K"
-    delay: 89
-  - content: e
-    delay: 1083
-  - content: "\bex"
-    delay: 250
-  - content: i
     delay: 186
+  - content: h
+    delay: 202
+  - content: o
+    delay: 139
+  - content: " "
+    delay: 284
+  - content: H
+    delay: 619
+  - content: e
+    delay: 233
+  - content: l
+    delay: 189
+  - content: l
+    delay: 163
+  - content: o
+    delay: 260
+  - content: " "
+    delay: 112
+  - content: W
+    delay: 335
+  - content: o
+    delay: 313
+  - content: r
+    delay: 170
+  - content: l
+    delay: 166
+  - content: d
+    delay: 196
+  - content: "!"
+    delay: 447
+  - content: "\e[?2004l\r\r
+
+      \e]133;C;\r\aHello World!\r
+
+      \e[1m\e[7m%\e[27m\e[1m\e[0m                                                 \r \r\e]133;D;0\a"
+    delay: 546
+  - content: "\r\e[0m\e[27m\e[24m\e[J\e]133;A\a\e[48;2;97;175;239m\e[38;2;255;255;255m 
+      \e[0m\e[38;2;97;175;239m\e[0m\e[0m\e[38;2;198;120;221;49m\e[7m\e[0m\e[48;2;198;120;221m\e[38;2;255;255;255m ~ \e[0m\e[38;2;198;120;221m\e[0m \e]133;B\a\e[K\e[?2004h"
+    delay: 86
+  - content: e
+    delay: 1255
+  - content: "\bex"
+    delay: 358
+  - content: i
+    delay: 269
   - content: t
-    delay: 123
-  - content: "\n"
-    delay: 143
-endDelay: 1080
+    delay: 183
+  - content: "\e[?2004l\r\r
+
+      \e]133;C;\r\a"
+    delay: 476
+endDelay: 1031

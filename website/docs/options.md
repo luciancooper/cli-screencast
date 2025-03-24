@@ -84,23 +84,25 @@ Milliseconds to add to the end of a captured terminal recording. Default is `500
 
 Remove the time difference between the start of the capture and the first write when capturing a terminal recording. Defaults to `true`.
 
-#### captureCommand «`boolean`» {#captureCommand}
+## Command Options
 
-Include a prompt and command string at the beginning of a captured recording, if the recording was started with a command. Defaults to `true`.
+#### includeCommand «`boolean`» {#includeCommand}
+
+Include a prompt and command string at the beginning of a captured recording, if the recording data includes a command. Defaults to `true`.
 
 #### prompt «`string`» {#prompt}
 
 The prompt prefix string to use when a command is captured. Default is `'> '`.
 
 > [!note]
-> This option is only applicable when [`captureCommand`](#captureCommand) is `true`.
+> This option is only applicable when [`includeCommand`](#includeCommand) is `true`.
 
 #### keystrokeAnimation «`boolean`» {#keystrokeAnimation}
 
 Include a command input keystroke animation at the start of the recording if command prompt line is captured. Defaults to `true`.
 
 > [!note]
-> This option is only applicable when [`captureCommand`](#captureCommand) is `true`.
+> This option is only applicable when [`includeCommand`](#includeCommand) is `true`.
 
 #### keystrokeAnimationInterval «`number`» {#keystrokeAnimationInterval}
 
@@ -108,12 +110,6 @@ The delay in milliseconds between keystrokes to use when creating a command inpu
 
 > [!note]
 > This option is only applicable when [`keystrokeAnimation`](#keystrokeAnimation) is `true`.
-
-## Debugging Options
-
-#### logLevel «`string`» {#logLevel}
-
-Controls how much info is logged to the console during the render process. Options are (in order of descending verbosity): `'debug'`, `'info'`, `'warn'`, `'error'`, and `'silent'`. Defaults to `'warn'`.
 
 ## Rendering Options
 
@@ -184,3 +180,9 @@ Amount of inset space in pixels added to the left, right, and bottom of the wind
 
 > [!note]
 > This option is ignored if [`decorations`](#decorations) is `false`.
+
+## Debugging Options
+
+#### logLevel «`string`» {#logLevel}
+
+Controls how much info is logged to the console during the render process. Options are (in order of descending verbosity): `'debug'`, `'info'`, `'warn'`, `'error'`, and `'silent'`. Defaults to `'warn'`.

@@ -116,7 +116,7 @@ describe('captureSpawn', () => {
             logLevel: 'silent',
             output: 'png',
             scaleFactor: 1,
-            captureCommand: false,
+            includeCommand: false,
         }).then((value) => Buffer.isBuffer(value))).resolves.toBe(true);
     });
 });
@@ -218,6 +218,7 @@ describe('renderData', () => {
         (readFile as jest.Mock).mockImplementationOnce(async () => JSON.stringify({
             ...partial,
             type: 'capture',
+            cursorHidden: false,
             endDelay: 500,
         }));
         await expect(renderData('./invalid.json')).rejects.toThrow(
@@ -240,6 +241,7 @@ describe('renderData', () => {
         nock('https://cli-screencast.io').get('/capture.json').reply(200, JSON.stringify({
             ...partial,
             type: 'capture',
+            cursorHidden: false,
             writes: [{ content: 'Hello World!', delay: 0 }],
             endDelay: 500,
         }));

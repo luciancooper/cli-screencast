@@ -37,58 +37,18 @@ describe('captureSource', () => {
         });
     });
 
-    describe('initial window title and icon conditions', () => {
-        test('window title only', async () => {
-            await expect(runCapture(
-                [{ type: 'start' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
-                { cropStartDelay: false },
-                { windowTitle: 'Title' },
-            )).resolves.toMatchObject<PartialCaptureData>({
-                writes: [{ content: '\x1b]2;Title\x07', delay: 0 }, { content: 'first write', delay: 500 }],
-            });
-        });
-
-        test('window title + icon (string)', async () => {
-            await expect(runCapture(
-                [{ type: 'start' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
-                { cropStartDelay: false },
-                { windowTitle: 'Title', windowIcon: 'node' },
-            )).resolves.toMatchObject<PartialCaptureData>({
-                writes: [
-                    { content: '\x1b]2;Title\x07\x1b]1;node\x07', delay: 0 },
-                    { content: 'first write', delay: 500 },
-                ],
-            });
-        });
-
-        test('window title + icon (boolean)', async () => {
-            await expect(runCapture(
-                [{ type: 'start' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
-                { cropStartDelay: false },
-                { windowTitle: 'Title', windowIcon: true },
-            )).resolves.toMatchObject<PartialCaptureData>({
-                writes: [{ content: '\x1b]0;Title\x07', delay: 0 }, { content: 'first write', delay: 500 }],
-            });
-        });
-
-        test('window icon only (string)', async () => {
-            await expect(runCapture(
-                [{ type: 'start' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
-                { cropStartDelay: false },
-                { windowIcon: 'node' },
-            )).resolves.toMatchObject<PartialCaptureData>({
-                writes: [{ content: '\x1b]1;node\x07', delay: 0 }, { content: 'first write', delay: 500 }],
-            });
-        });
-
-        test('window icon only (boolean)', async () => {
-            await expect(runCapture(
-                [{ type: 'start' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
-                { cropStartDelay: false },
-                { windowIcon: true },
-            )).resolves.toMatchObject<PartialCaptureData>({
-                writes: [{ content: '\x1b]1;_\x07', delay: 0 }, { content: 'first write', delay: 500 }],
-            });
+    test('captures initial conditions from start events', async () => {
+        await expect(runCapture(
+            [{ type: 'start', command: 'ls' }, { content: 'first write', time: 500 }, { type: 'finish', time: 500 }],
+            { cropStartDelay: false, endTimePadding: 500 },
+            { windowTitle: 'Title', windowIcon: 'node', cursorHidden: true },
+        )).resolves.toMatchObject<PartialCaptureData>({
+            windowTitle: 'Title',
+            windowIcon: 'node',
+            cursorHidden: true,
+            command: 'ls',
+            writes: [{ content: 'first write', delay: 500 }],
+            endDelay: 500,
         });
     });
 
@@ -210,48 +170,6 @@ describe('captureSource', () => {
         });
     });
 
-    describe('capture commands', () => {
-        test('capture command prompt string with keystroke animation', async () => {
-            await expect(runCapture([
-                { type: 'start', command: 'ls' },
-                { content: 'first write', time: 500 },
-                { type: 'finish', time: 1000 },
-            ], {
-                captureCommand: true,
-                prompt: '> ',
-                keystrokeAnimation: true,
-                keystrokeAnimationInterval: 100,
-                endTimePadding: 500,
-            }, { cursorHidden: true })).resolves.toMatchObject<PartialCaptureData>({
-                writes: [
-                    { content: '> ', delay: 0 },
-                    { content: 'l', delay: 200 },
-                    { content: 's', delay: 100 },
-                    { content: '\n\x1b[?25l', delay: 200 },
-                    { content: 'first write', delay: 100 },
-                ],
-                endDelay: 1000,
-            });
-        });
-
-        test('capture command prompt string without keystroke animation', async () => {
-            await expect(runCapture([
-                { type: 'start', command: 'ls' },
-                { content: 'first write', time: 500 },
-                { type: 'finish', time: 500 },
-            ], {
-                captureCommand: true,
-                prompt: '> ',
-                keystrokeAnimation: false,
-                cropStartDelay: true,
-                endTimePadding: 500,
-            })).resolves.toMatchObject<PartialCaptureData>({
-                writes: [{ content: '> ls\nfirst write', delay: 0 }],
-                endDelay: 500,
-            });
-        });
-    });
-
     describe('finish events with content', () => {
         test('captures finish content as final write', async () => {
             await expect(runCapture([
@@ -288,8 +206,20 @@ describe('captureSource', () => {
                 { endTimePadding: 0 },
                 { cursorHidden: true },
             )).resolves.toMatchObject<PartialCaptureData>({
-                writes: [{ content: '\x1b[?25l', delay: 0 }],
+                cursorHidden: true,
+                writes: [],
                 endDelay: 0,
+            });
+        });
+
+        test('finish event immediately follows start event with end time paddding', async () => {
+            await expect(runCapture([
+                { type: 'start', command: 'ls' },
+                { type: 'finish', time: 0 },
+            ], { endTimePadding: 500 })).resolves.toMatchObject<PartialCaptureData>({
+                command: 'ls',
+                writes: [],
+                endDelay: 500,
             });
         });
 
@@ -310,27 +240,6 @@ describe('captureSource', () => {
             )).resolves.toMatchObject<PartialCaptureData>({
                 writes: [],
                 endDelay: 500,
-            });
-        });
-
-        test('finish event immediately follows start event from which command is captured', async () => {
-            await expect(runCapture([
-                { type: 'start', command: 'ls' },
-                { type: 'finish', time: 0 },
-            ], {
-                captureCommand: true,
-                prompt: '> ',
-                keystrokeAnimation: true,
-                keystrokeAnimationInterval: 100,
-                endTimePadding: 500,
-            })).resolves.toMatchObject<PartialCaptureData>({
-                writes: [
-                    { content: '> ', delay: 0 },
-                    { content: 'l', delay: 200 },
-                    { content: 's', delay: 100 },
-                    { content: '\n', delay: 200 },
-                ],
-                endDelay: 600,
             });
         });
     });

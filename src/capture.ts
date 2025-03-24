@@ -1,8 +1,6 @@
 import { Writable, type Readable } from 'stream';
-import { splitChars } from 'tty-strings';
 import type { CaptureData } from './types';
 import type { StartEvent, WriteEvent, FinishEvent, SourceEvent } from './source';
-import { applyDefaults } from './options';
 import { promisifyStream } from './utils';
 import log from './logger';
 
@@ -12,34 +10,6 @@ interface BufferedWrite {
 }
 
 export interface CaptureOptions {
-    /**
-     * Include the command prompt string at the beginning of the captured recording if it is present in the source
-     * stream. Applies when capturing the output of a child process, or if a `command` string is passed to the `start`
-     * method of a `NodeCapture` instance.
-     * @defaultValue `true`
-     */
-    captureCommand?: boolean
-
-    /**
-     * The prompt prefix string to use when a command is captured. Only applicable if `captureCommand` is `true`.
-     * @defaultValue `'> '`
-     */
-    prompt?: string
-
-    /**
-     * Include a command input keystroke animation at the start of the recording if command prompt line is captured.
-     * Only applicable if `captureCommand` is `true`.
-     * @defaultValue `true`
-     */
-    keystrokeAnimation?: boolean
-
-    /**
-     * The delay in milliseconds between keystrokes to use when creating a command input animation. Only applicable if
-     * `keystrokeAnimation` is `true`.
-     * @defaultValue `140`
-     */
-    keystrokeAnimationInterval?: number
-
     /**
      * Consecutive writes will be merged if they occur within this number of milliseconds of each other.
      * @defaultValue `80`
@@ -59,20 +29,10 @@ export interface CaptureOptions {
     cropStartDelay?: boolean
 }
 
-export const defaultCaptureOptions: Required<CaptureOptions> = {
-    writeMergeThreshold: 80,
-    endTimePadding: 500,
-    cropStartDelay: true,
-    captureCommand: true,
-    prompt: '> ',
-    keystrokeAnimation: true,
-    keystrokeAnimationInterval: 100,
-};
-
 class CaptureStream extends Writable {
     private started = false;
 
-    private context: Pick<CaptureData, 'columns' | 'rows' | 'tabSize'> | null = null;
+    private context: Omit<CaptureData, 'writes' | 'endDelay'> | null = null;
 
     data: CaptureData | null = null;
 
@@ -86,33 +46,18 @@ class CaptureStream extends Writable {
 
     private cropAdjustment = 0;
 
-    private firstWrite = true;
-
     mergeThreshold: number;
 
     cropStartDelay: boolean;
 
     endTimePadding: number;
 
-    captureCommand: boolean;
-
-    prompt: string;
-
-    keystrokeAnimation: boolean;
-
-    keystrokeInterval: number;
-
-    constructor(options: CaptureOptions) {
+    constructor({ cropStartDelay = true, writeMergeThreshold = 80, endTimePadding = 500 }: CaptureOptions) {
         super({ objectMode: true });
         // set options
-        const props = applyDefaults(defaultCaptureOptions, options);
-        this.mergeThreshold = props.writeMergeThreshold;
-        this.cropStartDelay = props.cropStartDelay;
-        this.endTimePadding = props.endTimePadding;
-        this.captureCommand = props.captureCommand;
-        this.prompt = props.prompt;
-        this.keystrokeAnimation = props.keystrokeAnimation;
-        this.keystrokeInterval = props.keystrokeAnimationInterval;
+        this.mergeThreshold = writeMergeThreshold;
+        this.cropStartDelay = cropStartDelay;
+        this.endTimePadding = endTimePadding;
     }
 
     private pushFrame({ time, content }: BufferedWrite) {
@@ -127,8 +72,10 @@ class CaptureStream extends Writable {
     private bufferWrite({ time, adjustment = 0, content }: WriteEvent): void {
         // add to accumulated time adjustment
         this.accAdjustment += adjustment;
-        // check if there are no previously buffered writes
+        // check if this is the first write
         if (!this.buffered) {
+            // set adjustment if start delay should be cropped
+            if (this.cropStartDelay) this.cropAdjustment = time;
             // set first buffered write
             this.buffered = { time: (time - this.cropAdjustment) + this.accAdjustment, content };
             return;
@@ -143,65 +90,37 @@ class CaptureStream extends Writable {
     }
 
     private startCapture({
-        command,
         columns,
         rows,
         tabSize,
         cursorHidden,
         windowTitle,
         windowIcon,
+        command,
     }: StartEvent) {
         // set capture started flag
         this.started = true;
         // store context for output capture data
-        this.context = { columns, rows, tabSize };
-        // determine initial window title / icon escape
-        let windowEscape = '';
-        if (windowTitle) {
-            windowEscape = windowIcon ? (
-                typeof windowIcon === 'string' ? `\x1b]2;${windowTitle}\x07\x1b]1;${windowIcon}\x07`
-                    : `\x1b]0;${windowTitle}\x07`
-            ) : `\x1b]2;${windowTitle}\x07`;
-        } else if (windowIcon) {
-            windowEscape = `\x1b]1;${typeof windowIcon === 'string' ? windowIcon : '_'}\x07`;
-        }
-        // initial cursor visibility escape
-        const cursorEscape = cursorHidden ? '\x1b[?25l' : '';
-        if (!(command && this.captureCommand)) {
-            const esc = windowEscape + cursorEscape;
-            if (esc) this.bufferWrite({ time: 0, content: esc });
-            return;
-        }
-        const { keystrokeAnimation, keystrokeInterval } = this;
-        // if keystrokeAnimation is false, just update initial content
-        if (!keystrokeAnimation) {
-            // set initial content
-            const content = `${windowEscape}${cursorEscape}${this.prompt}${command}\n`;
-            this.bufferWrite({ time: 0, content });
-            return;
-        }
-        // buffer initial prompt content
-        this.bufferWrite({ time: 0, content: windowEscape + this.prompt });
-        // split command chars
-        let adjustment = keystrokeInterval * 2;
-        for (const char of splitChars(command)) {
-            this.bufferWrite({ time: 0, adjustment, content: char });
-            adjustment = keystrokeInterval;
-        }
-        // write final `enter` keystroke, hiding cursor if it is hidden at the start of the capture
-        this.bufferWrite({ time: 0, adjustment: keystrokeInterval * 2, content: `\n${cursorEscape}` });
-        // add final write to pause after `enter` keystroke
-        this.bufferWrite({ time: 0, adjustment: keystrokeInterval, content: '' });
+        this.context = {
+            columns,
+            rows,
+            tabSize,
+            cursorHidden,
+            windowTitle,
+            windowIcon,
+            command,
+        };
     }
 
     private finishCapture({ time, adjustment = 0, content: final }: FinishEvent) {
         // add to accumulated time adjustment
         this.accAdjustment += adjustment;
         // the content field may contain a final write
-        const content = typeof final === 'string' ? final : '',
-            adjTime = (time - this.cropAdjustment) + this.accAdjustment;
-        // process final writes
+        const content = typeof final === 'string' ? final : '';
+        // process final write
+        let adjTime: number;
         if (this.buffered) {
+            adjTime = (time - this.cropAdjustment) + this.accAdjustment;
             if (adjTime - this.buffered.time > this.mergeThreshold) {
                 this.pushFrame(this.buffered);
                 this.pushFrame({ time: adjTime, content });
@@ -211,6 +130,8 @@ class CaptureStream extends Writable {
             }
             this.buffered = null;
         } else {
+            // no writes have occured
+            adjTime = (this.cropStartDelay ? 0 : time) + this.accAdjustment;
             this.pushFrame({ time: adjTime, content });
         }
         // capture duration
@@ -241,11 +162,6 @@ class CaptureStream extends Writable {
                 // ensure capture has started
                 if (!this.started) {
                     throw new Error('Capture has not started');
-                }
-                // set crop adjustment if this is the first event after start
-                if (this.firstWrite) {
-                    this.cropAdjustment = this.cropStartDelay ? event.time : 0;
-                    this.firstWrite = false;
                 }
                 if (event.type === 'finish') {
                     this.finishCapture(event);

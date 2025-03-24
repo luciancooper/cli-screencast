@@ -47,8 +47,10 @@ Output Related
 Capture Related
 : [writeMergeThreshold](options.md#writeMergeThreshold),
   [endTimePadding](options.md#endTimePadding),
-  [cropStartDelay](options.md#cropStartDelay),
-  [captureCommand](options.md#captureCommand),
+  [cropStartDelay](options.md#cropStartDelay)
+
+Command Related
+: [includeCommand](options.md#includeCommand),
   [prompt](options.md#prompt),
   [keystrokeAnimation](options.md#keystrokeAnimation),
   [keystrokeAnimationInterval](options.md#keystrokeAnimationInterval)

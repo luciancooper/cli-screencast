@@ -22,6 +22,26 @@ function validateField(
     }
 }
 
+function validateOptionalField(
+    errors: string[],
+    parsed: Record<string, any>,
+    key: string,
+    expected: 'string' | 'boolean' | 'number' | ('string' | 'boolean' | 'number')[],
+) {
+    if (Object.hasOwn(parsed, key)) {
+        const type = typeof parsed[key];
+        if (Array.isArray(expected)) {
+            if (!(expected as string[]).includes(type)) {
+                errors.push(`'${key}' must be a ${expected.join(' or ')}`);
+            }
+        } else if (type !== expected) {
+            errors.push(`'${key}' must be a ${expected}`);
+        }
+    } else {
+        parsed[key] = undefined;
+    }
+}
+
 type FileData = { type: 'capture', data: CaptureData } | { type: 'screen', data: ScreenData };
 
 export function validateData(parsed: any): FileData | { errors: string[] } {
@@ -48,6 +68,12 @@ export function validateData(parsed: any): FileData | { errors: string[] } {
     }
     // validate shared numerical fields 'columns', 'rows', 'tabSize'
     for (const key of ['columns', 'rows', 'tabSize']) validateField(errors, parsed, key, 'number');
+    // validate shared 'cursorHidden' field
+    validateField(errors, parsed, 'cursorHidden', 'boolean');
+    // validate shared 'windowTitle' field
+    validateOptionalField(errors, parsed, 'windowTitle', 'string');
+    // validate shared 'windowIcon' field
+    validateOptionalField(errors, parsed, 'windowIcon', ['string', 'boolean']);
     // stop if data does not have a valid 'type' field
     if (!type) return { errors };
     // delete version field
@@ -56,21 +82,9 @@ export function validateData(parsed: any): FileData | { errors: string[] } {
     if (type === 'screen') {
         // validate 'content' field
         validateField(errors, parsed, 'content', 'string');
-        // validate 'cursorHidden' field
-        validateField(errors, parsed, 'cursorHidden', 'boolean');
-        // validate 'windowTitle' field
-        if (!Object.hasOwn(parsed, 'windowTitle')) {
-            parsed.windowTitle = undefined;
-        } else if (typeof parsed.windowTitle !== 'string') {
-            errors.push("'windowTitle' must be a string");
-        }
-        // validate 'windowIcon' field
-        if (!Object.hasOwn(parsed, 'windowIcon')) {
-            parsed.windowIcon = undefined;
-        } else if (typeof parsed.windowIcon !== 'string' && typeof parsed.windowIcon !== 'boolean') {
-            errors.push("'windowIcon' must be a string or boolean");
-        }
     } else {
+        // validate 'command' field
+        validateOptionalField(errors, parsed, 'command', 'string');
         // validate 'endDelay' field
         validateField(errors, parsed, 'endDelay', 'number');
         // validate 'writes' field

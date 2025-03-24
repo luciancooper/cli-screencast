@@ -114,6 +114,36 @@ export interface OutputOptions {
     fonts?: string[] | undefined
 }
 
+export interface CommandOptions {
+    /**
+     * Include a command prompt string at the beginning of the rendered capture if a command is present in the capture
+     * data. Applies when capturing the output of a child process, or if a `command` string is passed to the `start`
+     * method of a `NodeCapture` instance.
+     * @defaultValue `true`
+     */
+    includeCommand?: boolean
+
+    /**
+     * The prompt prefix string to use when a command is captured. Only applicable if `includeCommand` is `true`.
+     * @defaultValue `'> '`
+     */
+    prompt?: string
+
+    /**
+     * Include a command input keystroke animation at the start of the recording if command prompt line is captured.
+     * Only applicable if `includeCommand` is `true`.
+     * @defaultValue `true`
+     */
+    keystrokeAnimation?: boolean
+
+    /**
+     * The delay in milliseconds between keystrokes to use when creating a command input animation. Only applicable if
+     * `keystrokeAnimation` is `true`.
+     * @defaultValue `140`
+     */
+    keystrokeAnimationInterval?: number
+}
+
 export type RGBA = readonly [r: number, g: number, b: number, a?: number];
 
 export interface AnsiStyle {
@@ -144,10 +174,14 @@ export interface AnsiStyleProps {
     strikeThrough: boolean
 }
 
-export interface CaptureData extends Dimensions {
-    tabSize: number
+export interface CaptureData extends Required<TerminalOptions> {
+    command: string | undefined
     endDelay: number
     writes: { content: string, delay: number }[]
+}
+
+export interface ScreenData extends Required<TerminalOptions> {
+    content: string
 }
 
 export interface CursorLocation {
@@ -182,10 +216,6 @@ export interface Title extends TextLine {
 
 export interface TerminalLines {
     lines: TerminalLine[]
-}
-
-export interface ScreenData extends Required<TerminalOptions> {
-    content: string
 }
 
 export interface ParsedFrame extends TerminalLines {

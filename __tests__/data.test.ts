@@ -17,6 +17,7 @@ describe('validateData', () => {
                 "missing 'columns' field",
                 "missing 'rows' field",
                 "missing 'tabSize' field",
+                "missing 'cursorHidden' field",
             ],
         });
     });
@@ -45,42 +46,45 @@ describe('validateData', () => {
         });
     });
 
-    const partial = { columns: 50, rows: 10, tabSize: 8 };
+    test("rejects if 'cursorHidden' is not a boolean", () => {
+        expect(validateData({ cursorHidden: 'hidden' })).toStrictEqual({
+            errors: expect.arrayContaining([
+                "'cursorHidden' must be a boolean",
+            ]),
+        });
+    });
+
+    test("rejects if 'windowTitle' or 'windowIcon' are the wrong type", () => {
+        expect(validateData({ windowTitle: true, windowIcon: 5 })).toStrictEqual({
+            errors: expect.arrayContaining([
+                "'windowTitle' must be a string",
+                "'windowIcon' must be a string or boolean",
+            ]),
+        });
+    });
+
+    const partial = {
+        columns: 50,
+        rows: 10,
+        tabSize: 8,
+        cursorHidden: false,
+    };
 
     describe('screen data', () => {
         const base = { version: '1.0.0', type: 'screen', ...partial };
 
-        test("rejects if 'content' or 'cursorHidden' are omitted", () => {
+        test("rejects if 'content' is omitted", () => {
             expect(validateData({ ...base })).toStrictEqual({
                 errors: expect.arrayContaining([
                     "missing 'content' field",
-                    "missing 'cursorHidden' field",
                 ]),
             });
         });
 
-        test("rejects if 'content' or 'cursorHidden' are the wrong type", () => {
-            expect(validateData(
-                { ...base, content: true, cursorHidden: 'hidden' },
-            )).toStrictEqual({
+        test("rejects if 'content' is not a string", () => {
+            expect(validateData({ ...base, content: true })).toStrictEqual({
                 errors: expect.arrayContaining([
                     "'content' must be a string",
-                    "'cursorHidden' must be a boolean",
-                ]),
-            });
-        });
-
-        test("rejects if 'windowTitle' or 'windowIcon' are the wrong type", () => {
-            expect(validateData({
-                ...base,
-                content: '',
-                cursorHidden: true,
-                windowTitle: true,
-                windowIcon: 5,
-            })).toStrictEqual({
-                errors: expect.arrayContaining([
-                    "'windowTitle' must be a string",
-                    "'windowIcon' must be a string or boolean",
                 ]),
             });
         });
@@ -89,15 +93,14 @@ describe('validateData', () => {
             const data = { ...partial, content: '', cursorHidden: true };
             expect(validateData({
                 ...base,
-                content: '',
-                cursorHidden: true,
+                ...data,
                 windowTitle: 'title',
                 windowIcon: true,
             })).toStrictEqual({
                 type: 'screen',
                 data: { ...data, windowTitle: 'title', windowIcon: true },
             });
-            expect(validateData({ ...base, content: '', cursorHidden: true })).toStrictEqual({
+            expect(validateData({ ...base, ...data })).toStrictEqual({
                 type: 'screen',
                 data: { ...data, windowTitle: undefined, windowIcon: undefined },
             });
@@ -106,6 +109,14 @@ describe('validateData', () => {
 
     describe('capture data', () => {
         const base = { version: '1.0.0', type: 'capture', ...partial };
+
+        test("rejects if 'command' is not a string", () => {
+            expect(validateData({ ...base, command: [] })).toStrictEqual({
+                errors: expect.arrayContaining([
+                    "'command' must be a string",
+                ]),
+            });
+        });
 
         test("rejects if 'writes' or 'endDelay' are omitted", () => {
             expect(validateData({ ...base })).toStrictEqual({
@@ -161,11 +172,16 @@ describe('validateData', () => {
         });
 
         test('valid data is returned without errors', () => {
-            expect(validateData(
-                { ...base, writes: [{ content: 'first', delay: 0 }], endDelay: 500 },
-            )).toStrictEqual({
+            const data = { ...partial, writes: [{ content: 'first', delay: 0 }], endDelay: 500 };
+            expect(validateData({ ...base, ...data })).toStrictEqual({
                 type: 'capture',
-                data: { ...partial, writes: [{ content: 'first', delay: 0 }], endDelay: 500 },
+                data: {
+                    ...partial,
+                    ...data,
+                    command: undefined,
+                    windowTitle: undefined,
+                    windowIcon: undefined,
+                },
             });
         });
     });

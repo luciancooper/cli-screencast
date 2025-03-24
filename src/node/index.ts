@@ -2,9 +2,8 @@ import * as readline from 'readline';
 import type { Interface, ReadLineOptions } from 'readline';
 import { inspect } from 'util';
 import RecordingStream from '../source';
-import type { OmitStrict, TerminalOptions } from '../types';
-import { type CaptureOptions, defaultCaptureOptions } from '../capture';
-import { applyDefaults } from '../options';
+import type { OmitStrict, TerminalOptions, CommandOptions } from '../types';
+import { applyDefCommandOptions } from '../options';
 import { restoreProperty, promisifyStream, mergePromise } from '../utils';
 import InputStream from './input';
 
@@ -118,7 +117,8 @@ interface SocketHandle {
     getWindowSize?: (arr: [cols: number, rows: number]) => Error | null
 }
 
-type Options = TerminalOptions & CallbackOptions & Pick<CaptureOptions, 'keystrokeAnimationInterval'>;
+export interface NodeRecordingStreamOptions
+    extends TerminalOptions, CallbackOptions, Pick<CommandOptions, 'keystrokeAnimationInterval'> {}
 
 export class NodeRecordingStream<T> extends RecordingStream<T> implements NodeCapture {
     isTTY = true;
@@ -131,14 +131,10 @@ export class NodeRecordingStream<T> extends RecordingStream<T> implements NodeCa
 
     keystrokeAnimationInterval: number;
 
-    constructor(options: Options) {
+    constructor({ connectStdin = false, silent = true, ...options }: NodeRecordingStreamOptions) {
         super(options);
-        // apply defaults
-        const { connectStdin, silent, keystrokeAnimationInterval } = applyDefaults({
-            connectStdin: false,
-            silent: true,
-            keystrokeAnimationInterval: defaultCaptureOptions.keystrokeAnimationInterval,
-        }, options);
+        // apply default command options
+        const { keystrokeAnimationInterval } = applyDefCommandOptions(options);
         // set options
         this.silent = silent;
         this.keystrokeAnimationInterval = keystrokeAnimationInterval;
@@ -317,7 +313,7 @@ export class NodeRecordingStream<T> extends RecordingStream<T> implements NodeCa
 
 export default function readableCallback<T>(
     fn: (capture: NodeCapture) => Promise<T> | T,
-    options: Options,
+    options: NodeRecordingStreamOptions,
     ac: AbortController,
 ) {
     // create node recording stream

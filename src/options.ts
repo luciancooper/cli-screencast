@@ -1,4 +1,6 @@
-import type { PickOptional, OmitStrict, Dimensions, OutputOptions, OutputType, TerminalOptions } from './types';
+import type {
+    PickOptional, OmitStrict, Dimensions, OutputOptions, OutputType, TerminalOptions, CommandOptions,
+} from './types';
 import type { RenderOptions, BoxShadowOptions } from './render';
 import { resolveTheme } from './theme';
 import { resolveFilePath } from './utils';
@@ -64,6 +66,17 @@ export function applyDefTerminalOptions(
     overrides?: PickOptional<TerminalOptions>,
 ) {
     return { columns, rows, ...applyDefaults({ ...defaultTerminalOptions, ...overrides }, options) };
+}
+
+const defaultCommandOptions: Required<CommandOptions> = {
+    includeCommand: true,
+    prompt: '> ',
+    keystrokeAnimation: true,
+    keystrokeAnimationInterval: 140,
+};
+
+export function applyDefCommandOptions(options: CommandOptions) {
+    return applyDefaults(defaultCommandOptions, options);
 }
 
 const defaultBoxShadow: Required<OmitStrict<BoxShadowOptions, 'spread' | 'blurRadius'>> = {

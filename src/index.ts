@@ -1,7 +1,9 @@
 import type {
-    CaptureData, ScreenData, ParsedCaptureData, ParsedScreenData, OutputOptions, TerminalOptions,
+    CaptureData, ScreenData, ParsedCaptureData, ParsedScreenData, OutputOptions, TerminalOptions, CommandOptions,
 } from './types';
-import { validateOptions, applyDefTerminalOptions, applyDefOutputOptions, applyDefRenderOptions } from './options';
+import {
+    validateOptions, applyDefTerminalOptions, applyDefOutputOptions, applyDefCommandOptions, applyDefRenderOptions,
+} from './options';
 import log, { applyLoggingOptions, setLogLevel, resetLogLevel, type LoggingOptions } from './logger';
 import { parseScreen, parseCapture } from './parser';
 import { readableFrames, type SourceFrame } from './source';
@@ -61,7 +63,7 @@ async function renderScreenData(screen: ScreenData, options: OutputOptions & Ren
     return output!;
 }
 
-async function renderCaptureData(capture: CaptureData, options: OutputOptions & RenderOptions) {
+async function renderCaptureData(capture: CaptureData, options: OutputOptions & CommandOptions & RenderOptions) {
     const { outputs, ...ouputProps } = applyDefOutputOptions(options),
         props = applyDefRenderOptions(options),
         cache: OutputCache = {};
@@ -76,7 +78,7 @@ async function renderCaptureData(capture: CaptureData, options: OutputOptions & 
             } else if (type === 'yaml') {
                 cache[type] = dataToYaml('capture', capture);
             } else {
-                parsed ??= parseCapture(capture);
+                parsed ??= parseCapture(capture, applyDefCommandOptions(options));
                 fonts ??= await resolveFonts(parsed, props.fontFamily, ouputProps.fonts);
                 const { fontColumnWidth, ...resolvedFonts } = fonts;
                 cssData ??= await embedFontCss(resolvedFonts, {
@@ -125,8 +127,8 @@ export async function renderScreen(content: string, options: RenderScreenOptions
     }
 }
 
-export interface CaptureFramesOptions
-    extends LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
+export interface CaptureFramesOptions extends
+    LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
 
 /**
  * Create an animated terminal screen capture from an array of content frames.
@@ -152,8 +154,8 @@ export async function captureFrames(frames: SourceFrame[], options: CaptureFrame
     }
 }
 
-export interface CaptureSpawnOptions
-    extends SpawnOptions, LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
+export interface CaptureSpawnOptions extends
+    SpawnOptions, LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, CommandOptions, RenderOptions {}
 
 /**
  * Capture the terminal output of a spawned command
@@ -184,8 +186,8 @@ export async function captureSpawn(
     }
 }
 
-export interface CaptureShellOptions
-    extends ShellOptions, LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
+export interface CaptureShellOptions extends
+    ShellOptions, LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
 
 /**
  * Capture a pty shell session. A new shell session will be spawned and piped to `process.stdout` and `process.stdin`.
@@ -211,8 +213,8 @@ export async function captureShell(options: CaptureShellOptions): Promise<string
     }
 }
 
-export interface CaptureCallbackOptions
-    extends CallbackOptions, LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
+export interface CaptureCallbackOptions extends
+    CallbackOptions, LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, CommandOptions, RenderOptions {}
 
 /**
  * Capture any terminal output that occurs within a callback function.
@@ -244,7 +246,7 @@ export async function captureCallback(
     }
 }
 
-export interface RenderDataOptions extends LoggingOptions, OutputOptions, RenderOptions {}
+export interface RenderDataOptions extends LoggingOptions, OutputOptions, CommandOptions, RenderOptions {}
 
 /**
  * Render a screencast or screenshot from a json or yaml data file.

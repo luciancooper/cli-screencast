@@ -22,7 +22,7 @@ export default [
             rows: 10,
             shell: process.platform === 'win32',
             cursorHidden: true,
-            captureCommand: false,
+            includeCommand: false,
         }),
     }),
     new Asset({
@@ -34,7 +34,7 @@ export default [
             rows: 10,
             shell: process.platform === 'win32',
             cursorHidden: true,
-            captureCommand: true,
+            includeCommand: true,
         }),
     }),
     // captureCallback.md examples
@@ -146,10 +146,14 @@ export default [
     new Asset({
         id: 'usage--shell--demo.svg',
         type: 'docs',
-        render: () => renderData(
-            path.resolve(__dirname, './data/shell-demo.yaml'),
-            { ...Asset.fonts.cascadiaCodeNF, theme: { cursorBlink: true } },
-        ),
+        render: () => renderData(path.resolve(__dirname, './data/shell-demo.yaml'), {
+            ...Asset.fonts.cascadiaCodeNF,
+            includeCommand: true,
+            keystrokeAnimationInterval: 150,
+            prompt: '\x1b[48;2;97;175;239;38;2;255;255;255m  \x1b[0;38;2;97;175;239m\x1b[0;38;2;198;120;221;7m'
+            + '\x1b[0;48;2;198;120;221;38;2;255;255;255m ~  examples \x1b[0;38;2;198;120;221m\x1b[0m ',
+            theme: { cursorBlink: true },
+        }),
     }),
     // window.md examples
     new Asset({

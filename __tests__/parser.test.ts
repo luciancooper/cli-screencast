@@ -1,5 +1,7 @@
-import type { PartialExcept, DeepPartial, ScreenData, ParsedScreenData, CaptureData, ParsedCaptureData } from '@src/types';
-import { applyDefTerminalOptions } from '@src/options';
+import type {
+    PartialExcept, DeepPartial, ScreenData, ParsedScreenData, CaptureData, ParsedCaptureData, CommandOptions,
+} from '@src/types';
+import { applyDefTerminalOptions, applyDefCommandOptions } from '@src/options';
 import { parseScreen, parseCapture } from '@src/parser';
 import { resolveTitle } from '@src/parser/title';
 import { makeLine, makeCursor, makeKeyFrames } from './helpers/objects';
@@ -40,9 +42,19 @@ describe('parseScreen', () => {
     });
 });
 
-function parseCaptureTest(spec: PartialExcept<CaptureData, 'writes' | 'endDelay'>) {
+function parseCaptureTest({
+    writes,
+    endDelay,
+    command,
+    ...spec
+}: PartialExcept<CaptureData, 'writes' | 'endDelay'>, options: CommandOptions = {}) {
     const def = { columns: 50, rows: 10, tabSize: 8 };
-    return parseCapture({ ...def, ...spec });
+    return parseCapture({
+        command,
+        ...applyDefTerminalOptions({ ...def, ...spec }),
+        writes,
+        endDelay,
+    }, applyDefCommandOptions(options));
 }
 
 type PartialParsedCaptureData = DeepPartial<ParsedCaptureData>;
@@ -217,6 +229,96 @@ describe('parseCapture', () => {
             cursor: [],
             title: [],
             duration: 0,
+        });
+    });
+
+    describe('adding command prompts', () => {
+        const baseOptions: CommandOptions = {
+            includeCommand: true,
+            prompt: '> ',
+            keystrokeAnimationInterval: 100,
+        };
+
+        test('command prompt without keystroke animation', async () => {
+            expect(parseCaptureTest({
+                writes: [{ content: 'first write', delay: 0 }],
+                endDelay: 500,
+                command: 'ls',
+            }, { ...baseOptions, keystrokeAnimation: false })).toMatchObject<PartialParsedCaptureData>({
+                content: [{ time: 0, endTime: 500, lines: [makeLine('> ls'), makeLine('first write')] }],
+                cursor: [{ time: 0, endTime: 500, ...makeCursor(1, 11, true) }],
+            });
+        });
+
+        test('command prompt without keystroke animation on capture with delayed first write', async () => {
+            expect(parseCaptureTest({
+                writes: [{ content: 'first write', delay: 100 }],
+                endDelay: 500,
+                command: 'ls',
+            }, { ...baseOptions, keystrokeAnimation: false })).toMatchObject<PartialParsedCaptureData>({
+                content: makeKeyFrames([
+                    [100, { lines: [makeLine('> ls')] }],
+                    [500, { lines: [makeLine('> ls'), makeLine('first write')] }],
+                ]),
+                cursor: makeKeyFrames([
+                    [100, makeCursor(1, 0, true)],
+                    [500, makeCursor(1, 11, true)],
+                ]),
+            });
+        });
+
+        test('command prompt without keystroke animation on capture with no writes', async () => {
+            expect(parseCaptureTest({
+                writes: [],
+                endDelay: 500,
+                command: 'ls',
+            }, { ...baseOptions, keystrokeAnimation: false })).toMatchObject<PartialParsedCaptureData>({
+                content: [{ time: 0, endTime: 500, lines: [makeLine('> ls')] }],
+                cursor: [{ time: 0, endTime: 500, ...makeCursor(1, 0, true) }],
+            });
+        });
+
+        test('command prompt keystroke animation on capture where first write has no delay', async () => {
+            expect(parseCaptureTest({
+                writes: [{ content: 'first write', delay: 0 }],
+                endDelay: 1000,
+                command: 'ls',
+                cursorHidden: true,
+            }, { ...baseOptions, keystrokeAnimation: true })).toMatchObject<PartialParsedCaptureData>({
+                content: makeKeyFrames([
+                    [200, { lines: [makeLine('> ')] }],
+                    [100, { lines: [makeLine('> l')] }],
+                    [300, { lines: [makeLine('> ls')] }],
+                    [1000, { lines: [makeLine('> ls'), makeLine('first write')] }],
+                ]),
+                cursor: makeKeyFrames([
+                    [200, makeCursor(0, 2, true)], // > |
+                    [100, makeCursor(0, 3, true)], // > l|
+                    [200, makeCursor(0, 4, true)], // > ls|
+                    [100, makeCursor(1, 0, false)], // |
+                    [1000, makeCursor(1, 11, false)], // first write|
+                ]),
+            });
+        });
+
+        test('command prompt keystroke animation on capture with no writes', async () => {
+            expect(parseCaptureTest({
+                writes: [],
+                endDelay: 500,
+                command: 'ls',
+            }, { ...baseOptions, keystrokeAnimation: true })).toMatchObject<PartialParsedCaptureData>({
+                content: makeKeyFrames([
+                    [200, { lines: [makeLine('> ')] }],
+                    [100, { lines: [makeLine('> l')] }],
+                    [800, { lines: [makeLine('> ls')] }],
+                ]),
+                cursor: makeKeyFrames([
+                    [200, makeCursor(0, 2, true)], // > |
+                    [100, makeCursor(0, 3, true)], // > l|
+                    [200, makeCursor(0, 4, true)], // > ls|
+                    [600, makeCursor(1, 0, true)], // |
+                ]),
+            });
         });
     });
 });

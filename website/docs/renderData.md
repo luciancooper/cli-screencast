@@ -31,6 +31,12 @@ Output Related
   [embedFonts](options.md#embedFonts),
   [fonts](options.md#fonts)
 
+Command Related
+: [includeCommand](options.md#includeCommand),
+  [prompt](options.md#prompt),
+  [keystrokeAnimation](options.md#keystrokeAnimation),
+  [keystrokeAnimationInterval](options.md#keystrokeAnimationInterval)
+
 Rendering Related
 : [theme](options.md#theme),
   [fontFamily](options.md#fontFamily),

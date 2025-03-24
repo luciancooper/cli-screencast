@@ -48,8 +48,10 @@ Output Related
 Capture Related
 : [writeMergeThreshold](options.md#writeMergeThreshold),
   [endTimePadding](options.md#endTimePadding),
-  [cropStartDelay](options.md#cropStartDelay),
-  [captureCommand](options.md#captureCommand),
+  [cropStartDelay](options.md#cropStartDelay)
+
+Command Related
+: [includeCommand](options.md#includeCommand),
   [prompt](options.md#prompt),
   [keystrokeAnimation](options.md#keystrokeAnimation),
   [keystrokeAnimationInterval](options.md#keystrokeAnimationInterval)
@@ -126,7 +128,7 @@ captureSpawn('echo', ['Hello World!'], {
     // echo must be executed in a shell on windows
     shell: process.platform === 'win32',
     cursorHidden: true,
-    captureCommand: false,
+    includeCommand: false,
 }).then((svg) => {
     // svg output string...
 });
@@ -134,7 +136,7 @@ captureSpawn('echo', ['Hello World!'], {
 
 ### Capturing a command with a prompt
 
-Here is the same example as above, but with the [`captureCommand`](options.md#captureCommand) option enabled, which causes a command prompt with animated keystrokes to be included in the capture.
+Here is the same example as above, but with the [`includeCommand`](options.md#includeCommand) option enabled, which causes a command prompt with animated keystrokes to be included in the rendered capture.
 
 ```js result='./assets/usage--spawn--prompt.svg'
 import { captureSpawn } from 'cli-screencast';
@@ -145,7 +147,7 @@ captureSpawn('echo', ['Hello World!'], {
     // echo must be executed in a shell on windows
     shell: process.platform === 'win32',
     cursorHidden: true,
-    captureCommand: true,
+    includeCommand: true,
 }).then((svg) => {
     // svg output string...
 });

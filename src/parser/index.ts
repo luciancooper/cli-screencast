@@ -1,5 +1,6 @@
+import { splitChars } from 'tty-strings';
 import type {
-    ScreenData, ParsedScreenData, CaptureData, Title, CursorState, TerminalLine, ParsedCaptureData,
+    ScreenData, ParsedScreenData, CaptureData, CommandOptions, Title, CursorState, TerminalLine, ParsedCaptureData,
 } from '../types';
 import parse, { type ParseContext, type ParseState } from './parse';
 import { resolveTitle } from './title';
@@ -34,22 +35,63 @@ export function parseScreen({
 }
 
 export function parseCapture({
-    writes,
-    endDelay,
     tabSize,
     columns,
     rows,
-}: CaptureData): ParsedCaptureData {
+    windowTitle,
+    windowIcon,
+    command,
+    ...capture
+}: CaptureData, {
+    includeCommand,
+    prompt,
+    keystrokeAnimation,
+    keystrokeAnimationInterval,
+}: Required<CommandOptions>): ParsedCaptureData {
+    let { writes, endDelay, cursorHidden } = capture;
+    // augment writes with command prompt if enabled
+    if (command && includeCommand) {
+        if (!keystrokeAnimation) {
+            // keystrokeAnimation is false, just update initial content
+            const content = `${prompt}${command}\n`;
+            // merge with first write if it has no delay
+            writes = writes[0]?.delay === 0 ? [{ content: content + writes[0].content, delay: 0 }, ...writes.slice(1)]
+                : [{ content, delay: 0 }, ...writes];
+        } else {
+            // generate keystroke animation writes
+            const keystrokes: CaptureData['writes'] = [{ content: prompt, delay: 0 }];
+            // split command chars
+            let adjustment = keystrokeAnimationInterval * 2;
+            for (const char of splitChars(command)) {
+                keystrokes.push({ content: char, delay: adjustment });
+                adjustment = keystrokeAnimationInterval;
+            }
+            // write final `enter` keystroke, hiding cursor if it is hidden at the start of the capture
+            keystrokes.push({ content: `\n${cursorHidden ? '\x1b[?25l' : ''}`, delay: keystrokeAnimationInterval * 2 });
+            // initial cursor state must be visible for the command prompt animation
+            cursorHidden = false;
+            // prepend command prompt keystroke writes to capture writes
+            if (writes.length) {
+                // add to first write delay for pause after `enter` keystroke
+                const { content, delay } = writes[0]!;
+                writes = [...keystrokes, { content, delay: delay + keystrokeAnimationInterval }, ...writes.slice(1)];
+            } else {
+                // capture has no writes
+                writes = keystrokes;
+                endDelay += keystrokeAnimationInterval;
+            }
+        }
+    }
     const context: ParseContext = { columns, rows, tabSize },
-        initialCursor: CursorState = { line: 0, column: 0, visible: true },
         state: ParseState = {
             lines: [],
-            cursor: { line: initialCursor.line, column: initialCursor.column },
-            cursorHidden: !initialCursor.visible,
-            title: null,
+            cursor: { line: 0, column: 0 },
+            cursorHidden,
+            title: resolveTitle(windowTitle, windowIcon),
             style: { props: 0, fg: 0, bg: 0 },
             savedCursor: { line: 0, column: 0, style: { props: 0, fg: 0, bg: 0 } },
         },
+        initialCursor: CursorState = { ...state.cursor, visible: !state.cursorHidden },
         data: ParsedCaptureData = {
             columns,
             rows,
