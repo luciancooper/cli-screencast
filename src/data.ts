@@ -42,7 +42,7 @@ function validateOptionalField(
     }
 }
 
-type FileData = { type: 'capture', data: CaptureData } | { type: 'screen', data: ScreenData };
+export type FileData = { type: 'capture', data: CaptureData } | { type: 'screen', data: ScreenData };
 
 export function validateData(parsed: any): FileData | { errors: string[] } {
     const errors: string[] = [];

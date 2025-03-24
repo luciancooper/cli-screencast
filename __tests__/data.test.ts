@@ -1,5 +1,29 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { validateData } from '@src/data';
+import nock from 'nock';
+import { readFile } from 'fs/promises';
+import YAML from 'yaml';
+import { validateData, dataFromFile, type FileData } from '@src/data';
+
+// mock fs.readFile
+jest.mock('fs/promises', () => {
+    const originalModule = jest.requireActual<typeof import('fs/promises')>('fs/promises');
+    return {
+        ...originalModule,
+        readFile: jest.fn(originalModule.readFile),
+    };
+});
+
+afterEach(() => {
+    jest.clearAllMocks();
+    nock.cleanAll();
+});
+
+const partial = {
+    columns: 50,
+    rows: 10,
+    tabSize: 8,
+    cursorHidden: false,
+};
 
 describe('validateData', () => {
     test('rejects data that is not an object', () => {
@@ -62,13 +86,6 @@ describe('validateData', () => {
             ]),
         });
     });
-
-    const partial = {
-        columns: 50,
-        rows: 10,
-        tabSize: 8,
-        cursorHidden: false,
-    };
 
     describe('screen data', () => {
         const base = { version: '1.0.0', type: 'screen', ...partial };
@@ -183,6 +200,76 @@ describe('validateData', () => {
                     windowIcon: undefined,
                 },
             });
+        });
+    });
+});
+
+describe('dataFromFile', () => {
+    test('throws error if local file extension is not json or yaml', async () => {
+        await expect(dataFromFile('./badpath.txt')).rejects.toThrow(
+            "Unsupported data file type: './badpath.txt', must be json or yaml",
+        );
+    });
+
+    test('throws error if remote file extension is not json or yaml', async () => {
+        await expect(dataFromFile('https://cli-screencast.io/badpath.txt')).rejects.toThrow(
+            "Unsupported data file type: 'https://cli-screencast.io/badpath.txt', must be json or yaml",
+        );
+    });
+
+    test('throws error if file path does not exist', async () => {
+        await expect(dataFromFile('./badpath.json')).rejects.toThrow("File not found: './badpath.json'");
+    });
+
+    test('handles error if remote file does not exist', async () => {
+        nock('https://cli-screencast.io').get('/badpath.json').reply(404);
+        await expect(dataFromFile('https://cli-screencast.io/badpath.json')).rejects.toThrow(
+            "Failed to fetch file: 'https://cli-screencast.io/badpath.json', received response status 404",
+        );
+    });
+
+    test('handles network errors when fetching remote files', async () => {
+        nock('https://cli-screencast.io').get('/capture.json').replyWithError('mocked network error');
+        await expect(dataFromFile('https://cli-screencast.io/capture.json')).rejects.toThrow('mocked network error');
+    });
+
+    test('throws data validation error if file has missing data', async () => {
+        (readFile as jest.Mock).mockImplementationOnce(async () => JSON.stringify({
+            version: '1.0.0',
+            type: 'capture',
+            ...partial,
+            endDelay: 500,
+        }));
+        await expect(dataFromFile('./invalid.json')).rejects.toThrow(
+            'Invalid data:\n'
+            + "\n * missing 'writes' field",
+        );
+    });
+
+    test('parse screen data from local yml file', async () => {
+        const data = { ...partial, content: 'Hello World!' };
+        (readFile as jest.Mock).mockImplementationOnce(async () => YAML.stringify(
+            { version: '1.0.0', type: 'screen', ...data },
+        ));
+        await expect(dataFromFile('./data.yml')).resolves.toMatchObject<FileData>({
+            type: 'screen',
+            data: { ...data, windowTitle: undefined, windowIcon: undefined },
+        });
+    });
+
+    test('parse capture data from remote json file', async () => {
+        const data = { ...partial, writes: [{ content: 'Hello World!', delay: 0 }], endDelay: 500 };
+        nock('https://cli-screencast.io').get('/capture.json').reply(200, JSON.stringify(
+            { version: '1.0.0', type: 'capture', ...data },
+        ));
+        await expect(dataFromFile('https://cli-screencast.io/capture.json')).resolves.toMatchObject<FileData>({
+            type: 'capture',
+            data: {
+                ...data,
+                windowTitle: undefined,
+                windowIcon: undefined,
+                command: undefined,
+            },
         });
     });
 });
