@@ -128,7 +128,12 @@ export async function renderScreen(content: string, options: RenderScreenOptions
 }
 
 export interface CaptureFramesOptions extends
-    LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, RenderOptions {}
+    LoggingOptions, TerminalOptions, OutputOptions, CaptureOptions, CommandOptions, RenderOptions {
+    /**
+     * Command prompt string to include in the beginning of the capture.
+     */
+    command?: string
+}
 
 /**
  * Create an animated terminal screen capture from an array of content frames.

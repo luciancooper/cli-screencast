@@ -202,22 +202,6 @@ export default class RecordingStream<T> extends DuplexConstructor {
 }
 
 /**
- * Convert an array of source frames in to an array of source events
- */
-export function framesToEvents(options: TerminalOptions, frames: SourceFrame[]): SourceEvent[] {
-    const events: SourceEvent[] = [
-        { type: 'start', ...applyDefTerminalOptions(options) },
-    ];
-    let time = 0;
-    for (const { content, duration } of frames) {
-        events.push({ time, content });
-        time += duration;
-    }
-    events.push({ type: 'finish', time });
-    return events;
-}
-
-/**
  * Create a readable source stream from an array of events
  */
 export function readableEvents(events: SourceEvent[], ac: AbortController) {
@@ -239,7 +223,19 @@ export function readableEvents(events: SourceEvent[], ac: AbortController) {
 /**
  * Create a readable source stream from an array of source frames
  */
-export function readableFrames(options: TerminalOptions, frames: SourceFrame[], ac: AbortController) {
-    const events = framesToEvents(options, frames);
+export function readableFrames(
+    { command, ...options }: TerminalOptions & { command?: string },
+    frames: SourceFrame[],
+    ac: AbortController,
+) {
+    // convert source frames into an array of source events
+    const events: SourceEvent[] = [{ type: 'start', ...applyDefTerminalOptions(options), command }];
+    let time = 0;
+    for (const { content, duration } of frames) {
+        events.push({ time, content });
+        time += duration;
+    }
+    events.push({ type: 'finish', time });
+    // return a readable source stream
     return readableEvents(events, ac);
 }

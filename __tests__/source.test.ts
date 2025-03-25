@@ -64,6 +64,17 @@ describe('RecordingStream', () => {
     });
 
     describe('start', () => {
+        test('command argument is passed to start event', async () => {
+            mockDateNow([10, 20]);
+            const source = new RecordingStream(defOptions);
+            source.start('ls'); // now: 10
+            source.finish(); // now: 20
+            await expect(consume<SourceEvent>(source)).resolves.toMatchObject<Partial<SourceEvent>[]>([
+                { type: 'start', command: 'ls', ...source.termOptions },
+                { type: 'finish', time: 10 },
+            ]);
+        });
+
         test('extra calls are ignored', async () => {
             mockDateNow([5, 10]);
             const source = new RecordingStream(defOptions);
@@ -217,6 +228,17 @@ describe('readableFrames', () => {
             { content: 'line 2', time: 500 },
             { content: 'line 3', time: 1000 },
             { type: 'finish', time: 1500 },
+        ]);
+    });
+
+    test('command option is passed to start event', async () => {
+        const source = readableFrames({ ...defOptions, command: 'ls' }, [
+            { content: ['file1.txt', 'file2.txt'].join('\n'), duration: 500 },
+        ], new AbortController());
+        await expect(consumePromisified<SourceEvent>(source)).resolves.toEqual<SourceEvent[]>([
+            expect.objectContaining({ type: 'start', command: 'ls' }),
+            { content: ['file1.txt', 'file2.txt'].join('\n'), time: 0 },
+            { type: 'finish', time: 500 },
         ]);
     });
 

@@ -22,7 +22,7 @@ Array of content frames in the form of `{ content: string, duration: number }`.
 
 #### options «!`Object`» {#options}
 
-A config object to specify the configuration options listed below.
+A config object to specify the following common options, as well as the additional options listed in the next section.
 
 Required
 : [columns](options.md#columns),
@@ -45,6 +45,12 @@ Capture Related
 : [writeMergeThreshold](options.md#writeMergeThreshold),
   [endTimePadding](options.md#endTimePadding)
 
+Command Related
+: [includeCommand](options.md#includeCommand),
+  [prompt](options.md#prompt),
+  [keystrokeAnimation](options.md#keystrokeAnimation),
+  [keystrokeAnimationInterval](options.md#keystrokeAnimationInterval)
+
 Rendering Related
 : [theme](options.md#theme),
   [fontFamily](options.md#fontFamily),
@@ -64,6 +70,12 @@ Rendering Related
 
 Debugging
 : [logLevel](options.md#logLevel)
+
+### Additional Options
+
+#### command «`string`» {#command}
+
+Command prompt string to include in the beginning of the capture. It will only be rendered if the [`includeCommand`](options.md#includeCommand) option is enabled.
 
 ## Usage
 

@@ -90,11 +90,15 @@ describe('captureFrames', () => {
     test('returns an svg string when output type is `svg`', async () => {
         await expect(captureFrames(frames, {
             ...dimensions,
+            command: 'ls',
             embedFonts: false,
             outputPath: [outputPaths.json, outputPaths.svg],
         })).resolves.toBeSvg();
         expect(writeFile).toHaveBeenCalledTimes(2);
-        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeJson({ type: 'capture' }));
+        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeJson({
+            type: 'capture',
+            command: 'ls',
+        }));
         expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.svg, expect.toBeSvg());
     });
 });
