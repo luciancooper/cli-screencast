@@ -33,41 +33,39 @@ afterEach(() => {
 });
 
 describe('renderScreen', () => {
-    test('promises a string when output type is `json`', async () => {
+    test('returns a json string when output type is `json`', async () => {
         await expect(renderScreen('Hello World!', {
             ...dimensions,
             output: 'json',
             outputPath: [outputPaths.json, outputPaths.yaml],
-        })).resolves.toBeString();
+        })).resolves.toBeJson({ type: 'screen' });
         expect(writeFile).toHaveBeenCalledTimes(2);
-        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeString());
-        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.yaml, expect.toBeString());
+        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeJson({ type: 'screen' }));
+        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.yaml, expect.toBeYaml({ type: 'screen' }));
     });
 
-    test('promises a string when output type is `svg`', async () => {
-        const svg = await renderScreen('Hello World!', {
+    test('returns an svg string when output type is `svg`', async () => {
+        await expect(renderScreen('Hello World!', {
             ...dimensions,
             embedFonts: false,
             outputPath: outputPaths.svg,
-        });
-        expect(svg).toBeString();
+        })).resolves.toBeSvg();
         expect(writeFile).toHaveBeenCalledTimes(1);
-        expect(writeFile).toHaveBeenCalledWith(outputPaths.svg, svg);
+        expect(writeFile).toHaveBeenCalledWith(outputPaths.svg, expect.toBeSvg());
     });
 
-    test('promises a buffer when output type is `png`', async () => {
-        const png = await renderScreen('Hello World!', {
+    test('returns a png buffer when output type is `png`', async () => {
+        await expect(renderScreen('Hello World!', {
             ...dimensions,
             output: 'png',
             outputPath: [outputPaths.json, outputPaths.svg, outputPaths.png],
             cursorHidden: false,
             scaleFactor: 1,
-        });
-        expect(Buffer.isBuffer(png)).toBe(true);
+        })).resolves.toBePng();
         expect(writeFile).toHaveBeenCalledTimes(3);
-        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeString());
-        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.svg, expect.toBeString());
-        expect(writeFile).toHaveBeenNthCalledWith(3, outputPaths.png, png);
+        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeJson({ type: 'screen' }));
+        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.svg, expect.toBeSvg());
+        expect(writeFile).toHaveBeenNthCalledWith(3, outputPaths.png, expect.toBePng());
     });
 });
 
@@ -78,44 +76,43 @@ describe('captureFrames', () => {
         { content: 'line 3', duration: 500 },
     ];
 
-    test('promises a string when output type is `json`', async () => {
+    test('returns a json string when output type is `json`', async () => {
         await expect(captureFrames(frames, {
             ...dimensions,
             output: 'json',
             outputPath: [outputPaths.json, outputPaths.yaml],
-        })).resolves.toBeString();
+        })).resolves.toBeJson({ type: 'capture' });
         expect(writeFile).toHaveBeenCalledTimes(2);
-        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeString());
-        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.yaml, expect.toBeString());
+        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeJson({ type: 'capture' }));
+        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.yaml, expect.toBeYaml({ type: 'capture' }));
     });
 
-    test('promises a string when output type is `svg`', async () => {
-        const svg = await captureFrames(frames, {
+    test('returns an svg string when output type is `svg`', async () => {
+        await expect(captureFrames(frames, {
             ...dimensions,
             embedFonts: false,
             outputPath: [outputPaths.json, outputPaths.svg],
-        });
-        expect(svg).toBeString();
+        })).resolves.toBeSvg();
         expect(writeFile).toHaveBeenCalledTimes(2);
-        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeString());
-        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.svg, svg);
+        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.json, expect.toBeJson({ type: 'capture' }));
+        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.svg, expect.toBeSvg());
     });
 });
 
 describe('captureSpawn', () => {
-    test('promises a string when output type is `svg`', async () => {
+    test('returns an svg string when output type is `svg`', async () => {
         await expect(
             captureSpawn('node', ['-e', "process.stdout.write('Hello World!');"], dimensions),
-        ).resolves.toBeString();
+        ).resolves.toBeSvg();
     });
 
-    test('promises a buffer when output type is `png`', async () => {
+    test('returns a png buffer when output type is `png`', async () => {
         await expect(captureSpawn('node', ['-e', "process.stdout.write('Hello World!');"], {
             ...dimensions,
             output: 'png',
             scaleFactor: 1,
             includeCommand: false,
-        }).then((value) => Buffer.isBuffer(value))).resolves.toBe(true);
+        })).resolves.toBePng();
     });
 });
 
@@ -137,29 +134,28 @@ describe('captureShell', () => {
         stdin.restore();
     });
 
-    test('promises a string when output type is `yaml`', async () => {
+    test('returns a yaml string when output type is `yaml`', async () => {
         const shell = captureShell({ ...dimensions, output: 'yaml' });
         // send mocks stdin after first write to stdout
         await stdout.nextWrite().then(() => {
             stdin.send('\x04');
         });
         // await rendering of shell
-        await expect(shell).resolves.toBeString();
+        await expect(shell).resolves.toBeYaml({ type: 'capture' });
     });
 });
 
 describe('captureCallback', () => {
-    test('promises a string when output type is `svg`', async () => {
-        const svg = await captureCallback((source) => {
+    test('returns an svg string when output type is `svg`', async () => {
+        await expect(captureCallback((source) => {
             source.write('captured write');
-        }, { ...dimensions, outputPath: outputPaths.svg });
-        expect(svg).toBeString();
+        }, { ...dimensions, outputPath: outputPaths.svg })).resolves.toBeSvg();
         expect(writeFile).toHaveBeenCalledTimes(1);
-        expect(writeFile).toHaveBeenCalledWith(outputPaths.svg, svg);
+        expect(writeFile).toHaveBeenCalledWith(outputPaths.svg, expect.toBeSvg());
     });
 
-    test('promises a buffer when output type is `png`', async () => {
-        const png = await captureCallback((source) => {
+    test('returns a png buffer when output type is `png`', async () => {
+        await expect(captureCallback((source) => {
             source.write('captured write');
         }, {
             ...dimensions,
@@ -167,11 +163,10 @@ describe('captureCallback', () => {
             embedFonts: false,
             outputPath: [outputPaths.svg, outputPaths.png],
             scaleFactor: 1,
-        });
-        expect(Buffer.isBuffer(png)).toBe(true);
+        })).resolves.toBePng();
         expect(writeFile).toHaveBeenCalledTimes(2);
-        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.svg, expect.toBeString());
-        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.png, png);
+        expect(writeFile).toHaveBeenNthCalledWith(1, outputPaths.svg, expect.toBeSvg());
+        expect(writeFile).toHaveBeenNthCalledWith(2, outputPaths.png, expect.toBePng());
     });
 });
 
@@ -190,7 +185,7 @@ describe('renderData', () => {
             cursorHidden: true,
             content: 'Hello World!',
         }));
-        await expect(renderData('./data.yaml', { embedFonts: false })).resolves.toBeString();
+        await expect(renderData('./data.yaml', { embedFonts: false })).resolves.toBeSvg();
     });
 
     test('render capture data from remote json file', async () => {
@@ -201,6 +196,6 @@ describe('renderData', () => {
             writes: [{ content: 'Hello World!', delay: 500 }],
             endDelay: 500,
         }));
-        await expect(renderData('https://cli-screencast.io/capture.json', { embedFonts: false })).resolves.toBeString();
+        await expect(renderData('https://cli-screencast.io/capture.json', { embedFonts: false })).resolves.toBeSvg();
     });
 });
