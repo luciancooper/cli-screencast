@@ -96,16 +96,31 @@ export default [
     new Asset({
         id: 'usage--frames.svg',
         type: 'docs',
-        render: () => captureFrames([
-            { content: 'Hello World!', duration: 1500 },
-            { content: '\n1st Write...', duration: 1500 },
-            { content: '\n2nd Write...', duration: 1500 },
-            { content: '\n3rd Write...', duration: 1500 },
-        ], {
+        render: () => captureFrames(['⡇', '⠏', '⠋', '⠙', '⠹', '⢸', '⣰', '⣠', '⣄', '⣆'].map((frame) => ({
+            content: `\r\x1b[33m${frame}\x1b[39m Loading`,
+            duration: 90,
+        })), {
             ...Asset.fonts.cascadiaCode,
             columns: 50,
             rows: 10,
-            theme: { cursorBlink: true },
+            cursorHidden: true,
+            endTimePadding: 0,
+        }),
+    }),
+    new Asset({
+        id: 'usage--frames--command.svg',
+        type: 'docs',
+        render: () => captureFrames([
+            { content: '', duration: 500 },
+            { content: '\x1b[32m✔\x1b[39m Task 1 Complete\n', duration: 1500 },
+            { content: '\x1b[32m✔\x1b[39m Task 2 Complete\n', duration: 1500 },
+            { content: '\x1b[31m✘\x1b[39m Task 3 Failed\n', duration: 1500 },
+        ], {
+            ...Asset.fonts.cascadiaCode,
+            command: 'node tasks.js',
+            columns: 50,
+            rows: 10,
+            cursorHidden: true,
         }),
     }),
     // renderData.md examples

@@ -79,19 +79,59 @@ Command prompt string to include in the beginning of the capture. It will only b
 
 ## Usage
 
-Here is a basic example of how to create a screen capture from an array of content frames:
+### Basic Example
+
+This basic example demonstrates how to create a capture of a spinner animation from an array of content frames.
 
 ```js result='./assets/usage--frames.svg'
 import { captureFrames } from 'cli-screencast';
+import chalk from 'chalk';
 
-const frames = [
-    { content: 'Hello World!', duration: 1500 },
-    { content: '\n1st Write...', duration: 1500 },
-    { content: '\n2nd Write...', duration: 1500 },
-    { content: '\n3rd Write...', duration: 1500 },
-];
+// Define spinner frames for loading animation
+const spinner = ['⡇', '⠏', '⠋', '⠙', '⠹', '⢸', '⣰', '⣠', '⣄', '⣆'];
 
-captureFrames(frames, { columns: 50, rows: 10 }).then((svg) => {
-    // svg output string...
+// Create array of content frames with colored content and duration
+const frames = spinner.map((frame) => ({
+    content: `\r${chalk.yellow(frame)} Loading`,
+    duration: 90, // milliseconds
+}));
+
+// Capture frames into an SVG string
+captureFrames(frames, {
+    columns: 50,
+    rows: 10,
+    cursorHidden: true,
+    endTimePadding: 0,
+}).then((svg) => {
+    // Use or save the generated SVG string here
 });
 ```
+
+### Emulating a command
+
+This example demonstrates how to use the [`command`](#command) option to capture a command prompt. It captures several frames that visually mimick the behavior of running a real command, and adds a keystroke animation to the beginning of the capture to emulate a user typing in the command.
+
+```js result='./assets/usage--frames--command.svg'
+import { captureFrames } from 'cli-screencast';
+import chalk from 'chalk';
+
+// Define frames
+const frames = [
+    { content: '', duration: 500 }, // Initial empty frame for visual pause
+    { content: `${chalk.green('✔')} Task 1 Complete\n`, duration: 1500 },
+    { content: `${chalk.green('✔')} Task 2 Complete\n`, duration: 1500 },
+    { content: `${chalk.red('✘')} Task 3 Failed\n`, duration: 1500 },
+];
+
+// Capture frames into an SVG string
+captureFrames(frames, {
+    command: 'node tasks.js', // Command line prompt to capture
+    columns: 50,
+    rows: 10,
+    cursorHidden: true,
+}).then((svg) => {
+    // Use or save the generated SVG string here
+});
+```
+
+The [`keystrokeAnimationInterval`](options.md#keystrokeAnimationInterval) option can be configured to customize the speed of the keystroke animation, and the prompt prefix can be customized via the [`prompt`](options.md#prompt) option. The command prompt can be captured without an animation by disabling the [`keystrokeAnimation`](options.md#keystrokeAnimation) option.
