@@ -221,15 +221,16 @@ Here is an example of capturing a callback function that writes to `process.stdo
 ```js result='./assets/usage--callback--stdout.svg'
 import { captureCallback } from 'cli-screencast';
 
+// Capture terminal output with artificial timing
 captureCallback((capture) => {
     console.log('1st write...');
-    capture.wait(1500); // capture recording artificially waits 1.5s
+    capture.wait(1500); // Wait 1.5s
     process.stdout.write('2nd write...');
-    capture.wait(1500); // wait 1.5s
+    capture.wait(1500); // Wait another 1.5s
     console.log('\n3rd write...');
-    capture.wait(1500); // wait 1.5s
+    capture.wait(1500); // Final 1.5s pause
 }, { columns: 50, rows: 10 }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```
 
@@ -243,26 +244,26 @@ In this example, [`capture.emitKeypressSequence`](#capture.emitKeypressSequence)
 import { captureCallback } from 'cli-screencast';
 
 captureCallback(async (capture) => {
-    // create a readline interface
+    // Create readline interface
     const rl = capture.createInterface();
-    // ask the user a question
+    // Ask the user a question
     const promise = new Promise((resolve) => {
         rl.question('Write a message: ', resolve);
     });
-    // wait 1s
+    // Wait 1 second before typing response
     capture.wait(1000);
-    // mock the user typing their response
+    // Mock user typing "Hello World!" and pressing Enter
     capture.emitKeypressSequence([
         'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!', 'return',
     ]);
-    // wait for the response to resolve
+    // Await the mocked input result
     const result = await promise;
-    // display the user's response
+    // Display the user's response
     console.log(`Your Message: ${result}`);
-    // close the readline interface
+    // Close the readline interface
     rl.close();
 }, { columns: 50, rows: 10 }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```
 
@@ -274,10 +275,12 @@ You can emulate capturing a command by passing a command string to the [`capture
 import { captureCallback } from 'cli-screencast';
 
 captureCallback((capture) => {
+    // Emulate running 'echo Hello World!'
     capture.start('echo Hello World!');
+    // Command output
     console.log('Hello World!');
 }, { columns: 50, rows: 10, cursorHidden: true }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```
 

@@ -95,14 +95,15 @@ import { homedir } from 'os';
 import { captureShell } from 'cli-screencast';
 
 captureShell({
-    // run powershell on windows or zsh on unix
+    // Use PowerShell on Windows, Zsh on Unix-based OS
     shell: process.platform === 'win32' ? 'pwsh.exe' : 'zsh',
-    // start the shell from the user's home directory
+    // Start shell session from the user's home directory
     cwd: homedir(),
     columns: 50,
     rows: 10,
+    // Customize cursor appearance
     theme: { cursorStyle: 'underline', cursorBlink: true },
-    // save svg to a file in the same directory as this script
+    // Save output SVG to a file in the directory this script is run in
     outputPath: './capture.svg',
 });
 ```

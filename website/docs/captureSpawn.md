@@ -125,12 +125,11 @@ import { captureSpawn } from 'cli-screencast';
 captureSpawn('echo', ['Hello World!'], {
     columns: 50,
     rows: 10,
-    // echo must be executed in a shell on windows
-    shell: process.platform === 'win32',
+    shell: process.platform === 'win32', // echo must be executed in a shell on Windows
     cursorHidden: true,
-    includeCommand: false,
+    includeCommand: false, // Don't include the command in output
 }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```
 
@@ -144,12 +143,11 @@ import { captureSpawn } from 'cli-screencast';
 captureSpawn('echo', ['Hello World!'], {
     columns: 50,
     rows: 10,
-    // echo must be executed in a shell on windows
-    shell: process.platform === 'win32',
+    shell: process.platform === 'win32', // echo must be executed in a shell on Windows
     cursorHidden: true,
-    includeCommand: true,
+    includeCommand: true, // Include the command in the output
 }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```
 

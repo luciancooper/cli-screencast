@@ -35,7 +35,7 @@ Here's an example of how escape sequences within the content of a screenshot can
 ```js result='./assets/usage--window--title-screenshot.svg'
 import { renderScreen } from 'cli-screencast';
 
-// contains an escape sequence that sets the window title and icon to 'node'
+// Content that contains an escape sequence that sets the window title and icon to 'node'
 const content = '\x1b]0;node\x07Hello World!';
 
 renderScreen(content, {
@@ -43,7 +43,7 @@ renderScreen(content, {
     rows: 10,
     windowTitle: 'Overwritten Title',
 }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```
 
@@ -54,16 +54,16 @@ import { captureCallback } from 'cli-screencast';
 
 captureCallback((capture) => {
     process.stdout.write('Hello World!');
-    capture.wait(2000); // wait 2s
-    // change the title to 'Next Title' and the icon to 'node'
-    process.stdout.write('\x1b]2;Next Title\x07' + '\x1b]1;node\x07');
-    capture.wait(2000); // wait 2s
-    // change the title to 'Last Title' and the icon to 'code'
+    capture.wait(2000); // Wait 2s
+    // Set title to 'Next Title', icon to 'node'
+    process.stdout.write('\x1b]2;Next Title\x07\x1b]1;node\x07');
+    capture.wait(2000); // Wait 2s
+    // Set title to 'Last Title', icon to 'code'
     capture.setTitle({ title: 'Last Title', icon: 'code' });
-    capture.wait(2000); // wait 2s
-    // clear both the window title and icon
+    capture.wait(2000); // Wait 2s
+    // Clear the title and icon
     capture.setTitle({ title: '', icon: '' });
-    capture.wait(2000); // wait 2s
+    capture.wait(2000); // Wait 2s
 }, {
     columns: 50,
     rows: 10,
@@ -71,7 +71,7 @@ captureCallback((capture) => {
     windowTitle: 'Initial Title',
     windowIcon: 'shell',
 }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```
 
@@ -98,9 +98,9 @@ renderScreen('Hello World!', {
     columns: 50,
     rows: 10,
     windowTitle: 'Box Shadow',
-    boxShadow: true,
+    boxShadow: true, // Enable box shadow
 }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```
 
@@ -113,8 +113,8 @@ renderScreen('Hello World!', {
     columns: 50,
     rows: 10,
     windowTitle: 'Box Shadow with Offset',
-    boxShadow: { dx: 2, dy: 2 },
+    boxShadow: { dx: 2, dy: 2 }, // Shadow offset (2px right, 2px down)
 }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```

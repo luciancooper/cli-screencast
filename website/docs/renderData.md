@@ -63,10 +63,10 @@ Here is a basic example of rendering a capture data file called `capture.yaml` t
 
 ![capture.yml](./assets/capture--data.yaml)
 
-```ts result='./assets/usage--data.svg' codeBlockGroup
+```js result='./assets/usage--data.svg' codeBlockGroup
 import { renderData } from 'cli-screencast';
 
 renderData('capture.yaml', { output: 'svg' }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```

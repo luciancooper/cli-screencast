@@ -45,7 +45,7 @@ You can preview the default theme or your own custom theme by rendering a color 
 import { renderData } from 'cli-screencast';
 
 renderData('https://cli-screencast.io/files/colortest.yaml').then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```
 
@@ -77,6 +77,6 @@ renderData('https://cli-screencast.io/files/colortest.yaml', {
         iconColor: '#1a1a19',
     },
 }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```

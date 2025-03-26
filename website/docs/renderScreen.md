@@ -73,6 +73,6 @@ renderScreen(
     `Hello ${chalk.yellow('World!')}`,
     { columns: 50, rows: 20 },
 ).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```

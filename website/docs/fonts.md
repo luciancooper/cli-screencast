@@ -34,21 +34,20 @@ Here's an example of a terminal screenshot that contains nerd font icon glyphs, 
 ```js result='./assets/usage--fonts.svg'
 import { renderScreen } from 'cli-screencast';
 
-// terminal prompt string that uses nerd font icon glyphs
+// Example terminal prompt using Nerd Font glyphs
 const prompt = '\uf31b \x1b[36m~/..\ue5fe../project\x1b[39;32m \ue725 main\x1b[39m \uf105 ';
 
 renderScreen(prompt, {
     columns: 80,
     rows: 10,
-    // show a blinking cursor
     cursorHidden: false,
     theme: { cursorStyle: 'underline', cursorBlink: true },
-    // specify Cascadia Code Nerd Font and provide a remote font file
     fontFamily: 'Cascadia Code NF',
     fonts: [
+        // Remote font file URL for Cascadia Code Nerd Font
         'https://fontlib.s3.amazonaws.com/CascadiaCode/CascadiaCodeNF.ttf',
     ],
 }).then((svg) => {
-    // svg output string...
+    // Use or save the generated SVG string here
 });
 ```

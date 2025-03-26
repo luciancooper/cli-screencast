@@ -33,7 +33,7 @@ renderScreen('Hello World!', {
     columns: 50,
     rows: 10,
 }).then((string) => {
-    // handle svg string...
+    // Handle SVG string here
 });
 ```
 
@@ -48,7 +48,7 @@ renderScreen('Hello World!', {
     columns: 50,
     rows: 10,
 }).then((buffer) => {
-    // handle png buffer...
+    // Handle PNG buffer here
 });
 ```
 
@@ -63,7 +63,7 @@ renderScreen('Hello World!', {
     columns: 50,
     rows: 10,
 }).then((string) => {
-    // handle json string...
+    // Handle JSON string here
 });
 ```
 
@@ -78,7 +78,7 @@ renderScreen('Hello World!', {
     columns: 50,
     rows: 10,
 }).then((string) => {
-    // handle yaml string...
+    // Handle YAML string here
 });
 ```
 
@@ -102,6 +102,7 @@ const frames = [
 captureFrames(frames, {
     columns: 50,
     rows: 10,
+    // Save capture in multiple formats simultaneously
     outputPath: [
         './capture.svg',
         './capture.png',
@@ -145,10 +146,11 @@ import { renderScreen } from 'cli-screencast';
 
 renderScreen('Hello World!', {
     output: 'svg',
+    // Save capture directly as a PNG file
     outputPath: './screenshot.png',
     columns: 50,
     rows: 10,
 }).then((string) => {
-    // handle svg string...
+    // Use the generated SVG string here
 });
 ```
