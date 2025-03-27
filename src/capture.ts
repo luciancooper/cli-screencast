@@ -12,7 +12,7 @@ interface BufferedWrite {
 export interface CaptureOptions {
     /**
      * Consecutive writes will be merged if they occur within this number of milliseconds of each other.
-     * @defaultValue `80`
+     * @defaultValue `20`
      */
     writeMergeThreshold?: number
 
@@ -52,7 +52,7 @@ class CaptureStream extends Writable {
 
     endTimePadding: number;
 
-    constructor({ cropStartDelay = true, writeMergeThreshold = 80, endTimePadding = 500 }: CaptureOptions) {
+    constructor({ cropStartDelay = true, writeMergeThreshold = 20, endTimePadding = 500 }: CaptureOptions) {
         super({ objectMode: true });
         // set options
         this.mergeThreshold = writeMergeThreshold;

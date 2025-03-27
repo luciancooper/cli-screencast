@@ -74,7 +74,7 @@ Array of font file paths or urls to resolve fonts from. These fonts will supplem
 
 #### writeMergeThreshold «`number`» {#writeMergeThreshold}
 
-Consecutive writes will be merged if they occur within this number of milliseconds of each other. Default is `80`.
+Consecutive writes will be merged if they occur within this number of milliseconds of each other. Default is `20`.
 
 #### endTimePadding «`number`» {#endTimePadding}
 
