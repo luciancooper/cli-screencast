@@ -64,7 +64,6 @@
     "*.{js,ts,tsx}": "eslint"
   },
   "dependencies": {
-    "@types/node": "*",
     "colord": "^2.9.3",
     "node-pty": "^1.0.0",
     "puppeteer": "^22.11.0",
@@ -86,6 +85,7 @@
     "@lcooper/eslint-config-typescript": "^2.0.0",
     "@lcooper/eslint-config-typescript-react": "^2.0.0",
     "@types/jest": "^29.5.12",
+    "@types/node": "^22.13.14",
     "@types/react": "^18.2.74",
     "@types/react-dom": "^18.2.23",
     "@types/react-test-renderer": "^18.0.7",
@@ -104,5 +104,13 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.4.3"
+  },
+  "peerDependencies": {
+    "@types/node": ">=16"
+  },
+  "peerDependenciesMeta": {
+    "@types/node": {
+      "optional": true
+    }
   }
 }
