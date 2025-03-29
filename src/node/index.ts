@@ -221,7 +221,7 @@ export class NodeRecordingStream<T> extends RecordingStream<T> implements NodeCa
             const [encoding, callback] = (typeof enc === 'function') ? [undefined, enc] : [enc, cb],
                 content = Buffer.isBuffer(chunk) ? chunk.toString('utf-8') : typeof chunk === 'string' ? chunk : '';
             if (!this.silent) writeFn.call(stream, chunk, encoding, callback);
-            return this.write(content, encoding, callback);
+            return this.write(content, encoding ?? 'utf8', callback);
         };
         // hook stream.getColorDepth method
         stream.getColorDepth = () => 24; // full color support (16,777,216 colors)

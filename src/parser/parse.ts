@@ -252,7 +252,7 @@ function parseEscape(context: ParseContext, state: ParseState, esc: string) {
     if (esc === '\b') {
         // moves cursor left 1 column
         const [col, idx] = [cursor.column - 1, cursor.line];
-        state.cursor = (col < 0 && idx && lines[idx] && lines[idx]!.index > 0)
+        state.cursor = (col < 0 && idx && lines[idx] && lines[idx].index > 0)
             ? { line: idx - 1, column: col + columns }
             : { line: idx, column: Math.max(col, 0) };
         return;

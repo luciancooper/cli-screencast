@@ -573,7 +573,7 @@ export default class PNG {
                             c = prevLine[j - pixelBytes] ?? 0;
                         for (const [k, f] of [v, v - a, v - b, v - ((a + b) >> 1), v - paeth(a, b, c)].entries()) {
                             filterMatrix[k * scanline + j] = f;
-                            sums[k] += Math.abs(f);
+                            sums[k]! += Math.abs(f);
                         }
                     }
                     // determine which filter has min sum
