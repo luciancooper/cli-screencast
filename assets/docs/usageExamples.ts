@@ -166,7 +166,7 @@ export default [
             includeCommand: true,
             keystrokeAnimationInterval: 150,
             prompt: '\x1b[48;2;97;175;239;38;2;255;255;255m  \x1b[0;38;2;97;175;239m\x1b[0;38;2;198;120;221;7m'
-            + '\x1b[0;48;2;198;120;221;38;2;255;255;255m ~  examples \x1b[0;38;2;198;120;221m\x1b[0m ',
+                + '\x1b[0;48;2;198;120;221;38;2;255;255;255m ~  examples \x1b[0;38;2;198;120;221m\x1b[0m ',
             theme: { cursorBlink: true },
         }),
     }),

@@ -2,6 +2,7 @@
   "extends": "@docusaurus/tsconfig",
   "compilerOptions": {
     "baseUrl": ".",
+    "strict": true,
     "types": [
       "docusaurus-plugin-sass"
     ],

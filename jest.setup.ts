@@ -8,11 +8,11 @@ jest.setTimeout(10000);
 declare global {
     namespace jest {
         interface Matchers<R> {
-            toEachMatchObject: <E extends {} | any[]>(expected: E) => R
+            toEachMatchObject: <E extends object>(expected: E) => R
             toBeApprox: (expected: number | bigint, threshold?: number) => R
             toContainOccurrences: (match: string | RegExp, count: number) => R
-            toBeJson: <E extends {} | any[]>(expected?: E) => R
-            toBeYaml: <E extends {} | any[]>(expected?: E) => R
+            toBeJson: <E extends object>(expected?: E) => R
+            toBeYaml: <E extends object>(expected?: E) => R
             toBePng: () => R
             toBeSvg: () => R
             toBeNumber: () => R
@@ -21,8 +21,8 @@ declare global {
         interface Expect {
             toBeApprox: (expected: number | bigint, threshold?: number) => number
             toContainOccurrences: (match: string | RegExp, count: number) => string
-            toBeJson: <E extends {} | any[]>(expected?: E) => string
-            toBeYaml: <E extends {} | any[]>(expected?: E) => string
+            toBeJson: <E extends object>(expected?: E) => string
+            toBeYaml: <E extends object>(expected?: E) => string
             toBePng: () => Buffer
             toBeSvg: () => string
             toBeNumber: () => number
@@ -33,8 +33,8 @@ declare global {
         interface InverseAsymmetricMatchers {
             toBeApprox: (expected: number | bigint, threshold?: number) => number
             toContainOccurrences: (match: string | RegExp, count: number) => string
-            toBeJson: <E extends {} | any[]>(expected?: E) => any
-            toBeYaml: <E extends {} | any[]>(expected?: E) => any
+            toBeJson: <E extends object>(expected?: E) => any
+            toBeYaml: <E extends object>(expected?: E) => any
             toBePng: () => any
             toBeSvg: () => any
             toBeNumber: () => any
@@ -52,7 +52,7 @@ function matcherHintOptions(this: jest.MatcherContext) {
 }
 
 expect.extend({
-    toEachMatchObject<E extends {} | any[]>(this: jest.MatcherContext, rec: E[], exp: E) {
+    toEachMatchObject(this: jest.MatcherContext, rec: unknown[], exp: object) {
         if (!Array.isArray(rec) || !rec.length) {
             throw new Error(this.utils.matcherErrorMessage(
                 this.utils.matcherHint('toEachMatchObject', undefined, undefined, matcherHintOptions.call(this)),
@@ -153,7 +153,7 @@ expect.extend({
         };
     },
 
-    toBeJson<E extends {} | any[]>(this: jest.MatcherContext, rec: unknown, exp?: E) {
+    toBeJson(this: jest.MatcherContext, rec: unknown, exp?: object) {
         const [matcherName, options] = ['toBeJson', matcherHintOptions.call(this)];
         if (exp !== undefined && (typeof exp !== 'object' || exp === null)) {
             throw new Error(this.utils.matcherErrorMessage(
@@ -213,7 +213,7 @@ expect.extend({
         };
     },
 
-    toBeYaml<E extends {} | any[]>(this: jest.MatcherContext, rec: unknown, exp?: E) {
+    toBeYaml(this: jest.MatcherContext, rec: unknown, exp?: object) {
         const [matcherName, options] = ['toBeYaml', matcherHintOptions.call(this)];
         if (exp !== undefined && (typeof exp !== 'object' || exp === null)) {
             throw new Error(this.utils.matcherErrorMessage(

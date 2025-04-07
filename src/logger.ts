@@ -55,7 +55,7 @@ function printf(message: string, ...splat: any[]) {
             continue;
         }
         if (a < splat.length) {
-            let fmt = '';
+            let fmt: string;
             switch (nxt) {
                 case 's': // '%s' - string no formatting
                     fmt = typeof splat[a] !== 'object' ? String(splat[a]) : inspect(splat[a], { depth: 0 });

@@ -13,7 +13,7 @@ export default function mockStdout(): MockStdout {
     let writes: string[] = [],
         queue: { resolve: () => void, reject: (reason?: any) => void }[] = [];
     // create mock stdout & stderr write streams
-    for (const id of ['stdout', 'stderr'] as ('stdout' | 'stderr')[]) {
+    for (const id of ['stdout', 'stderr'] as const) {
         // spy on process
         const spy = jest.spyOn(process[id], 'write').mockImplementation(
             jest.fn((data, enc?, callback?): boolean => {

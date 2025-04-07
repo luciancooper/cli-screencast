@@ -93,8 +93,6 @@ function sortRangesTopDown(b: Range[], a: Range[], l: number, r: number, lvl = 0
             // expand array, copying from a into b
             for (let ex = dx - lx, j = a.length - 1; j >= r + lx; j -= 1) [b[j + ex], a[j + ex]] = [a[j]!, a[j]!];
         }
-        // eslint-disable-next-line no-param-reassign
-        r += dx;
     }
     // merge the resulting runs from array b[] into a[]
     let [k, i, j, k1, k2, [x1, x2, xv], [y1, y2, yv]] = [l, 0, 0, 0, 0, b[l]!, b[m]!];
@@ -200,6 +198,7 @@ function mergeSortRanges(array: Range[]) {
 }
 
 export class CodePointRange {
+
     constructor(public ranges: Range[] = []) {}
 
     static from(input: Tuple<number>[]): CodePointRange {
@@ -262,6 +261,7 @@ export class CodePointRange {
 }
 
 export class MeasuredGraphemeSet implements Iterable<number> {
+
     constructor(public chars: Tuple<string>[] = []) {}
 
     empty(): boolean {
@@ -296,6 +296,7 @@ export class MeasuredGraphemeSet implements Iterable<number> {
 }
 
 export class GraphemeSet implements Iterable<number> {
+
     constructor(public chars: string[] = []) {}
 
     static from(str: string | string[]): GraphemeSet {

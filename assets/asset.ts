@@ -32,6 +32,7 @@ export interface Creatable {
 }
 
 export default class Asset implements Creatable {
+
     static fonts = {
         cascadiaCode: {
             fontFamily: 'Cascadia Code',
@@ -75,7 +76,12 @@ export default class Asset implements Creatable {
         type,
         path,
         render,
-    }: { id: string, type: AssetType, path?: string, render: RenderFunction }) {
+    }: {
+        id: string
+        type: AssetType
+        path?: string
+        render: RenderFunction
+    }) {
         this.id = id;
         this.type = type;
         this.dir = join(paths[type], path ?? '');

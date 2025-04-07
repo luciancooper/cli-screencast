@@ -39,9 +39,12 @@ export function makeCursor(line: number, column: number, visible?: boolean): Cur
     return visible === undefined ? { line, column } : { line, column, visible };
 }
 
-export function makeKeyFrames<T extends {}>(spans: [ms: number, data: T | null][]): KeyFrame<T>[];
-export function makeKeyFrames<T extends {}>(spans: [ms: number, data: T | null][], dur: true): [KeyFrame<T>[], number];
-export function makeKeyFrames<T extends {}>(spans: [ms: number, data: T | null][], dur?: true) {
+export function makeKeyFrames<T extends object>(spans: [ms: number, data: T | null][]): KeyFrame<T>[];
+export function makeKeyFrames<T extends object>(
+    spans: [ms: number, data: T | null][],
+    dur: true,
+): [KeyFrame<T>[], number];
+export function makeKeyFrames<T extends object>(spans: [ms: number, data: T | null][], dur?: true) {
     const [frames, duration] = spans.reduce<[KeyFrame<T>[], number]>(([acc, time], [ms, data]) => {
         if (data !== null) acc.push({ time, endTime: time + ms, ...data });
         return [acc, time + ms];

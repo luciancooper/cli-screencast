@@ -6,9 +6,9 @@ const macLanguages = [
     'zh', 'nl-BE', 'ga', 'sq', 'ro', 'cz', 'sk', 'si', 'yi', 'sr', 'mk', 'bg', 'uk', 'be', 'uz', 'kk',
     'az-Cyrl', 'az-Arab', 'hy', 'ka', 'mo', 'ky', 'tg', 'tk', 'mn-CN', 'mn', 'ps', 'ks', 'ku', 'sd', 'bo',
     'ne', 'sa', 'mr', 'bn', 'as', 'gu', 'pa', 'or', 'ml', 'kn', 'ta', 'te', 'si', 'my', 'km', 'lo', 'vi',
-    'id', 'tl', 'ms', 'ms-Arab', 'am', 'ti', 'om', 'so', 'sw', 'rw', 'rn', 'ny', 'mg', 'eo', , , , , ,
-    , , , , , , , , , , , , , , , , , , , , , , , , , , , , 'cy', 'eu', 'ca', 'la', 'qu', 'gn', 'ay', 'tt',
-    'ug', 'dz', 'jv', 'su', 'gl', 'af', 'br', 'iu', 'gd', 'gv', 'ga', 'to', 'el-polyton', 'kl', 'az', 'nn',
+    'id', 'tl', 'ms', 'ms-Arab', 'am', 'ti', 'om', 'so', 'sw', 'rw', 'rn', 'ny', 'mg',
+    'eo', , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , 'cy', 'eu', 'ca', 'la', 'qu', 'gn', 'ay',
+    'tt', 'ug', 'dz', 'jv', 'su', 'gl', 'af', 'br', 'iu', 'gd', 'gv', 'ga', 'to', 'el-polyton', 'kl', 'az', 'nn',
 ] as const;
 
 const windowsLanguages = new Map<number, string>([

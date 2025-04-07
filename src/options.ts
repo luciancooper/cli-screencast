@@ -12,13 +12,12 @@ export function validateOptions<T extends Dimensions>(options: T) {
     }
 }
 
-export function applyDefaults<D extends {}, O extends Partial<D> = Partial<D>>(def: D, options: O): D {
+export function applyDefaults<D extends object, O extends Partial<D> = Partial<D>>(def: D, options: O): D {
     return {
         ...def,
         ...(Object.keys(def) as (keyof O)[]).reduce<O>((acc, key) => {
             if (Object.hasOwn(options, key)) acc[key] = options[key];
             return acc;
-        // eslint-disable-next-line @typescript-eslint/prefer-reduce-type-parameter
         }, {} as O),
     };
 }

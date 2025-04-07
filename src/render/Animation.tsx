@@ -61,7 +61,7 @@ export const TransformAnimation: FunctionComponent<TransformAnimationProps> = ({
     />
 );
 
-export const KeyFrameAnimation: FunctionComponent<KeyFrame & { duration: number }> = ({ time, endTime, duration }) => {
+export const KeyFrameAnimation: FunctionComponent<KeyFrame<{ duration: number }>> = ({ time, endTime, duration }) => {
     const keyTimes: KeyTime<number>[] = [{ value: 1, time }];
     if (time > 0) keyTimes.unshift({ value: 0, time: 0 });
     if (endTime < duration) keyTimes.push({ value: 0, time: endTime });

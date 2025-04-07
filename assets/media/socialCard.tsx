@@ -106,7 +106,9 @@ export default new Asset({
         let size = { width: NaN, height: NaN };
         const frame = renderToStaticMarkup(
             <SocialCard
-                ref={(s) => { size = s!; }}
+                ref={(s) => {
+                    size = s!;
+                }}
                 width={1200}
                 height={675}
                 header={header}

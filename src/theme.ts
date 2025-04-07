@@ -68,7 +68,7 @@ const nonColorThemeKeys: ThemeNonColorKeys[] = ['cursorStyle', 'cursorBlink', 'd
 export function resolveTheme(spec: Theme = {}) {
     return (Object.entries({ ...defaultTheme, ...spec }) as Entries<Theme>)
         .reduce<Record<string, any>>((acc, [k, v]) => {
-        acc[k] = nonColorThemeKeys.includes(k as ThemeNonColorKeys) ? v : resolveColor(v as RGBA | string);
-        return acc;
-    }, {}) as Required<Theme<RGBA>>;
+            acc[k] = nonColorThemeKeys.includes(k as ThemeNonColorKeys) ? v : resolveColor(v as RGBA | string);
+            return acc;
+        }, {}) as Required<Theme<RGBA>>;
 }

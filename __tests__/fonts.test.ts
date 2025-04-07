@@ -670,7 +670,7 @@ describe('embedSystemFont', () => {
         });
 
         test('wawoff2 compression error', async () => {
-            (woff2Compress as jest.Mock).mockRejectedValueOnce(new Error('woff2 compression error'));
+            jest.mocked(woff2Compress).mockRejectedValueOnce(new Error('woff2 compression error'));
             const embedded: EmbeddedFontAccumulator = { svg: [], png: null, family: [] };
             await embedSystemFont(embedded, fontData('Monaco', fontFiles.Monaco, 'abc'), true);
             expect(embedded).toStrictEqual<typeof embedded>({

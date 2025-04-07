@@ -31,6 +31,7 @@ const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Geck
  * google fonts support the variation selectors unicode block (FE00 - FE0F).
  */
 class GoogleFontCoverage extends CodePointRange {
+
     override contains(code: number) {
         const k = super.contains(code);
         // include variation selectors
@@ -97,7 +98,7 @@ export async function resolveGoogleFont(
         if (!intersection.empty()) subsets.push([ansi, intersection]);
         if (!difference.empty()) contentDifference.subsets.push([ansi, difference]);
     }
-    const variants: { [K in GoogleFontVariantID]?: GraphemeSet } = {};
+    const variants: Partial<Record<GoogleFontVariantID, GraphemeSet>> = {};
     // loop through each covered subset
     for (const [ansi, chars] of subsets) {
         let key = StyleID[ansi];

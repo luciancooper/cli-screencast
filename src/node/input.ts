@@ -2,6 +2,7 @@ import { Duplex } from 'stream';
 import keys from './keys';
 
 export default class InputStream extends Duplex {
+
     isTTY = true;
 
     isRaw = false;

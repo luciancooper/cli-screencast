@@ -47,7 +47,7 @@ async function processPng(node: MdxJsxTextElement, filePath: string) {
     // check if file exists
     try {
         await access(filePath, fsconstants.F_OK);
-    } catch (e) {
+    } catch {
         throw new Error(`File ${relative(process.cwd(), filePath)} not found`);
     }
     // read file & decode png size

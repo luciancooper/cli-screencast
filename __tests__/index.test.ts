@@ -178,12 +178,12 @@ describe('renderData', () => {
     const partial = { version: '1.0.0', ...dimensions, tabSize: 8 };
 
     test('throws validation error if data file is incomplete', async () => {
-        (readFile as jest.Mock).mockImplementationOnce(async () => JSON.stringify({ ...partial, type: 'capture' }));
+        jest.mocked(readFile).mockImplementationOnce(async () => JSON.stringify({ ...partial, type: 'capture' }));
         await expect(renderData('./invalid.json')).rejects.toThrow(/^Invalid data:/);
     });
 
     test('render screen data from local yaml file', async () => {
-        (readFile as jest.Mock).mockImplementationOnce(async () => YAML.stringify({
+        jest.mocked(readFile).mockImplementationOnce(async () => YAML.stringify({
             type: 'screen',
             ...partial,
             cursorHidden: true,

@@ -120,7 +120,7 @@ export function getFontStyle(
         subfamily = names[22] ?? subfamily;
     }
     // extract weight keyword from family name / subfamily name
-    let namedWeight: FontWeight | null = null;
+    let namedWeight: FontWeight | null;
     [family, subfamily, namedWeight] = extractKeywordValue(family, subfamily, fontWeightKeywords);
     // determine font weight
     let weight: FontWeight;
@@ -130,12 +130,12 @@ export function getFontStyle(
             : (os2.usWeightClass >= 50 && os2.usWeightClass <= 1000)
                 ? fontWeights[findClosestNormalizedValue(fontWeights, os2.usWeightClass, 400)]! : 400;
         // set regular weights to bold if OS/2 fsSelection bit 5 is set or head macStyle bit 1 is set
-        if (weight === 400 && (!!(os2 && os2.fsSelection & 0b0100000) || !!(head && head.macStyle & 0b0000001))) {
+        if (weight === 400 && ((os2 && os2.fsSelection & 0b0100000) || (head && head.macStyle & 0b0000001))) {
             weight = 700;
         }
     } else weight = namedWeight;
     // extract width keyword from family name / subfamily name
-    let namedWidth: FontWidth | null = null;
+    let namedWidth: FontWidth | null;
     [family, subfamily, namedWidth] = extractKeywordValue(family, subfamily, fontWidthKeywords);
     // determine font width
     let width: FontWidth;
@@ -154,7 +154,7 @@ export function getFontStyle(
     if (/ oblique/i.test(family)) {
         [family, oblique] = [family.replace(/ oblique/i, ''), true];
     } else if (/oblique/i.test(subfamily)) {
-        [subfamily, oblique] = [subfamily.replace(/ ?oblique/i, ''), true];
+        oblique = true;
     }
     // determine italic status from OS/2 fsSelection bit 1 or head macStyle bit 2
     let italic = !!(os2 && os2.fsSelection & 0b0000001) || !!(head && head.macStyle & 0b0000010);
@@ -162,7 +162,7 @@ export function getFontStyle(
     if (/ italic/i.test(family)) {
         [family, italic] = [family.replace(/ italic/i, ''), true];
     } else if (/italic/i.test(subfamily)) {
-        [subfamily, italic] = [subfamily.replace(/ ?italic/i, ''), true];
+        italic = true;
     }
     if (oblique) italic = false;
     // determine slant

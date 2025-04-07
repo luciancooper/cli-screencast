@@ -139,6 +139,7 @@ export function resolveEnv(envOpt: Env, extendEnv: boolean): Env {
 }
 
 class PtyRecordingStream extends RecordingStream<PtyResult> {
+
     silent: boolean;
 
     env: Env;
@@ -387,7 +388,7 @@ export function readableSpawn(command: string, args: string[], {
             promise.finally(() => {
                 clearTimeout(timeoutId);
             }),
-        ]).catch<PtyResult>((error: Error) => spawnPromise.then((result) => ({
+        ]).catch<PtyResult>(() => spawnPromise.then((result) => ({
             ...result,
             timedOut: true,
         })));

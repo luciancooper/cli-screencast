@@ -10,6 +10,7 @@ import { cmapCoverage, selectCmapRecord, type CmapEncodingRecord } from './cmap'
 import { fetchFont } from './utils';
 
 export default class FontDecoder extends FontReader {
+
     /** optional list of font family names to match */
     private readonly match: string[] | null;
 

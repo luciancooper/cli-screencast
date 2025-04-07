@@ -41,8 +41,9 @@ const DiagramLabel: FunctionComponent<DiagramLabelProps & { grid: readonly [gw: 
     color = '#eb3459',
     ...props
 }) => {
-    let shape: JSX.Element | null = null,
-        [px, py] = [NaN, NaN];
+    let shape: JSX.Element,
+        px: number,
+        py: number;
     if (props.kind === 'bar') {
         const { barPosition = 0.5, tick = 2 } = props;
         let d: string;

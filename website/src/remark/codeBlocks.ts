@@ -25,7 +25,7 @@ async function exists(absPath: string) {
     try {
         await access(absPath, fsconstants.F_OK);
         return true;
-    } catch (e) {
+    } catch {
         return false;
     }
 }

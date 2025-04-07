@@ -163,12 +163,12 @@ describe('GraphemeSet', () => {
 
         test('input strings with unique elements', () => {
             expect(GraphemeSet.from(shuffle('abcdfghijk')).string()).toBe('abcdfghijk');
-            expect(GraphemeSet.from(shuffle([...'abcdfghijk'])).string()).toBe('abcdfghijk');
+            expect(GraphemeSet.from(shuffle('abcdfghijk'.split(''))).string()).toBe('abcdfghijk');
         });
 
         test('input strings with duplicate elements', () => {
             expect(GraphemeSet.from(shuffle('aaabccdddfgghhhijjjkkk')).string()).toBe('abcdfghijk');
-            expect(GraphemeSet.from(shuffle([...'aaabccdddfgghhhijjjkkk'])).string()).toBe('abcdfghijk');
+            expect(GraphemeSet.from(shuffle('aaabccdddfgghhhijjjkkk'.split(''))).string()).toBe('abcdfghijk');
         });
     });
 

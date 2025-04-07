@@ -17,7 +17,10 @@ export default function ColorPreview({ children, color = '', ...props }: Props) 
         return children;
     }
     // parse the color
-    let [r, g, b, a] = [0, 0, 0, 1];
+    let r: number,
+        g: number,
+        b: number,
+        a = 1;
     if (!color.includes(':')) {
         let hex = color.toLowerCase();
         if (hex.length === 8) [hex, a] = [hex.slice(0, -2), parseInt(hex.slice(-2), 16) / 255];

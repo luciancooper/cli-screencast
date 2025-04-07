@@ -31,7 +31,7 @@ export type Optionalize<T> = { [K in keyof T]: undefined extends { [P in keyof T
 /**
  * Create a type from all the optional keys of `T`.
  */
-export type PickOptional<T> = { [K in keyof T as {} extends Pick<T, K> ? K : never]: T[K]; };
+export type PickOptional<T> = { [K in keyof T as undefined extends T[K] ? K : never]: T[K]; };
 
 /**
  * Create a type that represents the type of an objects `[key, value]` entry pairs.
@@ -225,7 +225,7 @@ export interface ParsedFrame extends TerminalLines {
 
 export interface ParsedScreenData extends Dimensions, ParsedFrame {}
 
-export type KeyFrame<T extends {} = {}> = T & { time: number, endTime: number };
+export type KeyFrame<T extends object = object> = T & { time: number, endTime: number };
 
 export interface ParsedCaptureData extends Dimensions {
     /**

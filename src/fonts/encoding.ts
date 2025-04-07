@@ -44,10 +44,10 @@ export function getEncoding(platformID: number, encodingID: number, languageID: 
 const macEncodings: Record<string, string> = {
     // https://encoding.spec.whatwg.org/index-macintosh.txt
     'x-mac-roman': 'ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø'
-    + '¿¡¬√ƒ≈∆«»… ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄€‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ',
+        + '¿¡¬√ƒ≈∆«»… ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄€‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ',
     // https://encoding.spec.whatwg.org/index-x-mac-cyrillic.txt
     'x-mac-cyrillic': 'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ†°Ґ£§•¶І®©™Ђђ≠Ѓѓ∞±≤≥іµґЈЄєЇїЉљЊњ'
-    + 'јЅ¬√ƒ≈∆«»… ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю€',
+        + 'јЅ¬√ƒ≈∆«»… ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю€',
 };
 
 function isAscii(byte: number) {
@@ -79,7 +79,7 @@ export function decodeString(encoding: string, buffer: Buffer, offset: number, b
     const span = buffer.subarray(offset, offset + bytes);
     try {
         return new TextDecoder(encoding).decode(span);
-    } catch (err) {
+    } catch {
         return utf16Decoder.decode(span);
     }
 }

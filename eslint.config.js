@@ -27,12 +27,8 @@ module.exports = [
                 },
             },
         },
-        rules: {
-            '@typescript-eslint/prefer-nullish-coalescing': 0,
-        },
     },
     react,
-    { rules: { 'react/require-default-props': 0 } },
     jest,
     // website config
     {

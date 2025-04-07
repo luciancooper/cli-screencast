@@ -102,11 +102,11 @@ function getPasses(interlaced: boolean): (readonly [number, number, number, numb
 }
 
 const validBitDepths: Record<ColorType, BitDepth[]> = {
-    0: [1, 2, 4, 8, 16] as BitDepth[], // grayscale
-    2: [8, 16] as BitDepth[], // rgb
-    3: [1, 2, 4, 8] as BitDepth[], // indexed
-    4: [8, 16] as BitDepth[], // greyscale + alpha
-    6: [8, 16] as BitDepth[], // rgb + alpha
+    0: [1, 2, 4, 8, 16], // grayscale
+    2: [8, 16], // rgb
+    3: [1, 2, 4, 8], // indexed
+    4: [8, 16], // greyscale + alpha
+    6: [8, 16], // rgb + alpha
 } as const;
 
 function rescaleSample(value: number, depthIn: number, depthOut: number) {
@@ -124,6 +124,7 @@ function comparePixel(a: Buffer, aidx: number, b: Buffer, bidx: number) {
 }
 
 export default class PNG {
+
     static Header = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
 
     size: Size;

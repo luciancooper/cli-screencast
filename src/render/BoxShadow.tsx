@@ -80,7 +80,6 @@ export default function createBoxShadow({
     if (blurRadius > 0) {
         primitives.push(<feGaussianBlur key='blur' stdDeviation={blurRadius} {...props}/>);
         pid += `b${blurRadius}`;
-        props = {};
     }
     // stop if no filter primitives have been added
     if (!primitives.length) return null;

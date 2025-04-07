@@ -23,14 +23,14 @@ export function pre(): Transformer {
             if (index === endIndex) {
                 // type annotation is all within the same node
                 const splitNode = headingNode.children[index] as Text,
-                    match = /\s*«(!)?([^»]*)»/.exec(splitNode.value);
+                    match = /\s*«(!)?([^»]*)»/.exec(splitNode.value)!;
                 // set hProperties field
                 headingNode.data.hProperties ||= {};
                 headingNode.data.hProperties.typeData = match[2]!;
                 headingNode.data.hProperties.required = !!match[1];
                 // remove match text
                 splitNode.value = splitNode.value.slice(0, match.index)
-                + splitNode.value.slice(match.index + match[0].length);
+                    + splitNode.value.slice(match.index + match[0].length);
                 // delete split node if it is now an empty string
                 if (!splitNode.value) headingNode.children.splice(index, 1);
             } else {
@@ -39,9 +39,9 @@ export function pre(): Transformer {
                     // node containing the closing '»'
                     endNode = headingNode.children[endIndex] as Text,
                     // first bit of the data type text
-                    startMatch = /\s*«(!)?(.*)$/.exec(startNode.value),
+                    startMatch = /\s*«(!)?(.*)$/.exec(startNode.value)!,
                     // last bit of the data type text
-                    endMatch = /^(.*?)»/.exec(endNode.value);
+                    endMatch = /^(.*?)»/.exec(endNode.value)!;
                 // remove the first bit of the data type text from the node containing the opening '«'
                 startNode.value = startNode.value.slice(0, startMatch.index);
                 // remove the last bit of the data type text from the node containing the closing '»'
@@ -66,7 +66,7 @@ export function pre(): Transformer {
     };
 }
 
-export function post() {
+export function post(): Transformer {
     return async (root) => {
         visit(root, 'heading', (headingNode: Heading) => {
             if (!(headingNode.data as { typeData?: TypeData })?.typeData) return;

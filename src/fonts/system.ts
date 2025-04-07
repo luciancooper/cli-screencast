@@ -67,7 +67,7 @@ export async function getSystemFonts({ match, fonts = [] }: Optionalize<{ match?
                 families[font.family] ||= [];
                 families[font.family]!.push(font);
             }
-        } catch (e) {
+        } catch {
             continue;
         }
     }

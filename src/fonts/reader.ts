@@ -3,6 +3,7 @@ import { decompress as wawoff2Decompress } from 'wawoff2';
 import { decodeString } from './encoding';
 
 export default class FontReader {
+
     protected filePath: string | null = null;
 
     private _handle: fs.FileHandle | null = null;
@@ -154,7 +155,7 @@ export default class FontReader {
         // get file handle for the underlying font file
         const handle = await this.handle();
         // call read on the file handle until all bytes have been read
-        for (let b = 0, bytesRead = 0; b < read_bytes; b += bytesRead) {
+        for (let b = 0, bytesRead: number; b < read_bytes; b += bytesRead) {
             ({ bytesRead } = await handle.read(buf, this.buf_bytes, read_bytes - b, read_pos + b));
             // update the count of bytes that have been read into the buffer
             this.buf_bytes += bytesRead;

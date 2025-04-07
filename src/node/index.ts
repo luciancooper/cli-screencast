@@ -121,6 +121,7 @@ export interface NodeRecordingStreamOptions
     extends TerminalOptions, CallbackOptions, Pick<CommandOptions, 'keystrokeAnimationInterval'> {}
 
 export class NodeRecordingStream<T> extends RecordingStream<T> implements NodeCapture {
+
     isTTY = true;
 
     private targetDescriptors: TargetDescriptors | null = null;

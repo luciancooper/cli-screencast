@@ -30,6 +30,7 @@ export interface CaptureOptions {
 }
 
 class CaptureStream extends Writable {
+
     private started = false;
 
     private context: Omit<CaptureData, 'writes' | 'endDelay'> | null = null;

@@ -140,7 +140,7 @@ export async function dataFromFile(file: string): Promise<FileData> {
         // read local data file
         try {
             content = (await readFile(path)).toString();
-        } catch (err) {
+        } catch {
             throw new Error(`File not found: '${file}'`);
         }
     }

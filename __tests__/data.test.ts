@@ -234,7 +234,7 @@ describe('dataFromFile', () => {
     });
 
     test('throws data validation error if file has missing data', async () => {
-        (readFile as jest.Mock).mockImplementationOnce(async () => JSON.stringify({
+        jest.mocked(readFile).mockImplementationOnce(async () => JSON.stringify({
             version: '1.0.0',
             type: 'capture',
             ...partial,
@@ -248,7 +248,7 @@ describe('dataFromFile', () => {
 
     test('parse screen data from local yml file', async () => {
         const data = { ...partial, content: 'Hello World!' };
-        (readFile as jest.Mock).mockImplementationOnce(async () => YAML.stringify(
+        jest.mocked(readFile).mockImplementationOnce(async () => YAML.stringify(
             { version: '1.0.0', type: 'screen', ...data },
         ));
         await expect(dataFromFile('./data.yml')).resolves.toMatchObject<FileData>({
