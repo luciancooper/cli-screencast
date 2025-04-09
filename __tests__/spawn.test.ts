@@ -21,13 +21,15 @@ interface MockSignalExit extends jest.Mocked<typeof signalExit> {
 
 jest.mock('signal-exit', () => {
     let queued: SignalExitHandler[] = [];
-    const mocked = Object.assign(jest.fn((callback: () => void) => {
+    const onExit = jest.fn((callback: () => void) => {
         queued.push(callback);
         return () => {
             const idx = queued.findIndex((cb) => cb === callback);
             if (idx >= 0) queued.splice(idx, 1);
         };
-    }), {
+    });
+    return {
+        onExit,
         flush(...args: Parameters<SignalExitHandler>) {
             let n = 0;
             for (; queued.length > 0; n += 1) (queued.pop()!)(...args);
@@ -40,10 +42,9 @@ jest.mock('signal-exit', () => {
         },
         reset() {
             queued = [];
-            mocked.mockClear();
+            onExit.mockClear();
         },
-    });
-    return mocked;
+    };
 });
 
 beforeAll(() => {

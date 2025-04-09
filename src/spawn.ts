@@ -2,7 +2,7 @@ import { spawn, type IPty, type IDisposable } from 'node-pty';
 import { constants } from 'os';
 import path from 'path';
 import which from 'which';
-import onExit from 'signal-exit';
+import { onExit } from 'signal-exit';
 import type { TerminalOptions } from './types';
 import RecordingStream from './source';
 import { promisifyStream, mergePromise } from './utils';
@@ -262,7 +262,7 @@ function addSignalExitHandler(promise: Promise<PtyResult>, state: PtyState, kill
         if (!state.killed) {
             // set exit code & signal
             state.exitCode ??= code ?? 1;
-            if (sig) state.signal ??= sig as NodeJS.Signals;
+            if (sig) state.signal ??= sig;
             // kill spawned shell using SIGKILL to prevent hang on unix
             kill(process.platform !== 'win32' ? 'SIGKILL' : undefined);
         }
