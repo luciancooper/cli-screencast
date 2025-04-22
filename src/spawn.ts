@@ -1,4 +1,5 @@
 import { spawn, type IPty, type IDisposable } from 'node-pty';
+import type { Socket } from 'net';
 import { constants } from 'os';
 import path from 'path';
 import which from 'which';
@@ -13,9 +14,10 @@ const signals = Object.entries(constants.signals) as (readonly [NodeJS.Signals, 
 type Env = Record<string, string | undefined>;
 
 export interface PtyResult {
-    exitCode: number
+    killed: boolean
     timedOut: boolean
-    signal?: NodeJS.Signals | number | undefined
+    exitCode: number | undefined
+    signal: NodeJS.Signals | number | undefined
 }
 
 interface PtyOptions {
@@ -39,11 +41,10 @@ interface PtyOptions {
     extendEnv?: boolean
 
     /**
-     * Windows only passed to `node-pty` concerning whether to use ConPTY over WinPTY.
-     * Added as a workaround until {@link https://github.com/microsoft/node-pty/issues/437} is resolved
+     * Windows only option passed to `node-pty` concerning whether to use ConPTY over WinPTY.
      * @defaultValue `false`
      */
-    useConpty?: boolean
+    useConpty?: boolean | undefined
 }
 
 export interface SpawnOptions extends PtyOptions {
@@ -203,7 +204,65 @@ export function resolveCommand(command: string, cwd: string, env: Env) {
     return resolved ?? command;
 }
 
-function hookStdin(handler: (chunk: Buffer) => void) {
+interface WindowsTerminal extends IPty {
+    _agent: {
+        _inSocket: Socket
+        _outSocket: Socket
+        _pty: number
+        _useConpty: boolean
+        _useConptyDll: boolean
+        _conoutSocketWorker: IDisposable
+        _getConsoleProcessList: () => Promise<number[]>
+        kill: () => void
+        _ptyNative: { kill: (ptyId: number, useConptyDll: boolean) => void }
+    }
+    _deferNoArgs: (deferredFn: () => void) => void
+    _close: () => void
+}
+
+/**
+ * This is requird to fully close the spawned pty on windows due to bugs in `node-pty`.
+ * It also promisifies the kill process so that it can be integrated into the stream promise pipeline
+ */
+function killPtyWindows(pty: WindowsTerminal): Promise<void> {
+    return new Promise<void>((resolve) => {
+        pty._deferNoArgs(() => {
+            pty._close();
+            if (!pty._agent._useConpty) {
+                // close winpty
+                pty._agent.kill();
+                // without this worker won't exit and winpty will hang
+                pty._agent._conoutSocketWorker.dispose();
+                resolve();
+                return;
+            }
+            // close conpty
+            pty._agent._inSocket.readable = false;
+            pty._agent._outSocket.readable = false;
+            pty._agent._getConsoleProcessList().then((consoleProcessList) => {
+                for (const pid of consoleProcessList) {
+                    try {
+                        process.kill(pid);
+                    } catch {} // Ignore if process cannot be found (kill ESRCH error)
+                }
+                // kill after console process list has been returned, or else conpty_console_list will always timeout
+                pty._agent._ptyNative.kill(pty._agent._pty, pty._agent._useConptyDll);
+                pty._agent._conoutSocketWorker.dispose();
+                resolve();
+            });
+        });
+    });
+}
+
+function killPty(pty: IPty, signal?: string): Promise<void> {
+    if (process.platform === 'win32') {
+        return killPtyWindows(pty as WindowsTerminal);
+    }
+    pty.kill(signal);
+    return Promise.resolve();
+}
+
+function hookStdin(handler: (chunk: Buffer) => void): IDisposable {
     // enable raw mode
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
     // add data event handler
@@ -211,66 +270,106 @@ function hookStdin(handler: (chunk: Buffer) => void) {
     // resume stdin
     process.stdin.resume();
     // return cleanup handler
-    return () => {
-        // pause stdin
-        process.stdin.pause();
-        // disable raw mode
-        if (process.stdin.isTTY) process.stdin.setRawMode(false);
-        // remove data event handler
-        process.stdin.off('data', handler);
+    return {
+        dispose() {
+            // pause stdin
+            process.stdin.pause();
+            // disable raw mode
+            if (process.stdin.isTTY) process.stdin.setRawMode(false);
+            // remove data event handler
+            process.stdin.off('data', handler);
+        },
     };
 }
 
 interface PtyState {
-    killed: boolean
-    exitCode: number | undefined
-    signal: NodeJS.Signals | number | undefined
+    closed: boolean
+    kill: Promise<void> | null
 }
 
-function createSpawnPromise(
-    spawned: IPty,
+function promisifyPty(
     stream: PtyRecordingStream,
-    dataHook: IDisposable,
+    spawned: IPty,
     state: PtyState,
-    kill: (sig?: string) => void,
+    { timeout, killSignal }: Required<Pick<SpawnOptions, 'timeout' | 'killSignal'>>,
+    dataHook: IDisposable,
+    stdinHook: IDisposable | null,
+    ac: AbortController,
 ) {
-    return new Promise<PtyResult>((resolve) => {
+    // start a promise chain
+    let promise = new Promise<PtyResult>((resolve) => {
         const exitHook = spawned.onExit((event) => {
+            // update state
+            state.closed = true;
             // dispose of hooks
             dataHook.dispose();
+            stdinHook?.dispose();
             exitHook.dispose();
-            // kill spawned process to prevent hanging on windows
-            if (!state.killed) kill();
-            // update exit code & signal
-            state.exitCode ??= event.exitCode;
-            state.signal ??= ((event.signal && signals.find(([, n]) => n === event.signal)) || [])[0] ?? event.signal;
             // finish the stream
             stream.finish();
+            // prevent hanging on windows
+            if (process.platform === 'win32') {
+                (spawned as WindowsTerminal)._agent._conoutSocketWorker.dispose();
+            }
             // resolve spawn result
             resolve({
-                exitCode: state.exitCode,
-                signal: state.signal,
+                exitCode: event.exitCode,
+                signal: ((event.signal && signals.find(([, n]) => n === event.signal)) || [])[0] ?? event.signal,
                 timedOut: false,
+                killed: false,
             });
         });
     });
-}
-
-function addSignalExitHandler(promise: Promise<PtyResult>, state: PtyState, kill: (sig?: string) => void) {
+    // setup timeout
+    if (timeout > 0) {
+        let timeoutId: NodeJS.Timeout;
+        const spawnPromise = promise;
+        // chain timeout race
+        promise = Promise.race([
+            new Promise<never>((resolve, reject) => {
+                timeoutId = setTimeout(() => {
+                    // kill the spawned process if it hasn't been closed yet
+                    if (!state.closed && !state.kill) state.kill = killPty(spawned, killSignal);
+                    // reject to end the race
+                    reject(new Error('Timed out'));
+                }, timeout);
+            }),
+            spawnPromise.finally(() => {
+                clearTimeout(timeoutId);
+            }),
+        ]).catch<PtyResult>(() => (
+            spawnPromise.then((result) => ({ ...result, timedOut: true }))
+        ));
+    }
     // add signal-exit handler
-    const cleanupExitHandler = onExit((code, sig) => {
-        if (!state.killed) {
-            // set exit code & signal
-            state.exitCode ??= code ?? 1;
-            if (sig) state.signal ??= sig;
+    const cleanupExitHandler = onExit(() => {
+        if (!state.closed && !state.kill) {
             // kill spawned shell using SIGKILL to prevent hang on unix
-            kill(process.platform !== 'win32' ? 'SIGKILL' : undefined);
+            state.kill = killPty(spawned, 'SIGKILL');
         }
     });
     // cleanup exit handler
-    return promise.finally(() => {
+    promise = promise.finally(() => {
         cleanupExitHandler();
     });
+    // handle kill promise
+    promise = promise.then((result) => {
+        if (state.kill) {
+            return state.kill.then(() => ({ ...result, killed: true }));
+        }
+        return result;
+    });
+    // merge source stream and promise chain
+    return mergePromise(stream, Promise.all([
+        // finally, set the result on the stream
+        promise.then((result) => {
+            // set the result
+            stream.setResult(result);
+            log.debug('spawned process complete: %O', result);
+        }),
+        // create stream promise to ensure 'close' event is fired
+        promisifyStream(stream, ac),
+    ]).then(() => {}));
 }
 
 export function readableSpawn(command: string, args: string[], {
@@ -334,7 +433,7 @@ export function readableSpawn(command: string, args: string[], {
             useConpty,
         }),
         // track pty state
-        state: PtyState = { killed: false, exitCode: undefined, signal: undefined };
+        state: PtyState = { closed: false, kill: null };
     // emit stream start event
     stream.start([command, ...args].join(' '));
     // attach data listener
@@ -342,70 +441,15 @@ export function readableSpawn(command: string, args: string[], {
         if (!silent) process.stdout.write(chunk);
         stream.write(chunk);
     });
-    // kill spawn handler
-    let kill = (sig?: string) => {
-        state.killed = true;
-        spawned.kill(sig);
-    };
     // connect stdin
+    let stdinHook: IDisposable | null = null;
     if (connectStdin) {
-        // hook stdin data handler
-        const cleanupStdin = hookStdin((chunk: Buffer) => {
-                spawned.write(chunk.toString());
-            }),
-            wrapped = kill;
-        // wrap kill method with cleanup handler
-        kill = (sig?: string) => {
-            // disconnect stdin
-            cleanupStdin();
-            // call wrapped kill method
-            wrapped(sig);
-        };
+        stdinHook = hookStdin((chunk: Buffer) => {
+            spawned.write(chunk.toString());
+        });
     }
-    // create spawn promise
-    const spawnPromise = createSpawnPromise(spawned, stream, dataHook, state, kill);
-    // start a promise chain
-    let promise = spawnPromise;
-    // setup timeout
-    if (timeout > 0) {
-        let timeoutId: NodeJS.Timeout;
-        // chain timeout race
-        promise = Promise.race([
-            new Promise<never>((resolve, reject) => {
-                timeoutId = setTimeout(() => {
-                    // kill the spawned process
-                    if (!state.killed) {
-                        // set exit code & signal
-                        state.exitCode = 1;
-                        state.signal = killSignal;
-                        // kill spawned process
-                        kill(process.platform !== 'win32' ? killSignal : undefined);
-                    }
-                    // reject to end the race
-                    reject(new Error('Timed out'));
-                }, timeout);
-            }),
-            promise.finally(() => {
-                clearTimeout(timeoutId);
-            }),
-        ]).catch<PtyResult>(() => spawnPromise.then((result) => ({
-            ...result,
-            timedOut: true,
-        })));
-    }
-    // add signal-exit handler
-    promise = addSignalExitHandler(promise, state, kill);
-    // merge source stream and promise chain
-    return mergePromise(stream, Promise.all([
-        // finally, set the result on the stream
-        promise.then((result) => {
-            // set the result
-            stream.setResult(result);
-            log.debug('spawned process complete: %O', result);
-        }),
-        // create stream promise to ensure 'close' event is fired
-        promisifyStream(stream, ac),
-    ]).then(() => {}));
+    // promisify spawned pty
+    return promisifyPty(stream, spawned, state, { timeout, killSignal }, dataHook, stdinHook, ac);
 }
 
 export function readableShell({
@@ -435,61 +479,35 @@ export function readableShell({
             useConpty,
         }),
         // track pty state
-        state: PtyState & { interrupted: boolean } = {
-            killed: false,
-            interrupted: false, // tracks if Ctrl-D has been recieved
-            exitCode: undefined,
-            signal: undefined,
-        };
+        state: PtyState = { closed: false, kill: null };
     // indicate start of the capture
     process.stdout.write(PtyRecordingStream.kCaptureStartLine);
     // emit stream start event
     stream.start();
     // attach data listener
     const dataHook = spawned.onData((chunk: string) => {
-        if (!state.interrupted) {
-            process.stdout.write(chunk);
-            stream.write(chunk);
-        }
+        process.stdout.write(chunk);
+        stream.write(chunk);
     });
-    // kill method
-    let kill: (sig?: string) => void;
+    // track if Ctrl-D has been recieved
+    let interrupted = false;
     // connect stdin
-    const cleanupStdin = hookStdin((chunk: Buffer) => {
+    const stdinHook = hookStdin((chunk: Buffer) => {
         const str = chunk.toString();
         // check for EOT control code (ctrl-D)
         if (str.includes('\x04')) {
+            // stop if stream has already been interupted
+            if (interrupted) return;
+            // set interrupted flag
+            interrupted = true;
             // finish the stream
             stream.finish();
-            // set interrupted flag
-            state.interrupted = true;
+            // remove data hook
+            dataHook.dispose();
             // kill the process if it has not been killed yet
-            if (!state.killed) {
-                kill(process.platform !== 'win32' ? 'SIGKILL' : undefined);
-            }
+            if (!state.closed && !state.kill) state.kill = killPty(spawned, 'SIGKILL');
         } else spawned.write(str);
     });
-    // kill spawn handler
-    kill = (sig?: string) => {
-        // disconnect stdin
-        cleanupStdin();
-        // kill the spawn
-        state.killed = true;
-        spawned.kill(sig);
-    };
-    // create spawn promise chain
-    let promise = createSpawnPromise(spawned, stream, dataHook, state, kill);
-    // add signal-exit handler
-    promise = addSignalExitHandler(promise, state, kill);
-    // merge source stream and promise chain
-    return mergePromise(stream, Promise.all([
-        // finally, set the result on the stream
-        promise.then((result) => {
-            // set stream result
-            stream.setResult(result);
-            log.debug('shell process complete: %O', result);
-        }),
-        // create stream promise to ensure 'close' event is fired
-        promisifyStream(stream, ac),
-    ]).then(() => {}));
+    // create promise chain
+    return promisifyPty(stream, spawned, state, { timeout: 0, killSignal: 'SIGTERM' }, dataHook, stdinHook, ac);
 }
