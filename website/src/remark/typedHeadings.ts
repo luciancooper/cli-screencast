@@ -5,6 +5,7 @@ import { visit } from 'unist-util-visit';
 interface TypeData {
     nodes: PhrasingContent[]
     required: boolean
+    windowsOnly: boolean
 }
 
 export function pre(): Transformer {
@@ -28,9 +29,14 @@ export function pre(): Transformer {
                 headingNode.data.hProperties ||= {};
                 headingNode.data.hProperties.typeData = match[2]!;
                 headingNode.data.hProperties.required = !!match[1];
-                // remove match text
-                splitNode.value = splitNode.value.slice(0, match.index)
-                    + splitNode.value.slice(match.index + match[0].length);
+                // split remaining node text
+                let start = splitNode.value.slice(0, match.index);
+                // check for !windows flag
+                const windowsOnly = /!windows(?= *$)/i.test(start);
+                headingNode.data.hProperties.windowsOnly = windowsOnly;
+                if (windowsOnly) start = start.replace(/!windows(?= *$)/i, '');
+                // update split node text
+                splitNode.value = start + splitNode.value.slice(match.index + match[0].length);
                 // delete split node if it is now an empty string
                 if (!splitNode.value) headingNode.children.splice(index, 1);
             } else {
@@ -44,6 +50,9 @@ export function pre(): Transformer {
                     endMatch = /^(.*?)»/.exec(endNode.value)!;
                 // remove the first bit of the data type text from the node containing the opening '«'
                 startNode.value = startNode.value.slice(0, startMatch.index);
+                // check for !windows flag
+                const windowsOnly = /!windows(?= *$)/i.test(startNode.value);
+                if (windowsOnly) startNode.value = startNode.value.replace(/!windows(?= *$)/i, '');
                 // remove the last bit of the data type text from the node containing the closing '»'
                 endNode.value = endNode.value.slice(endMatch[0].length);
                 // remove all nodes between the opening '«' node and the closing '»' node
@@ -60,6 +69,7 @@ export function pre(): Transformer {
                 (headingNode.data as { typeData: TypeData }).typeData = {
                     nodes: typeNodes,
                     required: !!startMatch[1],
+                    windowsOnly,
                 };
             }
         });
@@ -71,14 +81,17 @@ export function post(): Transformer {
         visit(root, 'heading', (headingNode: Heading) => {
             if (!(headingNode.data as { typeData?: TypeData })?.typeData) return;
             // remove the typeData field from the headingNode's data object
-            const { typeData: { nodes, required }, ...data } = (headingNode.data as { typeData: TypeData });
+            const {
+                typeData: { nodes, required, windowsOnly },
+                ...data
+            } = (headingNode.data as { typeData: TypeData });
             headingNode.data = data;
             // add a mdxHeaderTypeData node
             const complexTypeNode = {
                 type: 'mdxHeaderTypeData',
                 data: {
                     hName: 'mdxHeaderTypeData',
-                    hProperties: { required },
+                    hProperties: { required, windowsOnly },
                 },
                 children: nodes,
             };

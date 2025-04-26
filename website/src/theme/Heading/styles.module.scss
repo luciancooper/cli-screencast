@@ -10,6 +10,23 @@
     scroll-margin-top: 0.5rem;
 }
 
+.windowsOnlyBadge {
+    --ifm-badge-background-color: var(--ifm-color-secondary);
+    --ifm-badge-border-color: var(--ifm-badge-background-color);
+    --ifm-badge-color: var(--ifm-color-black);
+    user-select: none;
+    margin-left: 0.5rem;
+    display: inline-flex;
+
+    &::before {
+        content: '';
+        width: 1em;
+        height: 1em;
+        margin-right: 0.3rem;
+        background-image: url('./windows.svg');
+    }
+}
+
 :global(.hash-link) {
     opacity: 0;
     padding-left: 0.5rem;

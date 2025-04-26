@@ -113,6 +113,10 @@ The maximum amount of time the process is allowed to run in milliseconds. If gre
 
 The signal to be used when the spawned process is killed by `timeout`. Default is `'SIGTERM'`.
 
+#### useConpty!windows «`boolean`» {#useConpty}
+
+Option passed to [`node-pty`](https://github.com/microsoft/node-pty) concerning whether to use [ConPTY](https://devblogs.microsoft.com/commandline/windows-command-line-introducing-the-windows-pseudo-console-conpty/) over [winpty](https://github.com/rprichard/winpty). If set to `undefined`, ConPTY will be used over winpty when the Windows build number is >= 18309. Defaults to `false`.
+
 ## Usage
 
 ### Capturing a command

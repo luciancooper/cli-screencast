@@ -83,6 +83,10 @@ Environment key-value pairs to be set for the shell process. Automatically exten
 
 The shell process environment extends from `process.env`. Defaults to `true`.
 
+#### useConpty!windows «`boolean`» {#useConpty}
+
+Option passed to [`node-pty`](https://github.com/microsoft/node-pty) concerning whether to use [ConPTY](https://devblogs.microsoft.com/commandline/windows-command-line-introducing-the-windows-pseudo-console-conpty/) over [winpty](https://github.com/rprichard/winpty). If set to `undefined`, ConPTY will be used over winpty when the Windows build number is >= 18309. Defaults to `false`.
+
 ## Usage
 
 Here is a basic example of a script that spawns and captures a new shell process. It will run powershell on windows or zsh in unix like environments, and the shell will start from the user's home directory. The rendered screencast svg is written to a file called `capture.svg` in the current working directory using the [`outputPath`](options.md#outputPath) option.

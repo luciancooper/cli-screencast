@@ -10,6 +10,7 @@ import styles from './styles.module.scss';
 interface ExtendedProps extends Props {
     typeData?: ReactNode
     required?: boolean
+    windowsOnly?: boolean
 }
 
 function HeadingContent({
@@ -17,6 +18,7 @@ function HeadingContent({
     id,
     typeData,
     required,
+    windowsOnly,
     children,
     ...props
 }: ExtendedProps): JSX.Element {
@@ -24,13 +26,17 @@ function HeadingContent({
         { navbar: { hideOnScroll } } = useThemeConfig();
     // create class name
     let className = clsx({ 'typed-header': !!typeData }, props.className);
+    // windows only badge
+    const windowsBadge = windowsOnly ? (
+        <span className={clsx('badge', styles.windowsOnlyBadge)}>Windows Only</span>
+    ) : null;
     // H1 headings do not need an id because they don't appear in the TOC.
     if (As === 'h1' || !id) {
         return (
             <As {...props} className={className || undefined} id={undefined}>
                 {typeData ? (
                     <>
-                        <span>{children}</span>
+                        <span>{children}{windowsBadge}</span>
                         <span className={clsx('type-data', { required })}>{typeData}</span>
                     </>
                 ) : children}
@@ -57,7 +63,7 @@ function HeadingContent({
         <As {...props} className={className} id={id}>
             {typeData ? (
                 <>
-                    <span>{children}{link}</span>
+                    <span>{children}{windowsBadge}{link}</span>
                     <span className={clsx('type-data', { required })}>{typeData}</span>
                 </>
             ) : <>{children}{link}</>}
@@ -68,6 +74,7 @@ function HeadingContent({
 interface MdxHeaderTypeData {
     nodes: ReactNode
     required: boolean
+    windowsOnly: boolean
 }
 
 // Workaround because it's difficult in MDX v1 to provide a MDX title as props
@@ -79,9 +86,13 @@ function extractHeaderTypeData(children: ReactNode): { mdxTypeData: MdxHeaderTyp
     if (typeIndex < 0) return { mdxTypeData: undefined, rest: children };
     // extract mdxHeaderTypeData from children
     const mdxHeaderWrapper = items.splice(typeIndex, 1)[0] as JSX.Element,
-        { children: nodes, required = false } = mdxHeaderWrapper.props as { children: ReactNode, required?: boolean };
+        {
+            children: nodes,
+            required = false,
+            windowsOnly = false,
+        } = mdxHeaderWrapper.props as { children: ReactNode, required?: boolean, windowsOnly?: boolean };
     return {
-        mdxTypeData: { nodes, required },
+        mdxTypeData: { nodes, required, windowsOnly },
         rest: items.length > 0 ? <>{items}</> : null,
     };
 }
@@ -89,11 +100,13 @@ function extractHeaderTypeData(children: ReactNode): { mdxTypeData: MdxHeaderTyp
 function processHeadingProps(props: ExtendedProps): ExtendedProps {
     const { mdxTypeData, rest } = extractHeaderTypeData(props.children),
         typeData = props.typeData ?? mdxTypeData?.nodes,
-        required = props.required ?? mdxTypeData?.required;
+        required = props.required ?? mdxTypeData?.required,
+        windowsOnly = props.windowsOnly ?? mdxTypeData?.windowsOnly;
     return {
         ...props,
         ...(typeData && { typeData }),
         ...(typeof required === 'boolean' && { required }),
+        ...(typeof windowsOnly === 'boolean' && { windowsOnly }),
         children: rest,
     };
 }
