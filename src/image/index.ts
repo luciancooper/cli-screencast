@@ -27,8 +27,8 @@ async function createImageRenderer(size: Size, deviceScaleFactor: number) {
         // load svg content
         await page.setContent(html);
         // render screenshot
-        const buffer = await page.screenshot({ type: 'png', omitBackground: true });
-        return buffer;
+        const typedArray = await page.screenshot({ type: 'png', omitBackground: true });
+        return Buffer.from(typedArray);
     };
     render.close = async () => {
         // close browser
