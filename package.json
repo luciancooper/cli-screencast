@@ -70,7 +70,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "signal-exit": "^4.1.0",
-    "system-font-paths": "^1.2.0",
+    "system-font-paths": "^1.2.1",
     "tty-strings": "^1.5.2",
     "wawoff2": "^2.0.1",
     "which": "^5.0.0",
