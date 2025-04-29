@@ -12,6 +12,7 @@
     "declaration": true,
     "outDir": "lib",
     "sourceMap": true,
+    "declarationMap": true,
     "isolatedModules": true,
     "strict": true,
     "exactOptionalPropertyTypes": true,
