@@ -9,6 +9,9 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/cli-screencast">
+    <img src="https://img.shields.io/npm/v/cli-screencast?logo=npm&style=for-the-badge" alt="npm">
+  </a>
   <a href="https://github.com/luciancooper/cli-screencast/actions/workflows/ci.yml">
     <img src="https://img.shields.io/github/actions/workflow/status/luciancooper/cli-screencast/ci.yml?logo=github&style=for-the-badge" alt="ci">
   </a>
